@@ -2,7 +2,7 @@ APP := classgo
 BIN := bin/$(APP)
 PID_FILE := bin/.pid
 
-.PHONY: help tidy build build-all start stop
+.PHONY: help tidy build build-all test start stop
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -11,6 +11,9 @@ tidy: ## Run fmt, vet, and mod tidy
 	go fmt ./...
 	go vet ./...
 	go mod tidy
+
+test: ## Run tests
+	go test -v -count=1 ./...
 
 build: tidy ## Build binary to bin/
 	@mkdir -p bin

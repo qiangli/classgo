@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
+    <div class="max-w-5xl mx-auto p-6">
         <header class="text-center mb-8">
             <div class="flex items-center justify-center gap-3">
                 <img src="/static/logo.svg" alt="Logo" class="w-10 h-10">
@@ -28,12 +28,12 @@
             <!-- QR Code Card -->
             <div class="bg-white rounded-2xl shadow p-6 text-center">
                 <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Sign In</h2>
-                {{if .QRDataURI}}
-                <img src="{{.QRDataURI}}" alt="QR Code" class="mx-auto mt-2 w-48 h-48">
-                {{else}}
-                <p class="text-gray-400 mt-4">QR code unavailable</p>
-                {{end}}
-                <p class="text-xs text-gray-400 mt-2 break-all">{{.ServerURL}}</p>
+                <img id="qr-img" src="{{.QRDataURIMDNS}}" alt="QR Code"
+                    class="mx-auto mt-2 w-48 h-48 cursor-pointer" title="Tap to toggle IP/mDNS"
+                    onclick="toggleQR()"
+                    data-qr-mdns="{{.QRDataURIMDNS}}" data-qr-ip="{{.QRDataURIIP}}">
+                <p id="qr-url" class="text-xs text-gray-400 mt-2 break-all">{{.ServerURLMDNS}}</p>
+                <p class="text-xs text-gray-300 mt-1 cursor-pointer select-none" onclick="toggleQR()">tap QR to switch</p>
             </div>
         </div>
 
@@ -53,25 +53,25 @@
                 <table class="w-full text-left">
                     <thead>
                         <tr class="border-b text-sm text-gray-400">
-                            <th class="py-2 px-3">#</th>
-                            <th class="py-2 px-3">Student ID</th>
                             <th class="py-2 px-3">Name</th>
                             <th class="py-2 px-3">Device</th>
-                            <th class="py-2 px-3">Time</th>
+                            <th class="py-2 px-3">Sign In</th>
+                            <th class="py-2 px-3">Sign Out</th>
+                            <th class="py-2 px-3">Duration</th>
                         </tr>
                     </thead>
                     <tbody id="attendee-list">
                         {{range $i, $a := .Attendees}}
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="py-2 px-3 text-gray-400">{{$a.ID}}</td>
-                            <td class="py-2 px-3 font-mono text-sm">{{$a.StudentID}}</td>
                             <td class="py-2 px-3 font-medium">{{$a.StudentName}}</td>
                             <td class="py-2 px-3">
                                 <span class="text-xs px-2 py-1 rounded-full {{if eq $a.DeviceType "mobile"}}bg-blue-100 text-blue-600{{else}}bg-purple-100 text-purple-600{{end}}">
                                     {{$a.DeviceType}}
                                 </span>
                             </td>
-                            <td class="py-2 px-3 text-sm text-gray-500">{{$a.Timestamp.Format "3:04 PM"}}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">{{$a.SignInTime.Format "3:04 PM"}}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">{{if $a.SignOutTime}}{{$a.SignOutTime.Format "3:04 PM"}}{{else}}<span class="text-green-500">active</span>{{end}}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">{{if $a.Duration}}{{$a.Duration}}{{else}}—{{end}}</td>
                         </tr>
                         {{end}}
                     </tbody>
@@ -84,6 +84,23 @@
     </div>
 
     <script>
+        let qrShowingMDNS = true;
+        const qrURLMDNS = "{{.ServerURLMDNS}}";
+        const qrURLIP = "{{.ServerURLIP}}";
+
+        function toggleQR() {
+            const img = document.getElementById('qr-img');
+            const urlEl = document.getElementById('qr-url');
+            qrShowingMDNS = !qrShowingMDNS;
+            if (qrShowingMDNS) {
+                img.src = img.dataset.qrMdns;
+                urlEl.textContent = qrURLMDNS;
+            } else {
+                img.src = img.dataset.qrIp;
+                urlEl.textContent = qrURLIP;
+            }
+        }
+
         function refreshAttendees() {
             fetch('/api/attendees')
                 .then(r => r.json())
@@ -109,17 +126,22 @@
                     if (emptyMsg) emptyMsg.remove();
 
                     tbody.innerHTML = attendees.map(a => {
-                        const ts = new Date(a.timestamp);
-                        const time = ts.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+                        const signInStr = a.sign_in_time;
+                        let signOutStr = '<span class="text-green-500">active</span>';
+                        let durationStr = '—';
+                        if (a.sign_out_time) {
+                            signOutStr = a.sign_out_time;
+                            durationStr = a.duration;
+                        }
                         const badge = a.device_type === 'mobile'
                             ? 'bg-blue-100 text-blue-600'
                             : 'bg-purple-100 text-purple-600';
                         return `<tr class="border-b hover:bg-gray-50">
-                            <td class="py-2 px-3 text-gray-400">${a.id}</td>
-                            <td class="py-2 px-3 font-mono text-sm">${a.student_id}</td>
                             <td class="py-2 px-3 font-medium">${a.student_name}</td>
                             <td class="py-2 px-3"><span class="text-xs px-2 py-1 rounded-full ${badge}">${a.device_type}</span></td>
-                            <td class="py-2 px-3 text-sm text-gray-500">${time}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">${signInStr}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">${signOutStr}</td>
+                            <td class="py-2 px-3 text-sm text-gray-500">${durationStr}</td>
                         </tr>`;
                     }).join('');
                 })

@@ -28,12 +28,16 @@
         <!-- Confirmation Card (shown after sign-in) -->
         <div id="confirmed-card" class="hidden bg-white rounded-2xl shadow-lg p-6 mb-4">
             <div class="text-center">
-                <div class="text-green-500 text-6xl mb-3">&#10003;</div>
+                <div id="confirmed-icon" class="text-green-500 text-6xl mb-3">&#10003;</div>
                 <p id="confirmed-name" class="text-2xl font-bold text-gray-800"></p>
                 <p id="confirmed-status" class="text-green-600 mt-1">Signed in!</p>
             </div>
+            <button id="signout-btn" onclick="doSignOut()"
+                class="w-full mt-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition">
+                Sign Out
+            </button>
             <button id="twistie-btn" onclick="toggleForm()"
-                class="w-full mt-4 py-2 text-sm text-gray-400 hover:text-gray-600 transition flex items-center justify-center gap-1">
+                class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition flex items-center justify-center gap-1">
                 <span id="twistie-arrow" class="inline-block transition-transform duration-200">&#9656;</span>
                 Sign in again
             </button>
@@ -44,13 +48,6 @@
             <div id="message" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
 
             <form id="signin-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Student ID</label>
-                    <input type="text" id="student-id" required autocomplete="off"
-                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                        placeholder="e.g. S001">
-                </div>
-
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Your Name</label>
                     <input type="text" id="student-name" required autocomplete="off"
@@ -80,7 +77,6 @@
 
     <script>
         const form = document.getElementById('signin-form');
-        const studentIdInput = document.getElementById('student-id');
         const studentNameInput = document.getElementById('student-name');
         const pinInput = document.getElementById('pin');
         const rememberMe = document.getElementById('remember-me');
@@ -89,6 +85,7 @@
         const signinCard = document.getElementById('signin-card');
         const confirmedCard = document.getElementById('confirmed-card');
         const twistieArrow = document.getElementById('twistie-arrow');
+        const signoutBtn = document.getElementById('signout-btn');
 
         let formExpanded = false;
 
@@ -96,31 +93,39 @@
         const saved = localStorage.getItem('classgo_student');
         if (saved) {
             const data = JSON.parse(saved);
-            studentIdInput.value = data.id || '';
             studentNameInput.value = data.name || '';
             rememberMe.checked = true;
 
-            // Check if already signed in today
-            if (data.id) {
-                checkStatus(data.id);
+            if (data.name) {
+                checkStatus(data.name);
             }
         }
 
-        async function checkStatus(studentId) {
+        async function checkStatus(name) {
             try {
-                const res = await fetch('/api/status?student_id=' + encodeURIComponent(studentId));
+                const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
                 const data = await res.json();
                 if (data.signed_in) {
-                    showConfirmation(data.student_name, true);
+                    showConfirmation(name, true, data.signed_out);
                 }
             } catch (err) {
                 // Status check failed — just show the form
             }
         }
 
-        function showConfirmation(name, alreadySignedIn) {
+        function showConfirmation(name, alreadySignedIn, signedOut) {
             document.getElementById('confirmed-name').textContent = name;
-            document.getElementById('confirmed-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+            if (signedOut) {
+                document.getElementById('confirmed-icon').innerHTML = '&#128075;';
+                document.getElementById('confirmed-status').textContent = 'Signed out!';
+                document.getElementById('confirmed-status').className = 'text-gray-500 mt-1';
+                signoutBtn.classList.add('hidden');
+            } else {
+                document.getElementById('confirmed-icon').innerHTML = '&#10003;';
+                document.getElementById('confirmed-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+                document.getElementById('confirmed-status').className = 'text-green-600 mt-1';
+                signoutBtn.classList.remove('hidden');
+            }
             confirmedCard.classList.remove('hidden');
             signinCard.classList.add('hidden');
             formExpanded = false;
@@ -152,8 +157,30 @@
 
             setTimeout(() => {
                 overlay.classList.add('hidden');
-                showConfirmation(name, alreadySignedIn);
+                showConfirmation(name, alreadySignedIn, false);
             }, 3000);
+        }
+
+        async function doSignOut() {
+            const name = document.getElementById('confirmed-name').textContent;
+            const pin = prompt('Enter PIN to sign out:');
+            if (!pin) return;
+
+            try {
+                const res = await fetch('/api/signout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_name: name, pin: pin })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showConfirmation(name, false, true);
+                } else {
+                    alert(data.error || 'Sign out failed');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
         }
 
         form.addEventListener('submit', async (e) => {
@@ -167,7 +194,6 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        student_id: studentIdInput.value.trim(),
                         student_name: studentNameInput.value.trim(),
                         pin: pinInput.value.trim(),
                         device_type: 'mobile'
@@ -183,7 +209,6 @@
 
                     if (rememberMe.checked) {
                         localStorage.setItem('classgo_student', JSON.stringify({
-                            id: studentIdInput.value.trim(),
                             name: studentNameInput.value.trim()
                         }));
                     } else {

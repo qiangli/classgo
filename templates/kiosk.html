@@ -11,45 +11,63 @@
 
     <!-- Success Overlay -->
     <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50">
-        <div class="text-white text-8xl mb-4">&#10003;</div>
-        <p id="success-name" class="text-white text-4xl font-bold"></p>
-        <p class="text-green-100 text-xl mt-2">Signed in!</p>
+        <div class="text-white" style="font-size:10rem">&#10003;</div>
+        <p id="success-name" class="text-white text-6xl font-bold mt-4"></p>
+        <p id="success-status" class="text-green-100 text-3xl mt-3">Signed in!</p>
+    </div>
+
+    <!-- Sign-Out Success Overlay -->
+    <div id="signout-overlay" class="hidden fixed inset-0 bg-orange-500 flex flex-col items-center justify-center z-50">
+        <div class="text-white" style="font-size:10rem">&#128075;</div>
+        <p id="signout-name" class="text-white text-6xl font-bold mt-4"></p>
+        <p class="text-orange-100 text-3xl mt-3">Signed out!</p>
     </div>
 
     <!-- Main Kiosk UI -->
-    <div class="w-full max-w-md p-6">
-        <div class="flex items-center justify-between mb-6">
+    <div class="w-full max-w-2xl p-8">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
             <div class="text-left">
-                <div class="flex items-center gap-3">
-                    <img src="/static/logo.svg" alt="Logo" class="w-10 h-10 invert">
-                    <h1 class="text-4xl font-bold text-white">{{.AppName}}</h1>
+                <div class="flex items-center gap-4">
+                    <img src="/static/logo.svg" alt="Logo" class="w-16 h-16 invert">
+                    <h1 class="text-6xl font-bold text-white">{{.AppName}}</h1>
                 </div>
-                <p id="step-label" class="text-gray-400 mt-2 text-lg">Enter your Student ID</p>
+                <p id="step-label" class="text-gray-400 mt-3 text-2xl">Enter your name</p>
             </div>
-            {{if .QRDataURI}}
-            <img src="{{.QRDataURI}}" alt="QR Code" class="w-32 h-32 rounded-lg">
-            {{end}}
+            <div class="text-center">
+                <img id="qr-img" src="{{.QRDataURIMDNS}}" alt="QR Code"
+                    class="w-44 h-44 rounded-xl cursor-pointer" title="Tap to toggle IP/mDNS"
+                    onclick="toggleQR()"
+                    data-qr-mdns="{{.QRDataURIMDNS}}" data-qr-ip="{{.QRDataURIIP}}">
+                <p id="qr-url" class="text-xs text-gray-500 mt-1 break-all">{{.ServerURLMDNS}}</p>
+            </div>
         </div>
 
         <!-- Display -->
-        <div class="bg-gray-800 rounded-2xl p-6 mb-6 text-center">
-            <p id="display" class="text-5xl font-mono text-white tracking-widest min-h-[3.5rem]">&nbsp;</p>
-            <div id="error-msg" class="hidden text-red-400 text-sm mt-2"></div>
+        <div class="bg-gray-800 rounded-2xl p-8 mb-8 text-center">
+            <p id="display" class="text-6xl font-mono text-white tracking-widest min-h-[4.5rem]">&nbsp;</p>
+            <div id="error-msg" class="hidden text-red-400 text-lg mt-3"></div>
         </div>
 
-        <!-- Name Input (shown after student ID step) -->
-        <div id="name-step" class="hidden mb-6">
+        <!-- Name Input (first step) -->
+        <div id="name-step" class="mb-8">
             <input type="text" id="name-input"
-                class="w-full px-4 py-4 bg-gray-800 text-white text-xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
+                class="w-full px-6 py-5 bg-gray-800 text-white text-2xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
                 placeholder="Type your name">
-            <button onclick="confirmName()"
-                class="w-full mt-3 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-bold rounded-2xl transition">
-                Next
-            </button>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <button onclick="startSignIn()"
+                    class="py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-2xl font-bold rounded-2xl transition">
+                    Sign In
+                </button>
+                <button onclick="startSignOut()"
+                    class="py-5 bg-orange-500 hover:bg-orange-600 text-white text-2xl font-bold rounded-2xl transition">
+                    Sign Out
+                </button>
+            </div>
         </div>
 
-        <!-- Keypad -->
-        <div id="keypad" class="grid grid-cols-3 gap-2">
+        <!-- Keypad (for PIN entry) -->
+        <div id="keypad" class="hidden grid grid-cols-3 gap-3">
             <button onclick="press('1')" class="kbtn">1</button>
             <button onclick="press('2')" class="kbtn">2</button>
             <button onclick="press('3')" class="kbtn">3</button>
@@ -61,14 +79,14 @@
             <button onclick="press('9')" class="kbtn">9</button>
             <button onclick="backspace()" class="kbtn bg-gray-700 text-gray-300">&#9003;</button>
             <button onclick="press('0')" class="kbtn">0</button>
-            <button onclick="submit()" id="submit-btn" class="kbtn bg-indigo-600 text-white hover:bg-indigo-700">&#10148;</button>
+            <button onclick="submitPIN()" id="submit-btn" class="kbtn bg-indigo-600 text-white hover:bg-indigo-700">&#10148;</button>
         </div>
     </div>
 
     <style>
         .kbtn {
-            padding: 0.875rem;
-            font-size: 1.5rem;
+            padding: 1.25rem;
+            font-size: 2rem;
             font-weight: 700;
             background: #374151;
             color: #e5e7eb;
@@ -85,8 +103,24 @@
     </style>
 
     <script>
-        let step = 'id'; // 'id' -> 'name' -> 'pin'
-        let studentId = '';
+        let qrShowingMDNS = true;
+        const qrURLMDNS = "{{.ServerURLMDNS}}";
+        const qrURLIP = "{{.ServerURLIP}}";
+
+        function toggleQR() {
+            const img = document.getElementById('qr-img');
+            const urlEl = document.getElementById('qr-url');
+            qrShowingMDNS = !qrShowingMDNS;
+            if (qrShowingMDNS) {
+                img.src = img.dataset.qrMdns;
+                urlEl.textContent = qrURLMDNS;
+            } else {
+                img.src = img.dataset.qrIp;
+                urlEl.textContent = qrURLIP;
+            }
+        }
+
+        let mode = ''; // 'signin' or 'signout'
         let studentName = '';
         let currentInput = '';
 
@@ -98,11 +132,7 @@
         const nameInput = document.getElementById('name-input');
 
         function updateDisplay() {
-            if (step === 'pin') {
-                display.textContent = currentInput.replace(/./g, '\u2022') || '\u00A0';
-            } else {
-                display.textContent = currentInput || '\u00A0';
-            }
+            display.textContent = currentInput.replace(/./g, '\u2022') || '\u00A0';
         }
 
         function showError(msg) {
@@ -111,56 +141,67 @@
             setTimeout(() => errorMsg.classList.add('hidden'), 3000);
         }
 
-        function press(digit) {
-            if (step === 'name') return;
-            if (step === 'id' && currentInput.length >= 10) return;
-            if (step === 'pin' && currentInput.length >= 4) return;
-            currentInput += digit;
-            updateDisplay();
-        }
-
-        function backspace() {
-            if (step === 'name') return;
-            currentInput = currentInput.slice(0, -1);
-            updateDisplay();
-        }
-
-        function submit() {
-            if (step === 'id') {
-                if (currentInput.length === 0) return;
-                studentId = currentInput;
-                currentInput = '';
-                step = 'name';
-                stepLabel.textContent = 'Enter your name';
-                display.textContent = '\u00A0';
-                keypad.classList.add('hidden');
-                nameStep.classList.remove('hidden');
-                nameInput.value = '';
-                nameInput.focus();
-            } else if (step === 'pin') {
-                if (currentInput.length !== 4) {
-                    showError('PIN must be 4 digits');
-                    return;
-                }
-                doSignIn();
-            }
-        }
-
-        function confirmName() {
+        function startSignIn() {
             const name = nameInput.value.trim();
             if (!name) return;
             studentName = name;
+            mode = 'signin';
             currentInput = '';
-            step = 'pin';
-            stepLabel.textContent = 'Enter PIN';
+            stepLabel.textContent = 'Enter PIN to sign in';
             nameStep.classList.add('hidden');
             keypad.classList.remove('hidden');
             updateDisplay();
         }
 
+        async function startSignOut() {
+            const name = nameInput.value.trim();
+            if (!name) return;
+            try {
+                const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
+                const data = await res.json();
+                if (!data.signed_in || data.signed_out) {
+                    showError(name + ' is not signed in');
+                    return;
+                }
+            } catch (err) {
+                showError('Connection error');
+                return;
+            }
+            studentName = name;
+            mode = 'signout';
+            currentInput = '';
+            stepLabel.textContent = 'Enter PIN to sign out';
+            nameStep.classList.add('hidden');
+            keypad.classList.remove('hidden');
+            updateDisplay();
+        }
+
+        function press(digit) {
+            if (currentInput.length >= 4) return;
+            currentInput += digit;
+            updateDisplay();
+        }
+
+        function backspace() {
+            currentInput = currentInput.slice(0, -1);
+            updateDisplay();
+        }
+
+        function submitPIN() {
+            if (currentInput.length !== 4) {
+                showError('PIN must be 4 digits');
+                return;
+            }
+            if (mode === 'signin') {
+                doSignIn();
+            } else {
+                doSignOut();
+            }
+        }
+
         // Allow Enter key in name input
         nameInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') confirmName();
+            if (e.key === 'Enter') startSignIn();
         });
 
         async function doSignIn() {
@@ -169,7 +210,6 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        student_id: studentId,
                         student_name: studentName,
                         pin: currentInput,
                         device_type: 'kiosk'
@@ -192,11 +232,47 @@
             }
         }
 
+        async function doSignOut() {
+            try {
+                const res = await fetch('/api/signout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        student_name: studentName,
+                        pin: currentInput
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.ok) {
+                    showSignOutSuccess(studentName);
+                } else {
+                    showError(data.error || 'Sign out failed');
+                    currentInput = '';
+                    updateDisplay();
+                }
+            } catch (err) {
+                showError('Connection error');
+                currentInput = '';
+                updateDisplay();
+            }
+        }
+
         function showSuccess(name) {
             const overlay = document.getElementById('success-overlay');
             document.getElementById('success-name').textContent = name;
             overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                resetKiosk();
+            }, 3000);
+        }
 
+        function showSignOutSuccess(name) {
+            const overlay = document.getElementById('signout-overlay');
+            document.getElementById('signout-name').textContent = name;
+            overlay.classList.remove('hidden');
             setTimeout(() => {
                 overlay.classList.add('hidden');
                 resetKiosk();
@@ -204,15 +280,16 @@
         }
 
         function resetKiosk() {
-            step = 'id';
-            studentId = '';
+            mode = '';
             studentName = '';
             currentInput = '';
-            stepLabel.textContent = 'Enter your Student ID';
-            nameStep.classList.add('hidden');
-            keypad.classList.remove('hidden');
+            stepLabel.textContent = 'Enter your name';
+            nameStep.classList.remove('hidden');
+            keypad.classList.add('hidden');
+            nameInput.value = '';
             errorMsg.classList.add('hidden');
-            updateDisplay();
+            display.textContent = '\u00A0';
+            nameInput.focus();
         }
     </script>
 </body>
