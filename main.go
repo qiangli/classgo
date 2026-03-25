@@ -37,7 +37,7 @@ type Config struct {
 }
 
 func loadConfig() string {
-	name := "ClassGo"
+	name := "LERN"
 
 	// 1. config.json
 	if data, err := os.ReadFile("config.json"); err == nil {

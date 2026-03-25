@@ -1,10 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- D-shaped door frame -->
-  <path d="M12 8 H36 C50 8 56 20 56 32 C56 44 50 56 36 56 H12 Z" fill="#4F46E5" rx="2"/>
-  <!-- Inner door panel -->
-  <path d="M18 14 H34 C44 14 50 22 50 32 C50 42 44 50 34 50 H18 Z" fill="#6366F1"/>
-  <!-- Door handle -->
-  <circle cx="42" cy="32" r="3" fill="#C7D2FE"/>
-  <!-- Arrow suggesting "go" / entry -->
-  <path d="M8 32 L24 32 M18 26 L24 32 L18 38" stroke="#C7D2FE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Rounded square background -->
+  <rect x="4" y="4" width="56" height="56" rx="12" fill="#4F46E5"/>
+  <!-- Letter L -->
+  <path d="M20 14 L20 50 L46 50" stroke="#E0E7FF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Subtle accent dot -->
+  <circle cx="46" cy="14" r="4" fill="#A5B4FC"/>
 </svg>
