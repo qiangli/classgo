@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassGo - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-600">ClassGo</h1>
+            <p class="text-gray-500 mt-1">{{.Date}}</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- PIN Card -->
+            <div class="bg-white rounded-2xl shadow p-6 text-center">
+                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Today's PIN</h2>
+                <p class="text-6xl font-mono font-bold text-indigo-600 mt-2 tracking-widest">{{.PIN}}</p>
+                <p class="text-gray-400 text-sm mt-2">Share this PIN with your students</p>
+            </div>
+
+            <!-- QR Code Card -->
+            <div class="bg-white rounded-2xl shadow p-6 text-center">
+                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Sign In</h2>
+                {{if .QRDataURI}}
+                <img src="{{.QRDataURI}}" alt="QR Code" class="mx-auto mt-2 w-48 h-48">
+                {{else}}
+                <p class="text-gray-400 mt-4">QR code unavailable</p>
+                {{end}}
+                <p class="text-xs text-gray-400 mt-2 break-all">{{.ServerURL}}</p>
+            </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="bg-white rounded-2xl shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-700">
+                    Attendance
+                    <span id="count" class="ml-2 bg-indigo-100 text-indigo-600 text-sm font-bold px-2 py-1 rounded-full">{{.Count}}</span>
+                </h2>
+                <a href="/admin/export" class="text-sm bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
+                    Export CSV
+                </a>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b text-sm text-gray-400">
+                            <th class="py-2 px-3">#</th>
+                            <th class="py-2 px-3">Student ID</th>
+                            <th class="py-2 px-3">Name</th>
+                            <th class="py-2 px-3">Device</th>
+                            <th class="py-2 px-3">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendee-list">
+                        {{range $i, $a := .Attendees}}
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="py-2 px-3 text-gray-400">{{$a.ID}}</td>
+                            <td class="py-2 px-3 font-mono text-sm">{{$a.StudentID}}</td>
+                            <td class="py-2 px-3 font-medium">{{$a.StudentName}}</td>
+                            <td class="py-2 px-3">
+                                <span class="text-xs px-2 py-1 rounded-full {{if eq $a.DeviceType "mobile"}}bg-blue-100 text-blue-600{{else}}bg-purple-100 text-purple-600{{end}}">
+                                    {{$a.DeviceType}}
+                                </span>
+                            </td>
+                            <td class="py-2 px-3 text-sm text-gray-500">{{$a.Timestamp.Format "3:04 PM"}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+                {{if eq .Count 0}}
+                <p id="empty-msg" class="text-center text-gray-400 py-8">No students signed in yet</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function refreshAttendees() {
+            fetch('/api/attendees')
+                .then(r => r.json())
+                .then(attendees => {
+                    const tbody = document.getElementById('attendee-list');
+                    const countEl = document.getElementById('count');
+                    const emptyMsg = document.getElementById('empty-msg');
+
+                    countEl.textContent = attendees.length;
+
+                    if (attendees.length === 0) {
+                        tbody.innerHTML = '';
+                        if (!emptyMsg) {
+                            const p = document.createElement('p');
+                            p.id = 'empty-msg';
+                            p.className = 'text-center text-gray-400 py-8';
+                            p.textContent = 'No students signed in yet';
+                            tbody.closest('.overflow-x-auto').appendChild(p);
+                        }
+                        return;
+                    }
+
+                    if (emptyMsg) emptyMsg.remove();
+
+                    tbody.innerHTML = attendees.map(a => {
+                        const ts = new Date(a.timestamp);
+                        const time = ts.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+                        const badge = a.device_type === 'mobile'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-purple-100 text-purple-600';
+                        return `<tr class="border-b hover:bg-gray-50">
+                            <td class="py-2 px-3 text-gray-400">${a.id}</td>
+                            <td class="py-2 px-3 font-mono text-sm">${a.student_id}</td>
+                            <td class="py-2 px-3 font-medium">${a.student_name}</td>
+                            <td class="py-2 px-3"><span class="text-xs px-2 py-1 rounded-full ${badge}">${a.device_type}</span></td>
+                            <td class="py-2 px-3 text-sm text-gray-500">${time}</td>
+                        </tr>`;
+                    }).join('');
+                })
+                .catch(err => console.error('Refresh failed:', err));
+        }
+
+        setInterval(refreshAttendees, 5000);
+    </script>
+</body>
+</html>

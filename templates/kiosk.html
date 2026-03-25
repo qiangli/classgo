@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassGo - Kiosk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center select-none">
+
+    <!-- Success Overlay -->
+    <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50">
+        <div class="text-white text-8xl mb-4">&#10003;</div>
+        <p id="success-name" class="text-white text-4xl font-bold"></p>
+        <p class="text-green-100 text-xl mt-2">Signed in!</p>
+    </div>
+
+    <!-- Main Kiosk UI -->
+    <div class="w-full max-w-md p-6">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-white">ClassGo</h1>
+            <p id="step-label" class="text-gray-400 mt-1">Enter your Student ID</p>
+        </div>
+
+        <!-- Display -->
+        <div class="bg-gray-800 rounded-2xl p-6 mb-6 text-center">
+            <p id="display" class="text-5xl font-mono text-white tracking-widest min-h-[3.5rem]">&nbsp;</p>
+            <div id="error-msg" class="hidden text-red-400 text-sm mt-2"></div>
+        </div>
+
+        <!-- Name Input (shown after student ID step) -->
+        <div id="name-step" class="hidden mb-6">
+            <input type="text" id="name-input"
+                class="w-full px-4 py-4 bg-gray-800 text-white text-xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
+                placeholder="Type your name">
+            <button onclick="confirmName()"
+                class="w-full mt-3 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-bold rounded-2xl transition">
+                Next
+            </button>
+        </div>
+
+        <!-- Keypad -->
+        <div id="keypad" class="grid grid-cols-3 gap-3">
+            <button onclick="press('1')" class="kbtn">1</button>
+            <button onclick="press('2')" class="kbtn">2</button>
+            <button onclick="press('3')" class="kbtn">3</button>
+            <button onclick="press('4')" class="kbtn">4</button>
+            <button onclick="press('5')" class="kbtn">5</button>
+            <button onclick="press('6')" class="kbtn">6</button>
+            <button onclick="press('7')" class="kbtn">7</button>
+            <button onclick="press('8')" class="kbtn">8</button>
+            <button onclick="press('9')" class="kbtn">9</button>
+            <button onclick="backspace()" class="kbtn bg-gray-700 text-gray-300">&#9003;</button>
+            <button onclick="press('0')" class="kbtn">0</button>
+            <button onclick="submit()" id="submit-btn" class="kbtn bg-indigo-600 text-white hover:bg-indigo-700">&#10148;</button>
+        </div>
+    </div>
+
+    <style>
+        .kbtn {
+            padding: 1.25rem;
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: #374151;
+            color: #e5e7eb;
+            border-radius: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .kbtn:active {
+            background: #4b5563;
+            transform: scale(0.95);
+        }
+    </style>
+
+    <script>
+        let step = 'id'; // 'id' -> 'name' -> 'pin'
+        let studentId = '';
+        let studentName = '';
+        let currentInput = '';
+
+        const display = document.getElementById('display');
+        const stepLabel = document.getElementById('step-label');
+        const errorMsg = document.getElementById('error-msg');
+        const keypad = document.getElementById('keypad');
+        const nameStep = document.getElementById('name-step');
+        const nameInput = document.getElementById('name-input');
+
+        function updateDisplay() {
+            if (step === 'pin') {
+                display.textContent = currentInput.replace(/./g, '\u2022') || '\u00A0';
+            } else {
+                display.textContent = currentInput || '\u00A0';
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
+            setTimeout(() => errorMsg.classList.add('hidden'), 3000);
+        }
+
+        function press(digit) {
+            if (step === 'name') return;
+            if (step === 'id' && currentInput.length >= 10) return;
+            if (step === 'pin' && currentInput.length >= 4) return;
+            currentInput += digit;
+            updateDisplay();
+        }
+
+        function backspace() {
+            if (step === 'name') return;
+            currentInput = currentInput.slice(0, -1);
+            updateDisplay();
+        }
+
+        function submit() {
+            if (step === 'id') {
+                if (currentInput.length === 0) return;
+                studentId = currentInput;
+                currentInput = '';
+                step = 'name';
+                stepLabel.textContent = 'Enter your name';
+                display.textContent = '\u00A0';
+                keypad.classList.add('hidden');
+                nameStep.classList.remove('hidden');
+                nameInput.value = '';
+                nameInput.focus();
+            } else if (step === 'pin') {
+                if (currentInput.length !== 4) {
+                    showError('PIN must be 4 digits');
+                    return;
+                }
+                doSignIn();
+            }
+        }
+
+        function confirmName() {
+            const name = nameInput.value.trim();
+            if (!name) return;
+            studentName = name;
+            currentInput = '';
+            step = 'pin';
+            stepLabel.textContent = 'Enter PIN';
+            nameStep.classList.add('hidden');
+            keypad.classList.remove('hidden');
+            updateDisplay();
+        }
+
+        // Allow Enter key in name input
+        nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirmName();
+        });
+
+        async function doSignIn() {
+            try {
+                const res = await fetch('/api/signin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        student_name: studentName,
+                        pin: currentInput,
+                        device_type: 'kiosk'
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.ok) {
+                    showSuccess(studentName);
+                } else {
+                    showError(data.error || 'Sign in failed');
+                    currentInput = '';
+                    updateDisplay();
+                }
+            } catch (err) {
+                showError('Connection error');
+                currentInput = '';
+                updateDisplay();
+            }
+        }
+
+        function showSuccess(name) {
+            const overlay = document.getElementById('success-overlay');
+            document.getElementById('success-name').textContent = name;
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                resetKiosk();
+            }, 3000);
+        }
+
+        function resetKiosk() {
+            step = 'id';
+            studentId = '';
+            studentName = '';
+            currentInput = '';
+            stepLabel.textContent = 'Enter your Student ID';
+            nameStep.classList.add('hidden');
+            keypad.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            updateDisplay();
+        }
+    </script>
+</body>
+</html>
