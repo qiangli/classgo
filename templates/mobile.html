@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.AppName}} - Sign In</title>
+    <title>{{.AppName}}</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -23,6 +23,30 @@
                 <h1 class="text-3xl font-bold text-indigo-600">{{.AppName}}</h1>
             </div>
             <p class="text-gray-400 mt-1">Sign in to class</p>
+            <a href="#" id="add-home-link" onclick="toggleHomeScreen(event)"
+                class="inline-flex items-center gap-1 mt-2 text-xs text-indigo-400 hover:text-indigo-600 no-underline">
+                <span id="home-arrow" class="inline-block text-base transition-transform duration-200">&#9656;</span>
+                Add to Home Screen
+            </a>
+            <div id="add-home-info" class="hidden mt-2 text-left bg-indigo-50 rounded-xl p-3 text-xs text-gray-600 space-y-2">
+                <p class="font-semibold text-gray-700">For the best experience, add this page to your home screen:</p>
+                <div id="ios-instructions">
+                    <p class="font-medium text-gray-700">iPhone / iPad (Safari):</p>
+                    <ol class="list-decimal list-inside ml-1 space-y-0.5">
+                        <li>Tap the <strong>Share</strong> button <span class="text-base leading-none">&#9997;</span> (square with arrow)</li>
+                        <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                        <li>Tap <strong>Add</strong></li>
+                    </ol>
+                </div>
+                <div id="android-instructions">
+                    <p class="font-medium text-gray-700">Android (Chrome):</p>
+                    <ol class="list-decimal list-inside ml-1 space-y-0.5">
+                        <li>Tap the <strong>&#8942;</strong> menu (three dots, top right)</li>
+                        <li>Tap <strong>Add to Home screen</strong></li>
+                        <li>Tap <strong>Add</strong></li>
+                    </ol>
+                </div>
+            </div>
         </div>
 
         <!-- Confirmation Card (shown after sign-in) -->
@@ -63,7 +87,7 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" id="remember-me" class="w-4 h-4 text-indigo-600 rounded">
+                    <input type="checkbox" id="remember-me" checked class="w-4 h-4 text-indigo-600 rounded">
                     <label for="remember-me" class="text-sm text-gray-500">Remember me</label>
                 </div>
 
@@ -88,6 +112,24 @@
         const signoutBtn = document.getElementById('signout-btn');
 
         let formExpanded = false;
+
+        // Add to Home Screen: show only relevant platform instructions
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        if (isIOS) document.getElementById('android-instructions').classList.add('hidden');
+        if (isAndroid) document.getElementById('ios-instructions').classList.add('hidden');
+        // Hide the link entirely if already running as standalone/PWA
+        if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+            document.getElementById('add-home-link').classList.add('hidden');
+        }
+
+        function toggleHomeScreen(e) {
+            e.preventDefault();
+            const info = document.getElementById('add-home-info');
+            const arrow = document.getElementById('home-arrow');
+            info.classList.toggle('hidden');
+            arrow.style.transform = info.classList.contains('hidden') ? '' : 'rotate(90deg)';
+        }
 
         // Restore saved data
         const saved = localStorage.getItem('classgo_student');
