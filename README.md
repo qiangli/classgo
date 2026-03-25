@@ -1,4 +1,4 @@
-# LERN
+# ClassGo
 
 A lightweight, local-network attendance server for private tutoring. Runs on the tutor's laptop and lets students sign in via a shared tablet or their own phones over local Wi-Fi.
 
@@ -54,11 +54,12 @@ The app name defaults to **LERN** and can be overridden (in priority order):
 ## Makefile Targets
 
 ```
-make help     # Show all targets
-make tidy     # Run fmt, vet, and mod tidy
-make build    # Build binary to bin/
-make start    # Start the server in the background
-make stop     # Stop the running server
+make help      # Show all targets
+make tidy      # Run fmt, vet, and mod tidy
+make build     # Build binary to bin/
+make build-all # Build for Windows, macOS, and Linux
+make start     # Start the server in the background
+make stop      # Stop the running server
 ```
 
 ## Tech Stack
