@@ -1,4 +1,5 @@
 classgo.db
 bin/
+config.json
 *.exe
 .DS_Store

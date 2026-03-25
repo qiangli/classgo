@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -28,7 +29,38 @@ var (
 	dailyPIN string
 	pinDate  string
 	mu       sync.Mutex
+	appName  string
 )
+
+type Config struct {
+	AppName string `json:"app_name"`
+}
+
+func loadConfig() string {
+	name := "ClassGo"
+
+	// 1. config.json
+	if data, err := os.ReadFile("config.json"); err == nil {
+		var cfg Config
+		if err := json.Unmarshal(data, &cfg); err == nil && cfg.AppName != "" {
+			name = cfg.AppName
+		}
+	}
+
+	// 2. Environment variable
+	if env := os.Getenv("APP_NAME"); env != "" {
+		name = env
+	}
+
+	// 3. Command line flag
+	flagName := flag.String("name", "", "Application name")
+	flag.Parse()
+	if *flagName != "" {
+		name = *flagName
+	}
+
+	return name
+}
 
 type Attendance struct {
 	ID          int       `json:"id"`
@@ -39,6 +71,7 @@ type Attendance struct {
 }
 
 type AdminData struct {
+	AppName   string
 	PIN       string
 	QRDataURI string
 	ServerURL string
@@ -48,6 +81,7 @@ type AdminData struct {
 }
 
 type SignInPageData struct {
+	AppName   string
 	ServerURL string
 }
 
@@ -144,6 +178,7 @@ func handleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := SignInPageData{
+		AppName:   appName,
 		ServerURL: fmt.Sprintf("http://%s:8080", getLocalIP()),
 	}
 	tmpl.ExecuteTemplate(w, "mobile.html", data)
@@ -151,6 +186,7 @@ func handleMobile(w http.ResponseWriter, r *http.Request) {
 
 func handleKiosk(w http.ResponseWriter, r *http.Request) {
 	data := SignInPageData{
+		AppName:   appName,
 		ServerURL: fmt.Sprintf("http://%s:8080", getLocalIP()),
 	}
 	tmpl.ExecuteTemplate(w, "kiosk.html", data)
@@ -168,6 +204,7 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := AdminData{
+		AppName:   appName,
 		PIN:       pin,
 		QRDataURI: generateQR(serverURL),
 		ServerURL: serverURL,
@@ -299,6 +336,7 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 }
 
 func main() {
+	appName = loadConfig()
 	initDB()
 
 	var err error
@@ -321,7 +359,7 @@ func main() {
 	pin := ensureDailyPIN()
 
 	log.Println("=================================")
-	log.Println("  ClassGo Attendance Server")
+	log.Printf("  %s Attendance Server", appName)
 	log.Println("=================================")
 	log.Printf("  Server:  %s", serverURL)
 	log.Printf("  Admin:   %s/admin", serverURL)

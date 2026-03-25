@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClassGo - Sign In</title>
+    <title>{{.AppName}} - Sign In</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-b from-indigo-50 to-white min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-indigo-600">ClassGo</h1>
+            <div class="flex items-center justify-center gap-2">
+                <img src="/static/logo.svg" alt="Logo" class="w-8 h-8">
+                <h1 class="text-3xl font-bold text-indigo-600">{{.AppName}}</h1>
+            </div>
             <p class="text-gray-400 mt-1">Sign in to class</p>
         </div>
 
