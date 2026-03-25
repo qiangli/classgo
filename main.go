@@ -64,14 +64,17 @@ func loadConfig() string {
 }
 
 type Attendance struct {
-	ID             int        `json:"id"`
-	StudentName    string     `json:"student_name"`
-	DeviceType     string     `json:"device_type"`
-	SignInTime     time.Time  `json:"-"`
-	SignOutTime    *time.Time `json:"-"`
-	SignInTimeStr  string     `json:"sign_in_time"`
-	SignOutTimeStr string     `json:"sign_out_time"`
-	Duration       string     `json:"duration"`
+	ID              int        `json:"id"`
+	StudentName     string     `json:"student_name"`
+	DeviceType      string     `json:"device_type"`
+	SignInTime      time.Time  `json:"-"`
+	SignOutTime     *time.Time `json:"-"`
+	SignInTimeStr   string     `json:"sign_in_time"`
+	SignOutTimeStr  string     `json:"sign_out_time"`
+	SignInRaw       string     `json:"sign_in_raw"`
+	SignOutRaw      string     `json:"sign_out_raw"`
+	Duration        string     `json:"duration"`
+	DurationMinutes float64    `json:"duration_minutes"`
 }
 
 type AdminData struct {
@@ -223,11 +226,15 @@ func todayAttendees() ([]Attendance, error) {
 		}
 		a.SignInTime, _ = parseTimestamp(signIn)
 		a.SignInTimeStr = a.SignInTime.Format("3:04 PM")
+		a.SignInRaw = a.SignInTime.Format(time.RFC3339)
 		if signOut.Valid {
 			t, _ := parseTimestamp(signOut.String)
 			a.SignOutTime = &t
 			a.SignOutTimeStr = t.Format("3:04 PM")
-			a.Duration = formatDuration(t.Sub(a.SignInTime))
+			a.SignOutRaw = t.Format(time.RFC3339)
+			dur := t.Sub(a.SignInTime)
+			a.Duration = formatDuration(dur)
+			a.DurationMinutes = dur.Minutes()
 		}
 		attendees = append(attendees, a)
 	}
