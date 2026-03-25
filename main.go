@@ -82,6 +82,7 @@ type AdminData struct {
 
 type SignInPageData struct {
 	AppName   string
+	QRDataURI template.URL
 	ServerURL string
 }
 
@@ -185,9 +186,11 @@ func handleMobile(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleKiosk(w http.ResponseWriter, r *http.Request) {
+	serverURL := fmt.Sprintf("http://%s:8080", getLocalIP())
 	data := SignInPageData{
 		AppName:   appName,
-		ServerURL: fmt.Sprintf("http://%s:8080", getLocalIP()),
+		QRDataURI: template.URL(generateQR(serverURL)),
+		ServerURL: serverURL,
 	}
 	tmpl.ExecuteTemplate(w, "kiosk.html", data)
 }

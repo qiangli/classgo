@@ -24,6 +24,9 @@
                 <h1 class="text-3xl font-bold text-white">{{.AppName}}</h1>
             </div>
             <p id="step-label" class="text-gray-400 mt-1">Enter your Student ID</p>
+            {{if .QRDataURI}}
+            <img src="{{.QRDataURI}}" alt="QR Code" class="mx-auto mt-3 w-24 h-24 rounded-lg opacity-75">
+            {{end}}
         </div>
 
         <!-- Display -->
