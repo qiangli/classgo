@@ -73,7 +73,7 @@ type Attendance struct {
 type AdminData struct {
 	AppName   string
 	PIN       string
-	QRDataURI string
+	QRDataURI template.URL
 	ServerURL string
 	Attendees []Attendance
 	Count     int
@@ -206,7 +206,7 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 	data := AdminData{
 		AppName:   appName,
 		PIN:       pin,
-		QRDataURI: generateQR(serverURL),
+		QRDataURI: template.URL(generateQR(serverURL)),
 		ServerURL: serverURL,
 		Attendees: attendees,
 		Count:     len(attendees),
