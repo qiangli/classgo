@@ -279,6 +279,29 @@ func handleSignIn(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Welcome, %s!", req.StudentName)})
 }
 
+func handleStatus(w http.ResponseWriter, r *http.Request) {
+	studentID := r.URL.Query().Get("student_id")
+	if studentID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"signed_in": false, "error": "student_id required"})
+		return
+	}
+
+	var name string
+	err := db.QueryRow(
+		"SELECT student_name FROM attendance WHERE student_id = ? AND date(timestamp) = date('now','localtime') LIMIT 1",
+		studentID,
+	).Scan(&name)
+	if err == sql.ErrNoRows {
+		writeJSON(w, http.StatusOK, map[string]any{"signed_in": false})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"signed_in": false, "error": "Database error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"signed_in": true, "student_name": name})
+}
+
 func handleAttendees(w http.ResponseWriter, r *http.Request) {
 	attendees, err := todayAttendees()
 	if err != nil {
@@ -353,6 +376,7 @@ func main() {
 	mux.HandleFunc("/kiosk", handleKiosk)
 	mux.HandleFunc("/admin", handleAdmin)
 	mux.HandleFunc("/api/signin", handleSignIn)
+	mux.HandleFunc("/api/status", handleStatus)
 	mux.HandleFunc("/api/attendees", handleAttendees)
 	mux.HandleFunc("/admin/export", handleExport)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

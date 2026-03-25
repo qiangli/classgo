@@ -8,6 +8,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-b from-indigo-50 to-white min-h-screen flex items-center justify-center p-4">
+
+    <!-- Success Overlay -->
+    <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+        <div class="text-white text-8xl mb-4">&#10003;</div>
+        <p id="success-name" class="text-white text-4xl font-bold text-center px-4"></p>
+        <p id="success-status" class="text-green-100 text-xl mt-2">Signed in!</p>
+    </div>
+
     <div class="w-full max-w-sm">
         <div class="text-center mb-8">
             <div class="flex items-center justify-center gap-2">
@@ -17,7 +25,22 @@
             <p class="text-gray-400 mt-1">Sign in to class</p>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-lg p-6">
+        <!-- Confirmation Card (shown after sign-in) -->
+        <div id="confirmed-card" class="hidden bg-white rounded-2xl shadow-lg p-6 mb-4">
+            <div class="text-center">
+                <div class="text-green-500 text-6xl mb-3">&#10003;</div>
+                <p id="confirmed-name" class="text-2xl font-bold text-gray-800"></p>
+                <p id="confirmed-status" class="text-green-600 mt-1">Signed in!</p>
+            </div>
+            <button id="twistie-btn" onclick="toggleForm()"
+                class="w-full mt-4 py-2 text-sm text-gray-400 hover:text-gray-600 transition flex items-center justify-center gap-1">
+                <span id="twistie-arrow" class="inline-block transition-transform duration-200">&#9656;</span>
+                Sign in again
+            </button>
+        </div>
+
+        <!-- Sign-in Form Card -->
+        <div id="signin-card" class="bg-white rounded-2xl shadow-lg p-6">
             <div id="message" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
 
             <form id="signin-form" class="space-y-4">
@@ -63,6 +86,11 @@
         const rememberMe = document.getElementById('remember-me');
         const messageEl = document.getElementById('message');
         const submitBtn = document.getElementById('submit-btn');
+        const signinCard = document.getElementById('signin-card');
+        const confirmedCard = document.getElementById('confirmed-card');
+        const twistieArrow = document.getElementById('twistie-arrow');
+
+        let formExpanded = false;
 
         // Restore saved data
         const saved = localStorage.getItem('classgo_student');
@@ -71,6 +99,43 @@
             studentIdInput.value = data.id || '';
             studentNameInput.value = data.name || '';
             rememberMe.checked = true;
+
+            // Check if already signed in today
+            if (data.id) {
+                checkStatus(data.id);
+            }
+        }
+
+        async function checkStatus(studentId) {
+            try {
+                const res = await fetch('/api/status?student_id=' + encodeURIComponent(studentId));
+                const data = await res.json();
+                if (data.signed_in) {
+                    showConfirmation(data.student_name, true);
+                }
+            } catch (err) {
+                // Status check failed — just show the form
+            }
+        }
+
+        function showConfirmation(name, alreadySignedIn) {
+            document.getElementById('confirmed-name').textContent = name;
+            document.getElementById('confirmed-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+            confirmedCard.classList.remove('hidden');
+            signinCard.classList.add('hidden');
+            formExpanded = false;
+            twistieArrow.style.transform = '';
+        }
+
+        function toggleForm() {
+            formExpanded = !formExpanded;
+            if (formExpanded) {
+                signinCard.classList.remove('hidden');
+                twistieArrow.style.transform = 'rotate(90deg)';
+            } else {
+                signinCard.classList.add('hidden');
+                twistieArrow.style.transform = '';
+            }
         }
 
         function showMessage(text, success) {
@@ -79,10 +144,23 @@
             messageEl.classList.remove('hidden');
         }
 
+        function showSuccess(name, alreadySignedIn) {
+            const overlay = document.getElementById('success-overlay');
+            document.getElementById('success-name').textContent = name;
+            document.getElementById('success-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                showConfirmation(name, alreadySignedIn);
+            }, 3000);
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
             submitBtn.textContent = 'Signing in...';
+            messageEl.classList.add('hidden');
 
             try {
                 const res = await fetch('/api/signin', {
@@ -97,18 +175,23 @@
                 });
 
                 const data = await res.json();
-                showMessage(data.message || data.error, data.ok);
 
-                if (data.ok && rememberMe.checked) {
-                    localStorage.setItem('classgo_student', JSON.stringify({
-                        id: studentIdInput.value.trim(),
-                        name: studentNameInput.value.trim()
-                    }));
-                } else if (!rememberMe.checked) {
-                    localStorage.removeItem('classgo_student');
+                if (data.ok) {
+                    const alreadySignedIn = (data.message || '').toLowerCase().includes('already');
+                    showSuccess(studentNameInput.value.trim(), alreadySignedIn);
+                    pinInput.value = '';
+
+                    if (rememberMe.checked) {
+                        localStorage.setItem('classgo_student', JSON.stringify({
+                            id: studentIdInput.value.trim(),
+                            name: studentNameInput.value.trim()
+                        }));
+                    } else {
+                        localStorage.removeItem('classgo_student');
+                    }
+                } else {
+                    showMessage(data.error || 'Sign in failed', false);
                 }
-
-                if (data.ok) pinInput.value = '';
             } catch (err) {
                 showMessage('Connection error. Are you on the right network?', false);
             }
