@@ -3,3 +3,7 @@ bin/
 config.json
 *.exe
 .DS_Store
+
+# ycode local artifacts
+.agents/
+

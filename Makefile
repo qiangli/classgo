@@ -2,7 +2,7 @@ APP := classgo
 BIN := bin/$(APP)
 PID_FILE := bin/.pid
 
-.PHONY: help tidy build build-all test start stop
+.PHONY: help tidy build build-all test start stop clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -45,3 +45,7 @@ stop: ## Stop the running server
 		echo "$(APP) is not running"; \
 		rm -f $(PID_FILE); \
 	fi
+
+clean: ## Remove build artifacts and database
+	rm -rf bin/
+	rm -f $(APP).db
