@@ -20,16 +20,22 @@ func scanTrackerItem(s interface{ Scan(...any) error }) (models.TrackerItem, err
 	return it, err
 }
 
-const studentItemCols = `id, student_id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(due_date,''),
+// StudentItemCols is the column list for student_tracker_items queries.
+const StudentItemCols = `id, student_id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(due_date,''),
 	priority, recurrence, COALESCE(category,''), COALESCE(created_by,''), COALESCE(owner_type,'admin'),
-	completed, COALESCE(completed_at,''), COALESCE(completed_by,''),
+	completed, COALESCE(completed_at,''), COALESCE(completed_by,''), requires_signoff,
 	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
+
+// ScanStudentItemRow scans a single row into a StudentTrackerItem.
+func ScanStudentItemRow(s interface{ Scan(...any) error }) (models.StudentTrackerItem, error) {
+	return scanStudentItem(s)
+}
 
 func scanStudentItem(s interface{ Scan(...any) error }) (models.StudentTrackerItem, error) {
 	var it models.StudentTrackerItem
 	err := s.Scan(&it.ID, &it.StudentID, &it.Name, &it.Notes, &it.StartDate, &it.DueDate,
 		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy, &it.OwnerType,
-		&it.Completed, &it.CompletedAt, &it.CompletedBy,
+		&it.Completed, &it.CompletedAt, &it.CompletedBy, &it.RequiresSignoff,
 		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
 	return it, err
 }
@@ -92,7 +98,7 @@ func DeleteTrackerItem(db *sql.DB, id int) error {
 // ListStudentTrackerItems returns ad hoc tracker items for a specific student.
 func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrackerItem, error) {
 	rows, err := db.Query(
-		"SELECT "+studentItemCols+" FROM student_tracker_items WHERE student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, due_date, id",
+		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, due_date, id",
 		studentID,
 	)
 	if err != nil {
@@ -114,7 +120,7 @@ func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrac
 // ListStudentTrackerItemsByCreator returns items created by a specific user.
 func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.StudentTrackerItem, error) {
 	rows, err := db.Query(
-		"SELECT "+studentItemCols+" FROM student_tracker_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, due_date, id",
+		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, due_date, id",
 		createdBy,
 	)
 	if err != nil {
@@ -138,19 +144,19 @@ func SaveStudentTrackerItem(db *sql.DB, item models.StudentTrackerItem) (int64, 
 	if item.ID > 0 {
 		_, err := db.Exec(
 			`UPDATE student_tracker_items SET name=?, notes=?, start_date=?, due_date=?,
-			 priority=?, recurrence=?, category=?, active=?,
+			 priority=?, recurrence=?, category=?, requires_signoff=?, active=?,
 			 updated_at=datetime('now','localtime') WHERE id=?`,
 			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.Active, item.ID,
+			item.Priority, item.Recurrence, nullStr(item.Category), item.RequiresSignoff, item.Active, item.ID,
 		)
 		return int64(item.ID), err
 	}
 	result, err := db.Exec(
 		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, due_date,
-		 priority, recurrence, category, created_by, owner_type, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.StudentID, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
-		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.Active,
+		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active,
 	)
 	if err != nil {
 		return 0, err
@@ -401,8 +407,8 @@ func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.Student
 
 	stmt, err := tx.Prepare(
 		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, due_date,
-		 priority, recurrence, category, created_by, owner_type, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 	if err != nil {
 		return err
@@ -411,7 +417,7 @@ func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.Student
 
 	for _, sid := range studentIDs {
 		_, err = stmt.Exec(sid, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.Active)
+			item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active)
 		if err != nil {
 			return err
 		}

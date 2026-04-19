@@ -48,6 +48,8 @@ func loadConfig() models.Config {
 	flagName := flag.String("name", "", "Application name")
 	flagDataDir := flag.String("data-dir", "", "Data directory (default ./data)")
 	flagRebuild := flag.Bool("rebuild-db", false, "Drop and rebuild index tables from spreadsheet files")
+	flagPort := flag.Int("port", 0, "Server port (default 8080)")
+	flagDB := flag.String("db", "", "Database file path (default ./classgo.db)")
 	flag.Parse()
 
 	if *flagName != "" {
@@ -59,6 +61,20 @@ func loadConfig() models.Config {
 
 	if cfg.DataDir == "" {
 		cfg.DataDir = "./data"
+	}
+
+	if *flagPort > 0 {
+		cfg.Port = *flagPort
+	}
+	if cfg.Port == 0 {
+		cfg.Port = 8080
+	}
+
+	if *flagDB != "" {
+		cfg.DBPath = *flagDB
+	}
+	if cfg.DBPath == "" {
+		cfg.DBPath = "./classgo.db"
 	}
 
 	rebuildDB = *flagRebuild
@@ -75,7 +91,7 @@ func main() {
 	// Ensure data directory exists
 	os.MkdirAll(cfg.DataDir, 0755)
 
-	db, err := database.OpenDB("./classgo.db")
+	db, err := database.OpenDB(cfg.DBPath)
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
@@ -90,6 +106,7 @@ func main() {
 	if err := database.MigrateDB(db); err != nil {
 		log.Fatal("Failed to initialize database schema:", err)
 	}
+	database.SeedSampleData(db)
 
 	// Auto-restore from latest backup only if DB appears to have lost data
 	backupDir := filepath.Join(cfg.DataDir, "backups")
@@ -203,6 +220,7 @@ func main() {
 	mux.HandleFunc("/api/dashboard/teacher-items", handlers.NoCache(app.RequireAuth(app.HandleDashboardTeacherItems)))
 	mux.HandleFunc("/api/dashboard/progress", handlers.NoCache(app.RequireAuth(app.HandleTrackerProgress)))
 	mux.HandleFunc("/api/dashboard/bulk-assign", handlers.NoCache(app.RequireAuth(app.HandleTrackerBulkAssign)))
+	mux.HandleFunc("/api/dashboard/assign-library-item", handlers.NoCache(app.RequireAuth(app.HandleAssignLibraryItem)))
 
 	// Admin pages — require admin role (redirect to login)
 	mux.HandleFunc("/admin", handlers.NoCache(app.RequireAdmin(app.HandleAdmin)))
@@ -241,10 +259,18 @@ func main() {
 		http.StripPrefix("/memos", memosServer.Handler()).ServeHTTP(w, r)
 	})))
 
+	// Proxy Memos static assets referenced without /memos/ prefix (hardcoded in Memos React SPA)
+	for _, asset := range []string{"/logo.webp", "/full-logo.webp", "/site.webmanifest", "/apple-touch-icon.png"} {
+		path := asset
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			memosServer.Handler().ServeHTTP(w, r)
+		})
+	}
+
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
-	ipURL := fmt.Sprintf("http://%s:8080", handlers.GetLocalIP())
-	mdnsURL := fmt.Sprintf("http://%s:8080", handlers.GetMDNSHostname())
+	ipURL := fmt.Sprintf("http://%s:%d", handlers.GetLocalIP(), cfg.Port)
+	mdnsURL := fmt.Sprintf("http://%s:%d", handlers.GetMDNSHostname(), cfg.Port)
 	pin := app.EnsureDailyPIN()
 
 	log.Println("=================================")
@@ -260,7 +286,7 @@ func main() {
 	log.Println("=================================")
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
 		Handler: mux,
 	}
 

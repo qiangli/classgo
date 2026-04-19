@@ -138,10 +138,11 @@ func MigrateDB(db *sql.DB) error {
 		category     TEXT,
 		created_by   TEXT,
 		owner_type   TEXT NOT NULL DEFAULT 'admin',
-		completed    INTEGER NOT NULL DEFAULT 0,
-		completed_at TEXT,
-		completed_by TEXT,
-		active       INTEGER NOT NULL DEFAULT 1,
+		completed        INTEGER NOT NULL DEFAULT 0,
+		completed_at     TEXT,
+		completed_by     TEXT,
+		requires_signoff INTEGER NOT NULL DEFAULT 1,
+		active           INTEGER NOT NULL DEFAULT 1,
 		deleted      INTEGER NOT NULL DEFAULT 0,
 		created_at   DATETIME DEFAULT (datetime('now','localtime')),
 		updated_at   DATETIME DEFAULT (datetime('now','localtime'))
@@ -238,6 +239,8 @@ func addMissingColumns(db *sql.DB) {
 		"ALTER TABLE student_tracker_items ADD COLUMN updated_at DATETIME",
 		// Tracker response enhancements
 		"ALTER TABLE tracker_responses ADD COLUMN notes TEXT",
+		// Sign-off requirement per task item
+		"ALTER TABLE student_tracker_items ADD COLUMN requires_signoff INTEGER NOT NULL DEFAULT 1",
 		// Per-student PIN
 		"ALTER TABLE students ADD COLUMN pin_hash TEXT",
 		"ALTER TABLE students ADD COLUMN require_pin INTEGER NOT NULL DEFAULT 0",

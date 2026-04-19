@@ -11,6 +11,8 @@ type Config struct {
 	AppName string `json:"app_name"`
 	DataDir string `json:"data_dir"`
 	PinMode string `json:"pin_mode"` // "off", "center", "per-student"
+	Port    int    `json:"port,omitempty"`
+	DBPath  string `json:"db_path,omitempty"`
 }
 
 type CheckinAudit struct {
@@ -155,8 +157,9 @@ type StudentTrackerItem struct {
 	OwnerType   string `json:"owner_type"`
 	Completed   bool   `json:"completed"`
 	CompletedAt string `json:"completed_at"`
-	CompletedBy string `json:"completed_by"`
-	Active      bool   `json:"active"`
+	CompletedBy     string `json:"completed_by"`
+	RequiresSignoff bool   `json:"requires_signoff"`
+	Active          bool   `json:"active"`
 	Deleted     bool   `json:"deleted"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`

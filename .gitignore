@@ -13,3 +13,4 @@ data/memos/
 data/csv/
 data/tutoros.xlsx
 data/*.db
+data/backups

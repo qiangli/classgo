@@ -240,8 +240,8 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
 			return
 		}
-		if item.StudentID == "" || item.Name == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "student_id and name are required"})
+		if item.Name == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "name is required"})
 			return
 		}
 		if item.Priority == "" {
@@ -253,14 +253,17 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 		// Enforce ownership: check session
 		sess := a.GetSession(r)
 		if sess != nil && sess.Role != "admin" {
+			// Students always create items for themselves
+			if sess.UserType == "student" {
+				item.StudentID = sess.EntityID
+			}
 			if item.ID > 0 {
 				// Only owner can update
-				existing, _ := database.ListStudentTrackerItems(a.DB, item.StudentID)
-				for _, e := range existing {
-					if e.ID == item.ID && e.CreatedBy != sess.EntityID {
-						writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only the owner can edit this item"})
-						return
-					}
+				var createdBy string
+				a.DB.QueryRow("SELECT COALESCE(created_by,'') FROM student_tracker_items WHERE id = ?", item.ID).Scan(&createdBy)
+				if createdBy != sess.EntityID {
+					writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only the owner can edit this item"})
+					return
 				}
 			} else {
 				item.CreatedBy = sess.EntityID
@@ -519,6 +522,74 @@ func (a *App) canAccessStudent(sess *auth.Session, studentID string) bool {
 		return false
 	}
 	return false
+}
+
+// HandleAssignLibraryItem copies a library (unassigned) item to one or more students.
+func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ItemID     int      `json:"item_id"`
+		StudentIDs []string `json:"student_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
+		return
+	}
+	if req.ItemID == 0 || len(req.StudentIDs) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "item_id and student_ids are required"})
+		return
+	}
+
+	// Load the source item
+	var src models.StudentTrackerItem
+	row := a.DB.QueryRow("SELECT "+database.StudentItemCols+" FROM student_tracker_items WHERE id = ? AND deleted = 0", req.ItemID)
+	var err error
+	src, err = database.ScanStudentItemRow(row)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "Item not found"})
+		return
+	}
+
+	// Verify ownership
+	sess := a.GetSession(r)
+	if sess != nil && sess.Role != "admin" && src.CreatedBy != sess.EntityID {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only the owner can assign this item"})
+		return
+	}
+
+	// Copy item properties into a new template for bulk creation
+	item := models.StudentTrackerItem{
+		Name:            src.Name,
+		Notes:           src.Notes,
+		StartDate:       src.StartDate,
+		DueDate:         src.DueDate,
+		Priority:        src.Priority,
+		Recurrence:      src.Recurrence,
+		Category:        src.Category,
+		CreatedBy:       src.CreatedBy,
+		OwnerType:       src.OwnerType,
+		RequiresSignoff: src.RequiresSignoff,
+		Active:          true,
+	}
+
+	if err := database.BulkCreateStudentItems(a.DB, req.StudentIDs, item); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+
+	// Notify via Memos
+	if a.MemosSyncer != nil {
+		go func() {
+			for _, sid := range req.StudentIDs {
+				name := a.lookupStudentName(sid)
+				a.MemosSyncer.Client().NotifyTaskAssigned(sid, name, src.Name, src.CreatedBy)
+			}
+		}()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(req.StudentIDs)})
 }
 
 func splitSemicolon(s string) []string {

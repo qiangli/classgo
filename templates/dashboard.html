@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}} - Dashboard</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/tailwind.css">
     <style>
         .sidebar-item { transition: all 0.15s ease; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); }
@@ -30,6 +30,12 @@
             <a href="#tasks" onclick="navigate('tasks')" id="nav-tasks" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Tasks">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Tasks</span>
+            </a>
+
+            <!-- My Items (all roles) -->
+            <a href="#my-items" onclick="navigate('my-items')" id="nav-my-items" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Items">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">My Items</span>
             </a>
 
             {{if eq .UserType "teacher"}}
@@ -159,6 +165,37 @@
             </section>
             {{end}}
 
+            <!-- ==================== MY ITEMS SECTION ==================== -->
+            <section id="section-my-items" class="hidden">
+                <div class="bg-white rounded-2xl shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-700">My Task Items</h2>
+                        <button onclick="openMyItemModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            Add Item
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table id="my-items-table" class="hidden w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b">
+                                    <th class="pb-2 pr-4">Name</th>
+                                    <th class="pb-2 pr-4">Notes</th>
+                                    <th class="pb-2 pr-4">Priority</th>
+                                    <th class="pb-2 pr-4">Recurrence</th>
+                                    <th class="pb-2 pr-4">Due Date</th>
+                                    <th class="pb-2 pr-4">Student</th>
+                                    <th class="pb-2 pr-4">Sign-off</th>
+                                    <th class="pb-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="my-items-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p id="my-items-empty" class="hidden text-center text-gray-400 py-8">No items yet. Add one to start building your task library.</p>
+                </div>
+            </section>
+
             <!-- ==================== PROGRESS SECTION ==================== -->
             <section id="section-progress" class="hidden">
                 <div class="bg-white rounded-2xl shadow p-6">
@@ -235,9 +272,13 @@
                     <label class="block text-sm text-gray-600 mb-1">Category</label>
                     <input type="text" id="task-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Math, SAT Prep">
                 </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="task-requires-signoff" class="rounded" {{if ne .UserType "student"}}checked{{end}}>
+                    <label for="task-requires-signoff" class="text-sm text-gray-600">Requires sign-off / check-off</label>
+                </div>
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
-                <button onclick="closeTaskModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="closeTaskModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
                 <button onclick="saveTask()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
             </div>
         </div>
@@ -280,8 +321,35 @@
                 </div>
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
-                <button onclick="closeBulkModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="closeBulkModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
                 <button onclick="submitBulkAssign()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Assign</button>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Assign Library Item Modal -->
+    {{if ne .UserType "student"}}
+    <div id="assign-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-800">Assign to Students</h3>
+                <button onclick="closeAssignModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="px-6 py-4 space-y-3">
+                <input type="hidden" id="assign-item-id" value="0">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Item</label>
+                    <p id="assign-item-name" class="text-sm font-medium text-gray-800"></p>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">Select Students</label>
+                    <div id="assign-student-list" class="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                <button onclick="closeAssignModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="submitAssignLibrary()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Assign</button>
             </div>
         </div>
     </div>
@@ -294,14 +362,15 @@
 
         // ==================== NAVIGATION ====================
         let currentSection = 'tasks';
-        const sections = ['tasks', {{if eq .UserType "teacher"}}'classes', 'students',{{end}} 'progress'];
+        const sections = ['tasks', 'my-items', {{if eq .UserType "teacher"}}'classes', 'students',{{end}} 'progress'];
         const sectionMeta = {
-            tasks:    { title: 'My Tasks', subtitle: '{{.Date}}' },
+            tasks:      { title: 'My Tasks', subtitle: '{{.Date}}' },
+            'my-items': { title: 'My Task Items', subtitle: 'Create and manage your tasks' },
             {{if eq .UserType "teacher"}}
-            classes:  { title: 'My Classes', subtitle: 'Weekly Schedule' },
-            students: { title: 'My Students', subtitle: 'Student & Parent Information' },
+            classes:    { title: 'My Classes', subtitle: 'Weekly Schedule' },
+            students:   { title: 'My Students', subtitle: 'Student & Parent Information' },
             {{end}}
-            progress: { title: 'Progress', subtitle: 'Completion Statistics' }
+            progress:   { title: 'Progress', subtitle: 'Completion Statistics' }
         };
 
         function navigate(section) {
@@ -320,6 +389,7 @@
             document.getElementById('page-subtitle').textContent = sectionMeta[section].subtitle;
 
             if (section === 'tasks') loadTasks();
+            if (section === 'my-items') loadMyItems();
             if (section === 'classes') loadClasses();
             if (section === 'students') loadStudents();
             if (section === 'progress') loadProgress();
@@ -528,7 +598,7 @@
             } catch(e) { alert('Failed'); }
         }
 
-        function openAddTaskModal() {
+        function resetTaskModal() {
             document.getElementById('task-edit-id').value = '0';
             document.getElementById('task-name').value = '';
             document.getElementById('task-notes').value = '';
@@ -537,6 +607,12 @@
             document.getElementById('task-priority').value = 'medium';
             document.getElementById('task-recurrence').value = 'none';
             document.getElementById('task-category').value = '';
+            document.getElementById('task-requires-signoff').checked = (userType !== 'student');
+        }
+
+        function openAddTaskModal() {
+            taskModalMode = 'assign';
+            resetTaskModal();
             document.getElementById('task-modal-title').textContent = 'Add Task';
 
             const studentSel = document.getElementById('task-student-id');
@@ -550,6 +626,8 @@
 
         function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
+        let taskModalMode = 'assign'; // 'assign' = requires student, 'library' = student optional
+
         async function saveTask() {
             const name = document.getElementById('task-name').value.trim();
             if (!name) { alert('Name is required'); return; }
@@ -561,11 +639,11 @@
                 const sel = document.getElementById('task-student-id');
                 studentID = sel ? sel.value : getSelectedStudentID();
             }
-            if (!studentID) { alert('Please select a student'); return; }
+            if (!studentID && taskModalMode === 'assign') { alert('Please select a student'); return; }
 
             const item = {
                 id: parseInt(document.getElementById('task-edit-id').value) || undefined,
-                student_id: studentID,
+                student_id: studentID || '',
                 name: name,
                 notes: document.getElementById('task-notes').value.trim(),
                 start_date: document.getElementById('task-start-date').value,
@@ -573,6 +651,7 @@
                 priority: document.getElementById('task-priority').value,
                 recurrence: document.getElementById('task-recurrence').value,
                 category: document.getElementById('task-category').value.trim(),
+                requires_signoff: document.getElementById('task-requires-signoff').checked,
                 active: true
             };
 
@@ -583,7 +662,11 @@
                     body: JSON.stringify(item)
                 });
                 closeTaskModal();
-                loadTasks();
+                if (taskModalMode === 'library') {
+                    loadMyItems();
+                } else {
+                    loadTasks();
+                }
             } catch(e) { alert('Failed to save'); }
         }
 
@@ -737,6 +820,138 @@
                 `).join('');
             } catch(e) { console.error(e); }
         }
+
+        // ==================== MY ITEMS ====================
+        let myItems = [];
+
+        async function loadMyItems() {
+            try {
+                const res = await fetch('/api/dashboard/teacher-items');
+                myItems = await res.json();
+                renderMyItems();
+            } catch(e) { console.error('Failed to load my items:', e); }
+        }
+
+        function renderMyItems() {
+            const table = document.getElementById('my-items-table');
+            const tbody = document.getElementById('my-items-tbody');
+            const empty = document.getElementById('my-items-empty');
+
+            if (!myItems || myItems.length === 0) {
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            table.classList.remove('hidden');
+
+            tbody.innerHTML = myItems.map(it => `
+                <tr class="border-b hover:bg-gray-50 ${it.completed ? 'opacity-60' : ''}">
+                    <td class="py-2 pr-4 font-medium text-gray-800">${esc(it.name)}</td>
+                    <td class="py-2 pr-4 text-gray-500 max-w-[200px] truncate">${esc(it.notes || '')}</td>
+                    <td class="py-2 pr-4">${priorityBadge(it.priority)}</td>
+                    <td class="py-2 pr-4">${it.recurrence === 'none' ? '<span class="text-xs text-gray-400">One-time</span>' : recurrenceBadge(it.recurrence)}</td>
+                    <td class="py-2 pr-4 text-gray-600">${it.due_date || '-'}</td>
+                    <td class="py-2 pr-4">${it.student_id ? `<span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">${esc(it.student_name || it.student_id)}</span>` : '<span class="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded">Unassigned</span>'}</td>
+                    <td class="py-2 pr-4">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
+                    <td class="py-2 whitespace-nowrap">
+                        <button onclick="editMyItem(${it.id})" class="text-indigo-600 hover:text-indigo-800 text-sm mr-2">Edit</button>
+                        ${!it.student_id && userType !== 'student' ? `<button onclick="openAssignModal(${it.id})" class="text-green-600 hover:text-green-800 text-sm mr-2">Assign</button>` : ''}
+                        <button onclick="deleteMyItem(${it.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openMyItemModal(item) {
+            taskModalMode = 'library';
+            resetTaskModal();
+            const studentSel = document.getElementById('task-student-id');
+            if (studentSel && myStudents.length > 0) {
+                studentSel.innerHTML = '<option value="">No student (library item)</option>' +
+                    myStudents.map(s => `<option value="${s.id}">${esc(s.first_name + ' ' + s.last_name)}</option>`).join('');
+            }
+
+            if (item) {
+                document.getElementById('task-edit-id').value = item.id;
+                document.getElementById('task-name').value = item.name || '';
+                document.getElementById('task-notes').value = item.notes || '';
+                document.getElementById('task-start-date').value = item.start_date || '';
+                document.getElementById('task-due-date').value = item.due_date || '';
+                document.getElementById('task-priority').value = item.priority || 'medium';
+                document.getElementById('task-recurrence').value = item.recurrence || 'none';
+                document.getElementById('task-category').value = item.category || '';
+                document.getElementById('task-requires-signoff').checked = !!item.requires_signoff;
+                if (studentSel) studentSel.value = item.student_id || '';
+                document.getElementById('task-modal-title').textContent = 'Edit Item';
+            } else {
+                document.getElementById('task-modal-title').textContent = 'Add Item';
+            }
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function editMyItem(id) {
+            const item = myItems.find(it => it.id === id);
+            if (item) openMyItemModal(item);
+        }
+
+        async function deleteMyItem(id) {
+            if (!confirm('Delete this item?')) return;
+            try {
+                await fetch('/api/tracker/student-items/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                loadMyItems();
+            } catch(e) { alert('Failed to delete'); }
+        }
+
+        {{if ne .UserType "student"}}
+        function openAssignModal(itemId) {
+            const item = myItems.find(it => it.id === itemId);
+            if (!item) return;
+            document.getElementById('assign-item-id').value = itemId;
+            document.getElementById('assign-item-name').textContent = item.name;
+
+            const list = document.getElementById('assign-student-list');
+            if (myStudents.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400">No students available.</p>';
+            } else {
+                list.innerHTML = myStudents.map(s => `
+                    <label class="flex items-center gap-2 py-1 px-2 hover:bg-gray-50 rounded cursor-pointer">
+                        <input type="checkbox" class="assign-student-cb rounded" value="${s.id}">
+                        <span class="text-sm text-gray-700">${esc(s.first_name + ' ' + s.last_name)}</span>
+                    </label>
+                `).join('');
+            }
+            document.getElementById('assign-modal').classList.remove('hidden');
+        }
+
+        function closeAssignModal() { document.getElementById('assign-modal').classList.add('hidden'); }
+
+        async function submitAssignLibrary() {
+            const itemId = parseInt(document.getElementById('assign-item-id').value);
+            const studentIDs = Array.from(document.querySelectorAll('.assign-student-cb:checked')).map(cb => cb.value);
+            if (studentIDs.length === 0) { alert('Select at least one student'); return; }
+
+            try {
+                const res = await fetch('/api/dashboard/assign-library-item', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ item_id: itemId, student_ids: studentIDs })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    closeAssignModal();
+                    loadMyItems();
+                    alert('Assigned to ' + data.count + ' student(s)');
+                } else {
+                    alert(data.error || 'Failed');
+                }
+            } catch(e) { alert('Failed to assign'); }
+        }
+        {{end}}
 
         // ==================== INIT ====================
         async function init() {

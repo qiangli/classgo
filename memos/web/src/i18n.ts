@@ -70,6 +70,7 @@ i18n
   .use(LazyImportPlugin)
   .use(initReactI18next)
   .init({
+    showSupportNotice: false,
     detection: {
       order: ["navigator"],
     },
