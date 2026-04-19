@@ -43,12 +43,19 @@ export default defineConfig({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "ui-vendor": ["react-i18next", "react-hot-toast", "@tanstack/react-query"],
           "utils-vendor": ["dayjs", "lodash-es"],
+          "highlight-vendor": ["highlight.js"],
+          "katex-vendor": ["katex"],
+          "markdown-vendor": ["react-markdown"],
           "mermaid-vendor": ["mermaid"],
           "leaflet-vendor": ["leaflet", "react-leaflet"],
+          "connect-vendor": ["@connectrpc/connect", "@connectrpc/connect-web", "@bufbuild/protobuf"],
         },
       },
     },
