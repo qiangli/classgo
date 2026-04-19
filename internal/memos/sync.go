@@ -23,6 +23,9 @@ func NewSyncer(client *Client, db *sql.DB) *Syncer {
 	return &Syncer{client: client, db: db}
 }
 
+// Client returns the underlying Memos client for direct operations.
+func (s *Syncer) Client() *Client { return s.client }
+
 // SyncAll pushes student profiles, schedule summaries, and today's attendance.
 func (s *Syncer) SyncAll() error {
 	data, err := datastore.ReadFromDB(s.db)

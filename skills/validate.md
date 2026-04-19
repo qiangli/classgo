@@ -1,13 +1,13 @@
 ---
 name: validate
-description: Run integration tests to validate all ClassGo endpoints and pages
+description: Run integration tests to validate all ClassGo endpoints, check-in flows, PIN modes, audit, and attendance
 user_invocable: true
 args: "[url]"
 ---
 
 # Validate ClassGo
 
-Run integration tests against a running ClassGo server to verify all pages and API endpoints are working. Defaults to `http://localhost:8080` unless a URL is provided.
+Run integration tests against a running ClassGo server to verify all pages, API endpoints, check-in/check-out flows (all PIN modes), audit logging, and attendance reporting. Defaults to `http://localhost:8080` unless a URL is provided.
 
 ## Prerequisites
 
@@ -32,67 +32,41 @@ curl -s -o /dev/null -w "%{http_code}" $BASE/
 # Kiosk check-in page
 curl -s -o /dev/null -w "%{http_code}" $BASE/kiosk
 
-# Admin dashboard
+# Login page
+curl -s -o /dev/null -w "%{http_code}" $BASE/login
+
+# Admin dashboard (may redirect to login — 200 or 302 both acceptable)
 curl -s -o /dev/null -w "%{http_code}" $BASE/admin
 
-# Schedule page
-curl -s -o /dev/null -w "%{http_code}" $BASE/schedule
-
-# Memos SPA
-curl -s -o /dev/null -w "%{http_code}" $BASE/memos/
-
-# Memos health check
-curl -s $BASE/memos/healthz
+# Dashboard (requires auth — 302 to login expected)
+curl -s -o /dev/null -w "%{http_code}" $BASE/dashboard
 ```
 
 ### 2. API Endpoints (GET, expect JSON responses)
 
 ```bash
-# Settings
+# Settings — should include pin_mode
 curl -s $BASE/api/settings
-# Expect: {"require_pin": true/false}
+# Expect: {"pin_mode":"off"|"center"|"per-student", "require_pin": true/false}
 
 # Status (no student)
 curl -s "$BASE/api/status?student_name=TestUser"
 # Expect: {"checked_in": false}
 
-# Today's attendees
-curl -s $BASE/api/attendees
-# Expect: JSON array
-
 # Student search
 curl -s "$BASE/api/students/search?q=a"
 # Expect: JSON array
-
-# Schedule - today
-curl -s $BASE/api/v1/schedule/today
-# Expect: JSON array
-
-# Schedule - week
-curl -s $BASE/api/v1/schedule/week
-# Expect: JSON array
-
-# Schedule - conflicts
-curl -s $BASE/api/v1/schedule/conflicts
-# Expect: JSON array
 ```
 
-### 3. Check-In/Check-Out Flow (POST, full lifecycle)
+### 3. Check-In/Check-Out Flow — PIN Mode: Off
 
-First, get the current PIN requirement:
-```bash
-SETTINGS=$(curl -s $BASE/api/settings)
-```
-
-If PIN is required, get it from the admin page or use the API to temporarily disable it.
-
-Then test the full flow:
+First, ensure PIN mode is off. Then test the full flow:
 
 ```bash
-# Check in a test student
+# Check in a test student (no PIN needed)
 curl -s -X POST $BASE/api/checkin \
   -H 'Content-Type: application/json' \
-  -d '{"student_name":"ValidationTest","pin":"","device_type":"mobile"}'
+  -d '{"student_name":"ValidationTest","device_type":"mobile"}'
 # Expect: {"ok": true, "message": "Welcome, ValidationTest!"}
 
 # Verify status shows checked in
@@ -102,13 +76,13 @@ curl -s "$BASE/api/status?student_name=ValidationTest"
 # Duplicate check-in should say "already"
 curl -s -X POST $BASE/api/checkin \
   -H 'Content-Type: application/json' \
-  -d '{"student_name":"ValidationTest","pin":"","device_type":"mobile"}'
+  -d '{"student_name":"ValidationTest","device_type":"mobile"}'
 # Expect: message contains "Already"
 
-# Check out
+# Check out (no PIN needed)
 curl -s -X POST $BASE/api/checkout \
   -H 'Content-Type: application/json' \
-  -d '{"student_name":"ValidationTest","pin":""}'
+  -d '{"student_name":"ValidationTest"}'
 # Expect: {"ok": true, "message": "Goodbye, ValidationTest!"}
 
 # Verify status shows checked out
@@ -116,19 +90,48 @@ curl -s "$BASE/api/status?student_name=ValidationTest"
 # Expect: {"checked_in": true, "checked_out": true}
 ```
 
-### 4. Export Endpoints (GET, expect file downloads)
+### 4. Check-In with Kiosk Device Type
+
+```bash
+curl -s -X POST $BASE/api/checkin \
+  -H 'Content-Type: application/json' \
+  -d '{"student_name":"KioskTest","device_type":"kiosk"}'
+# Expect: {"ok": true}
+
+curl -s -X POST $BASE/api/checkout \
+  -H 'Content-Type: application/json' \
+  -d '{"student_name":"KioskTest"}'
+# Expect: {"ok": true}
+```
+
+### 5. Device Fingerprint Capture
+
+```bash
+# Check in with fingerprint and device_id
+curl -s -X POST $BASE/api/checkin \
+  -H 'Content-Type: application/json' \
+  -d '{"student_name":"FPTest","device_type":"mobile","fingerprint":"test-fp-123","device_id":"test-dev-456"}'
+# Expect: {"ok": true}
+
+curl -s -X POST $BASE/api/checkout \
+  -H 'Content-Type: application/json' \
+  -d '{"student_name":"FPTest","fingerprint":"test-fp-123","device_id":"test-dev-456"}'
+# Expect: {"ok": true}
+```
+
+### 6. Export Endpoints (GET, expect file downloads)
 
 ```bash
 # CSV export
-curl -s -o /dev/null -w "%{http_code}" $BASE/admin/export
-# Expect: 200
+curl -s -o /dev/null -w "%{http_code}" "$BASE/admin/export?from=2020-01-01&to=2099-12-31"
+# Expect: 200 or 302
 
 # XLSX export
 curl -s -o /dev/null -w "%{http_code}" $BASE/admin/export/xlsx
-# Expect: 200
+# Expect: 200 or 302
 ```
 
-### 5. Static Assets
+### 7. Static Assets
 
 ```bash
 # Logo image
@@ -138,6 +141,31 @@ curl -s -o /dev/null -w "%{http_code}" $BASE/static/lern.png
 # Favicon
 curl -s -o /dev/null -w "%{http_code}" $BASE/static/favicon.svg
 # Expect: 200
+
+# FingerprintJS library
+curl -s -o /dev/null -w "%{http_code}" $BASE/static/js/fingerprint.js
+# Expect: 200
+```
+
+### 8. Go Test Suite (comprehensive)
+
+Run the full Go test suite which includes:
+- 10 original tests (basic check-in/check-out lifecycle)
+- 24 integration tests covering:
+  - PIN mode off/center/per-student (3 modes × mobile/kiosk)
+  - Per-student PIN setup, validation, reset
+  - Per-student PIN override (require_pin flag)
+  - Rate limiting (mobile 2min, kiosk 30s, same-student allowed)
+  - Audit record creation and buddy-punch flagging
+  - Attendance dashboard (attendees, metrics, date range)
+  - Full E2E multi-student flow
+
+```bash
+go test -v -count=1 .
+# Expect: all 34 tests PASS
+
+go test -v -count=1 ./internal/scheduling
+# Expect: all 6 scheduling tests PASS
 ```
 
 ## Reporting
@@ -147,33 +175,38 @@ After all tests complete, print a summary table:
 ```
 Validation Results:
   Pages:
-    Mobile (/)           ✓ 200
-    Kiosk (/kiosk)       ✓ 200
-    Admin (/admin)       ✓ 200
-    Schedule (/schedule) ✓ 200
-    Memos (/memos/)      ✓ 200
-    Memos Health         ✓ OK
+    Mobile (/)             ✓ 200
+    Kiosk (/kiosk)         ✓ 200
+    Login (/login)         ✓ 200
+    Admin (/admin)         ✓ 200/302
+    Dashboard (/dashboard) ✓ 302
   APIs:
-    Settings             ✓ 200
-    Status               ✓ 200
-    Attendees            ✓ 200
-    Student Search       ✓ 200
-    Schedule Today       ✓ 200
-    Schedule Week        ✓ 200
-    Schedule Conflicts   ✓ 200
-  Check-In Flow:
-    Check In             ✓ OK
-    Duplicate Check In   ✓ Already
-    Check Out            ✓ OK
-    Status After         ✓ OK
+    Settings               ✓ pin_mode present
+    Status                 ✓ checked_in=false
+    Student Search         ✓ JSON array
+  Check-In Flow (PIN Off):
+    Check In               ✓ Welcome
+    Duplicate Check In     ✓ Already
+    Check Out              ✓ Goodbye
+    Status After           ✓ checked_out=true
+  Kiosk Flow:
+    Kiosk Check In         ✓ OK
+    Kiosk Check Out        ✓ OK
+  Fingerprint:
+    FP Check In            ✓ OK
+    FP Check Out           ✓ OK
   Exports:
-    CSV Export           ✓ 200
-    XLSX Export          ✓ 200
+    CSV Export             ✓ 200/302
+    XLSX Export            ✓ 200/302
   Static:
-    Logo                 ✓ 200
-    Favicon              ✓ 200
+    Logo                   ✓ 200
+    Favicon                ✓ 200
+    FingerprintJS          ✓ 200
+  Go Tests:
+    Unit + Integration     ✓ 34/34 passed
+    Scheduling             ✓ 6/6 passed
 
-  Total: 20/20 passed
+  Total: All passed
 ```
 
 If any test fails, show the expected vs actual result.

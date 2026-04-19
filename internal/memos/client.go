@@ -99,10 +99,84 @@ func (c *Client) ListMemos(filter string, pageSize int) ([]MemoResponse, error) 
 	return result, nil
 }
 
+// NotifyTaskAssigned creates a memo notification when a task is assigned to a student.
+func (c *Client) NotifyTaskAssigned(studentID, studentName, taskName, assignedBy string) {
+	content := fmt.Sprintf("#task #%s\n\n**New task assigned:** %s\n\nAssigned to: %s\nAssigned by: %s",
+		studentID, taskName, studentName, assignedBy)
+
+	_, err := c.CreateMemo(Memo{
+		Content:    content,
+		Visibility: "PROTECTED",
+		Pinned:     false,
+	})
+	if err != nil {
+		// Log but don't fail — notifications are best-effort
+		fmt.Printf("notify task assigned error: %v\n", err)
+	}
+}
+
 // DeleteMemo deletes a memo by ID.
 func (c *Client) DeleteMemo(id int32) error {
 	ctx := context.Background()
 	return c.store.DeleteMemo(ctx, &memosstore.DeleteMemo{ID: id})
+}
+
+// EnsureUser creates a Memos user if they don't exist, or returns the existing user's ID.
+// Used to create accounts for students/parents/teachers.
+func EnsureUser(store *memosstore.Store, username, nickname, email, password string) (int32, error) {
+	ctx := context.Background()
+
+	user, err := store.GetUser(ctx, &memosstore.FindUser{Username: &username})
+	if err != nil {
+		return 0, err
+	}
+	if user != nil {
+		return user.ID, nil
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return 0, err
+	}
+
+	newUser, err := store.CreateUser(ctx, &memosstore.User{
+		Username:     username,
+		Role:         memosstore.RoleUser,
+		Email:        email,
+		Nickname:     nickname,
+		PasswordHash: string(hash),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("create user: %w", err)
+	}
+	return newUser.ID, nil
+}
+
+// ResetPassword changes a Memos user's password.
+func ResetPassword(store *memosstore.Store, username, newPassword string) error {
+	ctx := context.Background()
+
+	user, err := store.GetUser(ctx, &memosstore.FindUser{Username: &username})
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return fmt.Errorf("user %q not found", username)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	hashStr := string(hash)
+	now := time.Now().Unix()
+	_, err = store.UpdateUser(ctx, &memosstore.UpdateUser{
+		ID:           user.ID,
+		PasswordHash: &hashStr,
+		UpdatedTs:    &now,
+	})
+	return err
 }
 
 // EnsureAdminUser ensures a Memos admin user exists and returns their ID.

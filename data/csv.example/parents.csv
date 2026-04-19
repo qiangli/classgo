@@ -1,4 +1,4 @@
-id,first_name,last_name,email,phone,notes
-P001,Wei,Wang,wei@example.com,555-1234,
-P002,Maria,Garcia,maria@example.com,555-5678,Prefers text messages
-P003,David,Chen,david@example.com,555-9012,
+id,first_name,last_name,email,phone,address,notes
+P001,Wei,Wang,wei@example.com,555-1234,,
+P002,Maria,Garcia,maria@example.com,555-5678,,Prefers text messages
+P003,David,Chen,david@example.com,555-9012,,

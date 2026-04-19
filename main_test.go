@@ -47,6 +47,7 @@ func setupTest(t *testing.T) (*handlers.App, func()) {
 		DB:      db,
 		Tmpl:    tmpl,
 		AppName: "TestApp",
+		PinMode: "center",
 	}
 	app.SetPIN("1234")
 	app.SetRequirePIN(true)
@@ -336,8 +337,14 @@ func TestMissingFields(t *testing.T) {
 	}
 
 	w = postJSON(app.HandleCheckIn, `{"student_name":"Alice","device_type":"mobile"}`)
-	if w.Code != 400 {
-		t.Errorf("expected 400 for missing PIN, got %d", w.Code)
+	resp := decodeResp(t, w)
+	if resp["ok"] == true {
+		t.Error("expected check-in to fail for missing PIN")
+	}
+	if resp["needs_pin"] != true {
+		if w.Code != 400 {
+			t.Errorf("expected 400 or needs_pin for missing PIN, got %d", w.Code)
+		}
 	}
 }
 

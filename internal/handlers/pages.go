@@ -12,12 +12,7 @@ import (
 )
 
 func (a *App) HandleSchedulePage(w http.ResponseWriter, r *http.Request) {
-	data := struct {
-		AppName string
-	}{
-		AppName: a.AppName,
-	}
-	a.Tmpl.ExecuteTemplate(w, "schedule.html", data)
+	http.Redirect(w, r, "/admin#schedule", http.StatusFound)
 }
 
 func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +41,10 @@ func (a *App) HandleKiosk(w http.ResponseWriter, r *http.Request) {
 		ServerURLMDNS: mdnsURL,
 	}
 	a.Tmpl.ExecuteTemplate(w, "kiosk.html", data)
+}
+
+func (a *App) HandleDirectory(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin#data", http.StatusFound)
 }
 
 func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {

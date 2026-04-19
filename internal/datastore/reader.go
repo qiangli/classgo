@@ -143,9 +143,13 @@ func parseStudentRows(rows [][]string) []models.Student {
 			LastName:  m["last_name"],
 			Grade:     m["grade"],
 			School:    m["school"],
-			ParentID:  m["parent_id"],
+			ParentID:  parseRef(m["parent_id"]),
+			Email:     m["email"],
+			Phone:     m["phone"],
+			Address:   m["address"],
 			Notes:     m["notes"],
 			Active:    parseBool(m["active"]),
+			Deleted:   parseBoolDefault(m["deleted"], false),
 		})
 	}
 	return students
@@ -160,7 +164,9 @@ func parseParentRows(rows [][]string) []models.Parent {
 			LastName:  m["last_name"],
 			Email:     m["email"],
 			Phone:     m["phone"],
+			Address:   m["address"],
 			Notes:     m["notes"],
+			Deleted:   parseBoolDefault(m["deleted"], false),
 		})
 	}
 	return parents
@@ -175,8 +181,10 @@ func parseTeacherRows(rows [][]string) []models.Teacher {
 			LastName:  m["last_name"],
 			Email:     m["email"],
 			Phone:     m["phone"],
+			Address:   m["address"],
 			Subjects:  splitSemicolon(m["subjects"]),
 			Active:    parseBool(m["active"]),
+			Deleted:   parseBoolDefault(m["deleted"], false),
 		})
 	}
 	return teachers
@@ -191,6 +199,7 @@ func parseRoomRows(rows [][]string) []models.Room {
 			Name:     m["name"],
 			Capacity: cap,
 			Notes:    m["notes"],
+			Deleted:  parseBoolDefault(m["deleted"], false),
 		})
 	}
 	return rooms
@@ -204,12 +213,13 @@ func parseScheduleRows(rows [][]string) []models.Schedule {
 			DayOfWeek:      m["day_of_week"],
 			StartTime:      m["start_time"],
 			EndTime:        m["end_time"],
-			TeacherID:      m["teacher_id"],
-			RoomID:         m["room_id"],
+			TeacherID:      parseRef(m["teacher_id"]),
+			RoomID:         parseRef(m["room_id"]),
 			Subject:        m["subject"],
-			StudentIDs:     splitSemicolon(m["student_ids"]),
+			StudentIDs:     parseRefList(m["student_ids"]),
 			EffectiveFrom:  m["effective_from"],
 			EffectiveUntil: m["effective_until"],
+			Deleted:        parseBoolDefault(m["deleted"], false),
 		})
 	}
 	return schedules
@@ -233,4 +243,34 @@ func splitSemicolon(s string) []string {
 func parseBool(s string) bool {
 	s = strings.ToLower(strings.TrimSpace(s))
 	return s == "" || s == "yes" || s == "true" || s == "1"
+}
+
+func parseBoolDefault(s string, defaultVal bool) bool {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return defaultVal
+	}
+	return s == "yes" || s == "true" || s == "1"
+}
+
+// parseRefList parses a semicolon-separated list of cross-reference strings.
+func parseRefList(s string) []string {
+	parts := splitSemicolon(s)
+	for i, p := range parts {
+		parts[i] = parseRef(p)
+	}
+	return parts
+}
+
+// parseRef extracts an ID from a cross-reference string.
+// Supported formats:
+//   - "Name/ID" (e.g., "Wei Wang/P001") → returns "P001"
+//   - "ID" (e.g., "P001") → returns "P001"
+//   - "Name" (e.g., "Wei Wang") → returns "Wei Wang" as-is (caller may resolve)
+func parseRef(s string) string {
+	s = strings.TrimSpace(s)
+	if idx := strings.LastIndex(s, "/"); idx >= 0 {
+		return strings.TrimSpace(s[idx+1:])
+	}
+	return s
 }

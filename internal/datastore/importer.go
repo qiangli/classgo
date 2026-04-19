@@ -55,11 +55,11 @@ func importParents(db *sql.DB, parents []models.Parent) error {
 	ids := make(map[string]bool)
 	for _, p := range parents {
 		ids[p.ID] = true
-		hash := rowHash(p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Notes)
+		hash := rowHash(p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes, fmt.Sprint(p.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, notes, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Notes, hash,
+			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, address, notes, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes, boolToInt(p.Deleted), hash,
 		)
 		if err != nil {
 			return err
@@ -81,11 +81,11 @@ func importStudents(db *sql.DB, students []models.Student) error {
 	ids := make(map[string]bool)
 	for _, s := range students {
 		ids[s.ID] = true
-		hash := rowHash(s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Notes, fmt.Sprint(s.Active))
+		hash := rowHash(s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, fmt.Sprint(s.Active), fmt.Sprint(s.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, notes, active, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Notes, boolToInt(s.Active), hash,
+			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes, active, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolToInt(s.Active), boolToInt(s.Deleted), hash,
 		)
 		if err != nil {
 			return err
@@ -108,11 +108,11 @@ func importTeachers(db *sql.DB, teachers []models.Teacher) error {
 	for _, t := range teachers {
 		ids[t.ID] = true
 		subjects := strings.Join(t.Subjects, ";")
-		hash := rowHash(t.ID, t.FirstName, t.LastName, t.Email, t.Phone, subjects, fmt.Sprint(t.Active))
+		hash := rowHash(t.ID, t.FirstName, t.LastName, t.Email, t.Phone, t.Address, subjects, fmt.Sprint(t.Active), fmt.Sprint(t.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO teachers (id, first_name, last_name, email, phone, subjects, active, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			t.ID, t.FirstName, t.LastName, t.Email, t.Phone, subjects, boolToInt(t.Active), hash,
+			`INSERT OR REPLACE INTO teachers (id, first_name, last_name, email, phone, address, subjects, active, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			t.ID, t.FirstName, t.LastName, t.Email, t.Phone, t.Address, subjects, boolToInt(t.Active), boolToInt(t.Deleted), hash,
 		)
 		if err != nil {
 			return err
@@ -134,11 +134,11 @@ func importRooms(db *sql.DB, rooms []models.Room) error {
 	ids := make(map[string]bool)
 	for _, r := range rooms {
 		ids[r.ID] = true
-		hash := rowHash(r.ID, r.Name, fmt.Sprint(r.Capacity), r.Notes)
+		hash := rowHash(r.ID, r.Name, fmt.Sprint(r.Capacity), r.Notes, fmt.Sprint(r.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO rooms (id, name, capacity, notes, row_hash)
-			 VALUES (?, ?, ?, ?, ?)`,
-			r.ID, r.Name, r.Capacity, r.Notes, hash,
+			`INSERT OR REPLACE INTO rooms (id, name, capacity, notes, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			r.ID, r.Name, r.Capacity, r.Notes, boolToInt(r.Deleted), hash,
 		)
 		if err != nil {
 			return err
@@ -161,11 +161,11 @@ func importSchedules(db *sql.DB, schedules []models.Schedule) error {
 	for _, s := range schedules {
 		ids[s.ID] = true
 		studentIDs := strings.Join(s.StudentIDs, ";")
-		hash := rowHash(s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil)
+		hash := rowHash(s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, fmt.Sprint(s.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, hash,
+			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, boolToInt(s.Deleted), hash,
 		)
 		if err != nil {
 			return err

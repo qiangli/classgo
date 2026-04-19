@@ -43,21 +43,21 @@ func ExportCSVDir(dir string, data *EntityData) error {
 
 	writers := map[string]func(*csv.Writer){
 		"students.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "notes", "active"})
+			w.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"})
 			for _, s := range data.Students {
-				w.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Notes, boolStr(s.Active)})
+				w.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)})
 			}
 		},
 		"parents.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "notes"})
+			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "address", "notes"})
 			for _, p := range data.Parents {
-				w.Write([]string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Notes})
+				w.Write([]string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes})
 			}
 		},
 		"teachers.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "subjects", "active"})
+			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "address", "subjects", "active"})
 			for _, t := range data.Teachers {
-				w.Write([]string{t.ID, t.FirstName, t.LastName, t.Email, t.Phone, strings.Join(t.Subjects, ";"), boolStr(t.Active)})
+				w.Write([]string{t.ID, t.FirstName, t.LastName, t.Email, t.Phone, t.Address, strings.Join(t.Subjects, ";"), boolStr(t.Active)})
 			}
 		},
 		"rooms.csv": func(w *csv.Writer) {
@@ -97,14 +97,14 @@ func boolStr(b bool) string {
 func writeStudentSheet(f *excelize.File, students []models.Student) {
 	sheet := "Students"
 	f.NewSheet(sheet)
-	headers := []string{"id", "first_name", "last_name", "grade", "school", "parent_id", "notes", "active"}
+	headers := []string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, s := range students {
 		row := r + 2
-		vals := []string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Notes, boolStr(s.Active)}
+		vals := []string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -115,14 +115,14 @@ func writeStudentSheet(f *excelize.File, students []models.Student) {
 func writeParentSheet(f *excelize.File, parents []models.Parent) {
 	sheet := "Parents"
 	f.NewSheet(sheet)
-	headers := []string{"id", "first_name", "last_name", "email", "phone", "notes"}
+	headers := []string{"id", "first_name", "last_name", "email", "phone", "address", "notes"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, p := range parents {
 		row := r + 2
-		vals := []string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Notes}
+		vals := []string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -133,14 +133,14 @@ func writeParentSheet(f *excelize.File, parents []models.Parent) {
 func writeTeacherSheet(f *excelize.File, teachers []models.Teacher) {
 	sheet := "Teachers"
 	f.NewSheet(sheet)
-	headers := []string{"id", "first_name", "last_name", "email", "phone", "subjects", "active"}
+	headers := []string{"id", "first_name", "last_name", "email", "phone", "address", "subjects", "active"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, t := range teachers {
 		row := r + 2
-		vals := []string{t.ID, t.FirstName, t.LastName, t.Email, t.Phone, strings.Join(t.Subjects, ";"), boolStr(t.Active)}
+		vals := []string{t.ID, t.FirstName, t.LastName, t.Email, t.Phone, t.Address, strings.Join(t.Subjects, ";"), boolStr(t.Active)}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -227,36 +227,50 @@ func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 	return nil
 }
 
-// ReadFromDB reads all entity data back from SQLite index tables.
+// ReadFromDB reads all non-deleted entity data back from SQLite index tables.
 func ReadFromDB(db *sql.DB) (*EntityData, error) {
+	return readFromDB(db, false)
+}
+
+// ReadFromDBAll reads all entity data including soft-deleted records.
+func ReadFromDBAll(db *sql.DB) (*EntityData, error) {
+	return readFromDB(db, true)
+}
+
+func readFromDB(db *sql.DB, includeDeleted bool) (*EntityData, error) {
 	data := &EntityData{}
 	var err error
 
-	data.Students, err = queryStudents(db)
+	data.Students, err = queryStudents(db, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
-	data.Parents, err = queryParents(db)
+	data.Parents, err = queryParents(db, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
-	data.Teachers, err = queryTeachers(db)
+	data.Teachers, err = queryTeachers(db, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
-	data.Rooms, err = queryRooms(db)
+	data.Rooms, err = queryRooms(db, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
-	data.Schedules, err = querySchedules(db)
+	data.Schedules, err = querySchedules(db, includeDeleted)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func queryStudents(db *sql.DB) ([]models.Student, error) {
-	rows, err := db.Query("SELECT id, first_name, last_name, grade, school, parent_id, notes, active FROM students ORDER BY id")
+func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
+	q := "SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes, active, deleted, COALESCE(require_pin, 0) FROM students"
+	if !includeDeleted {
+		q += " WHERE deleted = 0"
+	}
+	q += " ORDER BY id"
+	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -264,23 +278,33 @@ func queryStudents(db *sql.DB) ([]models.Student, error) {
 	var result []models.Student
 	for rows.Next() {
 		var s models.Student
-		var active int
-		var grade, school, parentID, notes sql.NullString
-		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &notes, &active); err != nil {
+		var active, deleted, requirePIN int
+		var grade, school, parentID, email, phone, address, notes sql.NullString
+		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes, &active, &deleted, &requirePIN); err != nil {
 			return nil, err
 		}
 		s.Grade = grade.String
 		s.School = school.String
 		s.ParentID = parentID.String
+		s.Email = email.String
+		s.Phone = phone.String
+		s.Address = address.String
 		s.Notes = notes.String
 		s.Active = active == 1
+		s.Deleted = deleted == 1
+		s.RequirePIN = requirePIN == 1
 		result = append(result, s)
 	}
 	return result, rows.Err()
 }
 
-func queryParents(db *sql.DB) ([]models.Parent, error) {
-	rows, err := db.Query("SELECT id, first_name, last_name, email, phone, notes FROM parents ORDER BY id")
+func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
+	q := "SELECT id, first_name, last_name, email, phone, address, notes, deleted FROM parents"
+	if !includeDeleted {
+		q += " WHERE deleted = 0"
+	}
+	q += " ORDER BY id"
+	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -288,20 +312,28 @@ func queryParents(db *sql.DB) ([]models.Parent, error) {
 	var result []models.Parent
 	for rows.Next() {
 		var p models.Parent
-		var email, phone, notes sql.NullString
-		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &notes); err != nil {
+		var email, phone, address, notes sql.NullString
+		var deleted int
+		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &address, &notes, &deleted); err != nil {
 			return nil, err
 		}
 		p.Email = email.String
 		p.Phone = phone.String
+		p.Address = address.String
 		p.Notes = notes.String
+		p.Deleted = deleted == 1
 		result = append(result, p)
 	}
 	return result, rows.Err()
 }
 
-func queryTeachers(db *sql.DB) ([]models.Teacher, error) {
-	rows, err := db.Query("SELECT id, first_name, last_name, email, phone, subjects, active FROM teachers ORDER BY id")
+func queryTeachers(db *sql.DB, includeDeleted bool) ([]models.Teacher, error) {
+	q := "SELECT id, first_name, last_name, email, phone, address, subjects, active, deleted FROM teachers"
+	if !includeDeleted {
+		q += " WHERE deleted = 0"
+	}
+	q += " ORDER BY id"
+	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -309,23 +341,29 @@ func queryTeachers(db *sql.DB) ([]models.Teacher, error) {
 	var result []models.Teacher
 	for rows.Next() {
 		var t models.Teacher
-		var email, phone, subjects, notes sql.NullString
-		var active int
-		if err := rows.Scan(&t.ID, &t.FirstName, &t.LastName, &email, &phone, &subjects, &active); err != nil {
+		var email, phone, address, subjects sql.NullString
+		var active, deleted int
+		if err := rows.Scan(&t.ID, &t.FirstName, &t.LastName, &email, &phone, &address, &subjects, &active, &deleted); err != nil {
 			return nil, err
 		}
 		t.Email = email.String
 		t.Phone = phone.String
+		t.Address = address.String
 		t.Subjects = splitSemicolon(subjects.String)
-		_ = notes
 		t.Active = active == 1
+		t.Deleted = deleted == 1
 		result = append(result, t)
 	}
 	return result, rows.Err()
 }
 
-func queryRooms(db *sql.DB) ([]models.Room, error) {
-	rows, err := db.Query("SELECT id, name, capacity, notes FROM rooms ORDER BY id")
+func queryRooms(db *sql.DB, includeDeleted bool) ([]models.Room, error) {
+	q := "SELECT id, name, capacity, notes, deleted FROM rooms"
+	if !includeDeleted {
+		q += " WHERE deleted = 0"
+	}
+	q += " ORDER BY id"
+	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -335,18 +373,25 @@ func queryRooms(db *sql.DB) ([]models.Room, error) {
 		var r models.Room
 		var capacity sql.NullInt64
 		var notes sql.NullString
-		if err := rows.Scan(&r.ID, &r.Name, &capacity, &notes); err != nil {
+		var deleted int
+		if err := rows.Scan(&r.ID, &r.Name, &capacity, &notes, &deleted); err != nil {
 			return nil, err
 		}
 		r.Capacity = int(capacity.Int64)
 		r.Notes = notes.String
+		r.Deleted = deleted == 1
 		result = append(result, r)
 	}
 	return result, rows.Err()
 }
 
-func querySchedules(db *sql.DB) ([]models.Schedule, error) {
-	rows, err := db.Query("SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until FROM schedules ORDER BY id")
+func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) {
+	q := "SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted FROM schedules"
+	if !includeDeleted {
+		q += " WHERE deleted = 0"
+	}
+	q += " ORDER BY id"
+	rows, err := db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +400,8 @@ func querySchedules(db *sql.DB) ([]models.Schedule, error) {
 	for rows.Next() {
 		var s models.Schedule
 		var teacherID, roomID, subject, studentIDs, effectiveFrom, effectiveUntil sql.NullString
-		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil); err != nil {
+		var deleted int
+		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil, &deleted); err != nil {
 			return nil, err
 		}
 		s.TeacherID = teacherID.String
@@ -364,6 +410,7 @@ func querySchedules(db *sql.DB) ([]models.Schedule, error) {
 		s.StudentIDs = splitSemicolon(studentIDs.String)
 		s.EffectiveFrom = effectiveFrom.String
 		s.EffectiveUntil = effectiveUntil.String
+		s.Deleted = deleted == 1
 		result = append(result, s)
 	}
 	return result, rows.Err()

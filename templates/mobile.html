@@ -6,14 +6,47 @@
     <title>{{.AppName}}</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/fingerprint.js"></script>
 </head>
 <body class="bg-gradient-to-b from-indigo-50 to-white min-h-screen flex items-center justify-center p-4">
+
+    <!-- PIN Setup Modal -->
+    <div id="pin-setup-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 text-center mb-2">Create Your PIN</h3>
+            <p class="text-sm text-gray-500 text-center mb-4">Choose a 4-digit PIN for check-in</p>
+            <input type="password" id="pin-setup-1" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-3 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="PIN">
+            <input type="password" id="pin-setup-2" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-4 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Confirm PIN">
+            <button onclick="submitPINSetup()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Set PIN</button>
+            <p id="pin-setup-error" class="hidden text-red-500 text-sm text-center mt-2"></p>
+        </div>
+    </div>
 
     <!-- Success Overlay -->
     <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50 transition-opacity duration-300">
         <div class="text-white text-8xl mb-4">&#10003;</div>
         <p id="success-name" class="text-white text-4xl font-bold text-center px-4"></p>
         <p id="success-status" class="text-green-100 text-xl mt-2">Checked in!</p>
+    </div>
+
+    <!-- Tracker Overlay (shown during checkout) -->
+    <div id="tracker-overlay" class="hidden fixed inset-0 bg-white z-50 overflow-y-auto">
+        <div class="max-w-sm mx-auto p-4 pt-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Before you go...</h2>
+            <p class="text-sm text-gray-500 mb-1">
+                <span id="tracker-student-name" class="font-medium text-gray-700"></span>
+            </p>
+            <p class="text-sm text-gray-400 mb-4">Please respond to each item:</p>
+            <div id="tracker-items-list" class="space-y-3"></div>
+            <button id="tracker-submit-btn" disabled
+                class="w-full mt-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Complete Check Out
+            </button>
+            <button onclick="document.getElementById('tracker-overlay').classList.add('hidden')"
+                class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition">Cancel</button>
+        </div>
     </div>
 
     <div class="w-full max-w-sm">
@@ -114,11 +147,37 @@
 
         let formExpanded = false;
         let pinRequired = true;
+        let pinMode = 'off';
+        let deviceFingerprint = '';
+        let deviceId = '';
 
-        // Fetch settings to check if PIN is required
+        // Initialize device identity
+        (async function initDevice() {
+            // Device ID from localStorage (persistent UUID)
+            deviceId = localStorage.getItem('classgo_device_id');
+            if (!deviceId) {
+                deviceId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+                localStorage.setItem('classgo_device_id', deviceId);
+            }
+            // FingerprintJS
+            try {
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                deviceFingerprint = result.visitorId;
+            } catch(e) { console.warn('FingerprintJS failed:', e); }
+        })();
+
+        // Fetch settings to check PIN mode
         fetch('/api/settings').then(r => r.json()).then(s => {
-            pinRequired = s.require_pin;
-            if (!pinRequired) {
+            pinMode = s.pin_mode || 'off';
+            pinRequired = s.require_pin || pinMode === 'center';
+            if (pinMode === 'off') {
+                document.getElementById('pin-field').classList.add('hidden');
+            } else if (pinMode === 'per-student') {
+                // PIN field shown but label changes
+                document.querySelector('#pin-field label').textContent = 'Your PIN';
+                document.getElementById('pin').placeholder = 'Your personal PIN';
+            } else if (!pinRequired) {
                 document.getElementById('pin-field').classList.add('hidden');
             }
         }).catch(() => {});
@@ -290,17 +349,39 @@
             }, 3000);
         }
 
+        let trackerPin = '';
+
         async function doCheckOut() {
             const name = document.getElementById('confirmed-name').textContent;
-            let pin = '';
+            const sid = studentIdInput.value;
+
             if (pinRequired) {
-                pin = prompt('Enter PIN to check out:');
-                if (!pin) return;
+                trackerPin = prompt('Enter PIN to check out:');
+                if (!trackerPin) return;
+            } else {
+                trackerPin = '';
             }
 
+            // Check for due tracker items
             try {
-                const checkoutPayload = { student_name: name, pin: pin };
-                if (studentIdInput.value) checkoutPayload.student_id = studentIdInput.value;
+                const params = new URLSearchParams();
+                if (sid) params.set('student_id', sid);
+                params.set('student_name', name);
+                const dueRes = await fetch('/api/tracker/due?' + params);
+                const dueItems = await dueRes.json();
+                if (dueItems && dueItems.length > 0) {
+                    showTrackerScreen(name, sid, dueItems);
+                    return;
+                }
+            } catch(e) { /* proceed without tracker */ }
+
+            await performCheckout(name, sid);
+        }
+
+        async function performCheckout(name, sid) {
+            try {
+                const checkoutPayload = { student_name: name, pin: trackerPin, fingerprint: deviceFingerprint, device_id: deviceId };
+                if (sid) checkoutPayload.student_id = sid;
                 const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -317,6 +398,119 @@
             }
         }
 
+        // Tracker screen for checkout
+        let trackerResponses = {};
+
+        function showTrackerScreen(name, sid, items) {
+            trackerResponses = {};
+            const overlay = document.getElementById('tracker-overlay');
+            const container = document.getElementById('tracker-items-list');
+            document.getElementById('tracker-student-name').textContent = name;
+
+            const pColors = { high: 'border-l-4 border-l-red-400', medium: 'border-l-4 border-l-amber-400', low: '' };
+            container.innerHTML = items.map(it => `
+                <div class="bg-gray-50 rounded-xl p-3 ${pColors[it.priority] || ''}" data-item-type="${it.item_type}" data-item-id="${it.item_id}" data-item-name="${escAttr(it.name)}">
+                    <div class="flex items-center gap-2 mb-2">
+                        <p class="text-sm font-medium text-gray-700 flex-1">${escHtml(it.name)}</p>
+                        ${it.priority === 'high' ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600">HIGH</span>' : ''}
+                        ${it.category ? `<span class="text-[10px] text-gray-400">${escHtml(it.category)}</span>` : ''}
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="setTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'done')"
+                            class="tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-300 text-green-700 hover:bg-green-100 transition">Done</button>
+                        <button onclick="setTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'not_done')"
+                            class="tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-gray-300 text-gray-500 hover:bg-gray-100 transition">Not Done</button>
+                    </div>
+                    <input type="text" class="tracker-notes hidden mt-2 w-full px-3 py-1.5 border rounded-lg text-sm text-gray-600 outline-none focus:ring-2 focus:ring-indigo-300"
+                        placeholder="Why not done? (optional)" data-notes-key="${it.item_type}:${it.item_id}">
+                </div>
+            `).join('');
+
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.onclick = () => submitTrackerAndCheckout(name, sid, items);
+            overlay.classList.remove('hidden');
+        }
+
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function setTrackerResponse(btn, itemType, itemId, status) {
+            const key = itemType + ':' + itemId;
+            trackerResponses[key] = { item_type: itemType, item_id: itemId, status };
+
+            // Style buttons
+            const row = btn.closest('[data-item-type]');
+            const buttons = row.querySelectorAll('.tracker-btn');
+            buttons.forEach(b => {
+                b.className = b.className.replace(/bg-green-500|bg-red-400|text-white/g, '');
+                b.classList.remove('bg-green-500', 'bg-red-400', 'text-white');
+                if (b.textContent.trim() === 'Done') {
+                    b.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-300 text-green-700 hover:bg-green-100 transition';
+                } else {
+                    b.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-gray-300 text-gray-500 hover:bg-gray-100 transition';
+                }
+            });
+
+            if (status === 'done') {
+                btn.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-500 bg-green-500 text-white transition';
+            } else {
+                btn.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-red-400 bg-red-400 text-white transition';
+            }
+
+            // Show/hide notes input for "Not Done"
+            const notesInput = row.querySelector('.tracker-notes');
+            if (notesInput) {
+                notesInput.classList.toggle('hidden', status === 'done');
+                if (status === 'done') notesInput.value = '';
+            }
+
+            // Check if all items have responses
+            const totalItems = document.getElementById('tracker-items-list').children.length;
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = Object.keys(trackerResponses).length < totalItems;
+        }
+
+        async function submitTrackerAndCheckout(name, sid, items) {
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Checking out...';
+
+            const responses = items.map(it => {
+                const key = it.item_type + ':' + it.item_id;
+                const resp = trackerResponses[key];
+                const notesEl = document.querySelector(`[data-notes-key="${key}"]`);
+                return {
+                    item_type: it.item_type,
+                    item_id: it.item_id,
+                    item_name: it.name,
+                    status: resp ? resp.status : 'not_done',
+                    notes: notesEl ? notesEl.value.trim() : ''
+                };
+            });
+
+            try {
+                const payload = { student_name: name, pin: trackerPin, responses, fingerprint: deviceFingerprint, device_id: deviceId };
+                if (sid) payload.student_id = sid;
+                const res = await fetch('/api/tracker/respond', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                document.getElementById('tracker-overlay').classList.add('hidden');
+                if (data.ok) {
+                    showConfirmation(name, false, true);
+                } else {
+                    alert(data.error || 'Check out failed');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Complete Check Out';
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
@@ -327,7 +521,9 @@
                 const payload = {
                     student_name: studentNameInput.value.trim(),
                     pin: pinInput.value.trim(),
-                    device_type: 'mobile'
+                    device_type: 'mobile',
+                    fingerprint: deviceFingerprint,
+                    device_id: deviceId
                 };
                 if (studentIdInput.value) {
                     payload.student_id = studentIdInput.value;
@@ -341,7 +537,19 @@
 
                 const data = await res.json();
 
-                if (data.ok) {
+                if (data.needs_pin_setup) {
+                    // Student needs to create their personal PIN
+                    pendingPINSetupStudentId = data.student_id;
+                    document.getElementById('pin-setup-modal').classList.remove('hidden');
+                    document.getElementById('pin-setup-1').focus();
+                } else if (data.needs_pin) {
+                    // Student requires PIN but didn't provide one — show PIN field and focus it
+                    document.getElementById('pin-field').classList.remove('hidden');
+                    document.querySelector('#pin-field label').textContent = 'Your PIN';
+                    document.getElementById('pin').placeholder = 'Enter your personal PIN';
+                    document.getElementById('pin').focus();
+                    showMessage('PIN required for this student', false);
+                } else if (data.ok) {
                     const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
                     showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
                     pinInput.value = '';
@@ -364,6 +572,41 @@
             submitBtn.disabled = false;
             submitBtn.textContent = 'Check In';
         });
+        // PIN setup
+        let pendingPINSetupStudentId = '';
+
+        async function submitPINSetup() {
+            const pin1 = document.getElementById('pin-setup-1').value;
+            const pin2 = document.getElementById('pin-setup-2').value;
+            const errEl = document.getElementById('pin-setup-error');
+            errEl.classList.add('hidden');
+
+            if (pin1.length < 4) { errEl.textContent = 'PIN must be at least 4 digits'; errEl.classList.remove('hidden'); return; }
+            if (pin1 !== pin2) { errEl.textContent = 'PINs do not match'; errEl.classList.remove('hidden'); return; }
+
+            try {
+                const res = await fetch('/api/student/pin/setup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_id: pendingPINSetupStudentId, pin: pin1 })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    document.getElementById('pin-setup-modal').classList.add('hidden');
+                    document.getElementById('pin-setup-1').value = '';
+                    document.getElementById('pin-setup-2').value = '';
+                    pinInput.value = pin1;
+                    // Auto-submit check-in with the new PIN
+                    form.dispatchEvent(new Event('submit'));
+                } else {
+                    errEl.textContent = data.error || 'Failed to set PIN';
+                    errEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errEl.textContent = 'Connection error';
+                errEl.classList.remove('hidden');
+            }
+        }
     </script>
 </body>
 </html>

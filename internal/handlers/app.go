@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -16,8 +17,13 @@ import (
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
+	"golang.org/x/crypto/bcrypt"
 
+	"classgo/internal/auth"
+	"classgo/internal/database"
 	"classgo/internal/memos"
+	"classgo/internal/models"
+	memosstore "classgo/memos/store"
 )
 
 type App struct {
@@ -25,12 +31,296 @@ type App struct {
 	Tmpl        *template.Template
 	AppName     string
 	DataDir     string
+	PinMode     string // "off", "center", "per-student"
 	MemosSyncer *memos.Syncer
+	MemosStore  *memosstore.Store
+	Sessions    *auth.SessionStore
+	RateLimiter *RateLimiter
 
 	dailyPIN   string
 	pinDate    string
 	requirePIN bool
 	mu         sync.Mutex
+}
+
+// RequireAuth wraps a handler to require authentication (any role). Redirects to login.
+func (a *App) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := auth.GetSessionToken(r)
+		if token == "" {
+			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			return
+		}
+		if _, ok := a.Sessions.Get(token); !ok {
+			auth.ClearSessionCookie(w)
+			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// RequireAdmin wraps a handler to require admin role. Redirects to login.
+func (a *App) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := auth.GetSessionToken(r)
+		if token == "" {
+			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			return
+		}
+		sess, ok := a.Sessions.Get(token)
+		if !ok || sess.Role != "admin" {
+			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// RequireAdminAPI wraps an API handler to require admin role, returning 401/403 JSON.
+func (a *App) RequireAdminAPI(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := auth.GetSessionToken(r)
+		if token == "" {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Authentication required"})
+			return
+		}
+		sess, ok := a.Sessions.Get(token)
+		if !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Session expired"})
+			return
+		}
+		if sess.Role != "admin" {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "Admin access required"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+// HandleLogin serves the login page and processes login.
+func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		token := auth.GetSessionToken(r)
+		if token != "" {
+			if sess, ok := a.Sessions.Get(token); ok {
+				if sess.Role == "admin" {
+					http.Redirect(w, r, "/admin", http.StatusFound)
+				} else {
+					http.Redirect(w, r, "/dashboard", http.StatusFound)
+				}
+				return
+			}
+		}
+		a.Tmpl.ExecuteTemplate(w, "login.html", map[string]any{
+			"AppName": a.AppName,
+			"Error":   r.URL.Query().Get("error"),
+		})
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+// HandleLoginAPI handles login POST as JSON API.
+func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		EntityID string `json:"entity_id"` // entity ID (e.g., "S001") for user login
+		Username string `json:"username"`  // system username for admin login
+		Password string `json:"password"`
+		Action   string `json:"action"` // "login", "setup" (first-time password), "admin"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+
+	switch req.Action {
+	case "admin":
+		// Admin login via OS authentication
+		if req.Username == "" || req.Password == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Username and password required"})
+			return
+		}
+		if err := auth.Authenticate(req.Username, req.Password); err != nil {
+			log.Printf("Admin login failed for %q: %v", req.Username, err)
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
+			return
+		}
+		token := a.Sessions.Create(req.Username, "admin", "", "")
+		auth.SetSessionCookie(w, token)
+		log.Printf("Admin login: %s", req.Username)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "admin", "redirect": "/admin"})
+
+	case "check":
+		// Check if user has a password set (for first-time detection)
+		if req.EntityID == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Entity ID required"})
+			return
+		}
+		username := strings.ToLower(req.EntityID)
+		ctx := context.Background()
+		user, _ := a.MemosStore.GetUser(ctx, &memosstore.FindUser{Username: &username})
+		hasPassword := user != nil && user.PasswordHash != ""
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "has_password": hasPassword})
+
+	case "setup":
+		// First-time password setup
+		if req.EntityID == "" || req.Password == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "ID and password required"})
+			return
+		}
+		if len(req.Password) < 4 {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Password must be at least 4 characters"})
+			return
+		}
+		name, email := a.lookupEntity(req.EntityID)
+		if name == "" {
+			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "User not found"})
+			return
+		}
+		username := strings.ToLower(req.EntityID)
+		if _, err := memos.EnsureUser(a.MemosStore, username, name, email, req.Password); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to create account"})
+			return
+		}
+		userType := a.detectUserType(req.EntityID)
+		token := a.Sessions.Create(username, "user", userType, req.EntityID)
+		auth.SetSessionCookie(w, token)
+		log.Printf("User setup + login: %s (%s, %s)", name, username, userType)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
+
+	case "login", "":
+		// Regular user login via Memos credentials
+		if req.EntityID == "" || req.Password == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "ID and password required"})
+			return
+		}
+		username := strings.ToLower(req.EntityID)
+		ctx := context.Background()
+		user, err := a.MemosStore.GetUser(ctx, &memosstore.FindUser{Username: &username})
+		if err != nil || user == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
+			return
+		}
+		userType := a.detectUserType(req.EntityID)
+		token := a.Sessions.Create(username, "user", userType, req.EntityID)
+		auth.SetSessionCookie(w, token)
+		log.Printf("User login: %s (%s, %s)", user.Nickname, username, userType)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
+
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Unknown action"})
+	}
+}
+
+// HandleUserSearch searches across students, parents, teachers by id/name/email/phone.
+func (a *App) HandleUserSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if q == "" || len(q) < 2 {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	like := "%" + q + "%"
+
+	type searchResult struct {
+		Type      string `json:"type"`
+		ID        string `json:"id"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Email     string `json:"email"`
+		Phone     string `json:"phone"`
+	}
+	var results []searchResult
+
+	for _, tbl := range []struct{ name, typ string }{{"students", "Student"}, {"parents", "Parent"}, {"teachers", "Teacher"}} {
+		rows, err := a.DB.Query(
+			fmt.Sprintf(`SELECT id, first_name, last_name, COALESCE(email,''), COALESCE(phone,'') FROM %s
+			 WHERE deleted = 0 AND (
+			   LOWER(id) LIKE LOWER(?) OR
+			   LOWER(first_name) LIKE LOWER(?) OR
+			   LOWER(last_name) LIKE LOWER(?) OR
+			   LOWER(first_name || ' ' || last_name) LIKE LOWER(?) OR
+			   LOWER(COALESCE(email,'')) LIKE LOWER(?) OR
+			   LOWER(COALESCE(phone,'')) LIKE LOWER(?)
+			 ) LIMIT 5`, tbl.name),
+			like, like, like, like, like, like,
+		)
+		if err != nil {
+			continue
+		}
+		for rows.Next() {
+			var r searchResult
+			r.Type = tbl.typ
+			rows.Scan(&r.ID, &r.FirstName, &r.LastName, &r.Email, &r.Phone)
+			results = append(results, r)
+		}
+		rows.Close()
+	}
+
+	if results == nil {
+		results = []searchResult{}
+	}
+	writeJSON(w, http.StatusOK, results)
+}
+
+// lookupEntity returns "FirstName LastName" and email for any entity ID across students/parents/teachers.
+func (a *App) lookupEntity(entityID string) (name, email string) {
+	for _, tbl := range []string{"students", "parents", "teachers"} {
+		var fn, ln, em string
+		err := a.DB.QueryRow(
+			fmt.Sprintf("SELECT first_name, last_name, COALESCE(email,'') FROM %s WHERE id = ?", tbl),
+			entityID,
+		).Scan(&fn, &ln, &em)
+		if err == nil {
+			return fn + " " + ln, em
+		}
+	}
+	return "", ""
+}
+
+// detectUserType determines whether an entity ID belongs to a student, parent, or teacher.
+func (a *App) detectUserType(entityID string) string {
+	for _, tbl := range []struct{ name, typ string }{{"students", "student"}, {"parents", "parent"}, {"teachers", "teacher"}} {
+		var id string
+		err := a.DB.QueryRow(fmt.Sprintf("SELECT id FROM %s WHERE id = ?", tbl.name), entityID).Scan(&id)
+		if err == nil {
+			return tbl.typ
+		}
+	}
+	return ""
+}
+
+// GetSession extracts the session from the request, returning nil if not authenticated.
+func (a *App) GetSession(r *http.Request) *auth.Session {
+	token := auth.GetSessionToken(r)
+	if token == "" {
+		return nil
+	}
+	sess, ok := a.Sessions.Get(token)
+	if !ok {
+		return nil
+	}
+	return &sess
+}
+
+// HandleLogout clears the session and redirects to login.
+func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	token := auth.GetSessionToken(r)
+	if token != "" {
+		a.Sessions.Delete(token)
+	}
+	auth.ClearSessionCookie(w)
+	http.Redirect(w, r, auth.LoginPath, http.StatusFound)
 }
 
 // HandleMemosSync triggers a manual Memos sync.
@@ -109,7 +399,268 @@ func (a *App) HandlePINToggle(w http.ResponseWriter, r *http.Request) {
 
 // HandleSettings returns current settings (PIN requirement, etc).
 func (a *App) HandleSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"require_pin": a.RequirePIN()})
+	pinMode := a.PinMode
+	if pinMode == "" {
+		pinMode = "off"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"require_pin": a.RequirePIN(),
+		"pin_mode":    pinMode,
+	})
+}
+
+// ClientIP extracts the real client IP from the request.
+func ClientIP(r *http.Request) string {
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		if idx := strings.Index(fwd, ","); idx != -1 {
+			return strings.TrimSpace(fwd[:idx])
+		}
+		return strings.TrimSpace(fwd)
+	}
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+	host := r.RemoteAddr
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		return host[:idx]
+	}
+	return host
+}
+
+// ValidatePIN checks the PIN based on the current mode.
+// Per-student override: if a student has require_pin=1, their personal PIN
+// is always required regardless of the global PIN mode.
+// Returns (needsSetup bool, error string).
+func (a *App) ValidatePIN(studentID, pin string) (bool, string) {
+	mode := a.PinMode
+	if mode == "" {
+		mode = "off"
+	}
+
+	// Per-student override: if this student requires PIN, enforce personal PIN
+	if studentID != "" && mode != "per-student" && database.StudentRequiresPIN(a.DB, studentID) {
+		hash, err := database.GetStudentPinHash(a.DB, studentID)
+		if err != nil || hash == "" {
+			return true, "" // needs setup
+		}
+		if pin == "" {
+			return false, "PIN is required"
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pin)); err != nil {
+			return false, "Invalid PIN"
+		}
+		return false, ""
+	}
+
+	switch mode {
+	case "off":
+		return false, ""
+	case "center":
+		if !a.RequirePIN() {
+			return false, ""
+		}
+		if pin == "" {
+			return false, "PIN is required"
+		}
+		if pin != a.EnsureDailyPIN() {
+			return false, "Invalid PIN"
+		}
+		return false, ""
+	case "per-student":
+		if studentID == "" {
+			return false, "Student ID is required for PIN verification"
+		}
+		hash, err := database.GetStudentPinHash(a.DB, studentID)
+		if err != nil || hash == "" {
+			// No PIN set yet — needs setup
+			return true, ""
+		}
+		if pin == "" {
+			return false, "PIN is required"
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pin)); err != nil {
+			return false, "Invalid PIN"
+		}
+		return false, ""
+	}
+	return false, ""
+}
+
+// HandleStudentPINSetup allows a student to create their personal PIN.
+func (a *App) HandleStudentPINSetup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		StudentID string `json:"student_id"`
+		PIN       string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+	if req.StudentID == "" || len(req.PIN) < 4 || len(req.PIN) > 6 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Student ID and 4-6 digit PIN required"})
+		return
+	}
+	// Only allow setup if no PIN exists yet
+	existing, _ := database.GetStudentPinHash(a.DB, req.StudentID)
+	if existing != "" {
+		writeJSON(w, http.StatusConflict, map[string]any{"ok": false, "error": "PIN already set. Ask admin to reset."})
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.PIN), bcrypt.MinCost)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to hash PIN"})
+		return
+	}
+	if err := database.SetStudentPinHash(a.DB, req.StudentID, string(hash)); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to save PIN"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// HandleStudentPINReset allows admin to reset a student's PIN.
+func (a *App) HandleStudentPINReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		StudentID string `json:"student_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+	if err := database.ResetStudentPin(a.DB, req.StudentID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to reset PIN"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// HandlePINModeChange changes the PIN mode and saves to config.json.
+func (a *App) HandlePINModeChange(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		PinMode string `json:"pin_mode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+	switch req.PinMode {
+	case "off", "center", "per-student":
+		a.PinMode = req.PinMode
+		// Sync requirePIN for backward compatibility
+		a.SetRequirePIN(req.PinMode == "center")
+		// Save to config.json
+		a.saveConfig()
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin_mode": req.PinMode})
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid pin_mode. Use: off, center, per-student"})
+	}
+}
+
+func (a *App) saveConfig() {
+	cfg := models.Config{
+		AppName: a.AppName,
+		DataDir: a.DataDir,
+		PinMode: a.PinMode,
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal config: %v", err)
+		return
+	}
+	if err := os.WriteFile("config.json", data, 0644); err != nil {
+		log.Printf("Failed to write config.json: %v", err)
+	}
+}
+
+// HandleStudentRequirePIN toggles the require_pin flag for a student.
+func (a *App) HandleStudentRequirePIN(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		StudentID  string `json:"student_id"`
+		RequirePIN bool   `json:"require_pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.StudentID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+	if err := database.SetStudentRequirePIN(a.DB, req.StudentID, req.RequirePIN); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Database error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// HandleAuditFlags returns flagged check-in audit records.
+func (a *App) HandleAuditFlags(w http.ResponseWriter, r *http.Request) {
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().Format("2006-01-02")
+	}
+	if to == "" {
+		to = from
+	}
+	flags, err := database.GetFlaggedAudits(a.DB, from, to)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	if flags == nil {
+		flags = []models.CheckinAudit{}
+	}
+	writeJSON(w, http.StatusOK, flags)
+}
+
+// HandleAuditDevices returns per-device check-in summary for a date.
+func (a *App) HandleAuditDevices(w http.ResponseWriter, r *http.Request) {
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		date = time.Now().Format("2006-01-02")
+	}
+	summary, err := database.GetDeviceSummary(a.DB, date)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	if summary == nil {
+		summary = []map[string]any{}
+	}
+	writeJSON(w, http.StatusOK, summary)
+}
+
+// HandleAuditDismiss dismisses an audit flag.
+func (a *App) HandleAuditDismiss(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ID int `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
+		return
+	}
+	if err := database.DismissAuditFlag(a.DB, req.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // HandlePINChange allows the admin to set a custom PIN.

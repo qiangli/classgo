@@ -14,135 +14,588 @@
             table { font-size: 12px; }
             th, td { padding: 4px 8px !important; }
         }
+        .sidebar-item { transition: all 0.15s ease; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.1); }
+        .sidebar-item.active { background: rgba(255,255,255,0.15); border-left: 3px solid white; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="max-w-5xl mx-auto p-6">
-        <header class="text-center mb-8">
-            <img src="/static/lern.png" alt="{{.AppName}}" class="h-14 mx-auto">
-            <p class="text-gray-500 mt-2">{{.Date}}</p>
-        </header>
+<body class="bg-gray-100 min-h-screen flex">
 
-        <!-- Navigation -->
-        <div class="flex justify-center gap-4 mb-6 no-print">
-            <span class="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg shadow">
-                Attendance
-            </span>
-            <a href="/schedule" class="text-sm bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg shadow transition">
-                Schedule
+    <!-- Left Sidebar -->
+    <nav class="w-20 bg-indigo-700 min-h-screen flex flex-col items-center py-4 no-print fixed left-0 top-0 bottom-0 z-10">
+        <div class="mb-8">
+            <img src="/static/lern.png" alt="{{.AppName}}" class="h-10 w-10 rounded-lg object-contain bg-white p-1">
+        </div>
+
+        <div class="flex flex-col gap-1 w-full flex-1">
+            <a href="#checkin" onclick="navigate('checkin')" id="nav-checkin" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Check In/Out">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Check In</span>
+            </a>
+            <a href="#attendance" onclick="navigate('attendance')" id="nav-attendance" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Attendance">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Attendance</span>
+            </a>
+            <a href="#schedule" onclick="navigate('schedule')" id="nav-schedule" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Schedule">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Schedule</span>
+            </a>
+
+            <a href="#progress" onclick="navigate('progress')" id="nav-progress" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Progress">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Progress</span>
+            </a>
+
+            <a href="#audit" onclick="navigate('audit')" id="nav-audit" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Audit">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Audit</span>
+            </a>
+
+            <div class="border-t border-indigo-500 mx-3 my-2"></div>
+
+            <a href="#data" onclick="navigate('data')" id="nav-data" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Data">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Data</span>
             </a>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 no-print">
-            <!-- PIN Card -->
-            <div class="bg-white rounded-2xl shadow p-6 text-center">
-                <div class="flex items-center justify-center gap-3 mb-2">
-                    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Check-in PIN</h2>
-                    <button id="pin-toggle" onclick="togglePINRequirement()"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none {{if .RequirePIN}}bg-indigo-600{{else}}bg-gray-300{{end}}"
-                        title="Toggle PIN requirement">
-                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{if .RequirePIN}}translate-x-6{{else}}translate-x-1{{end}}"></span>
-                    </button>
-                </div>
-                <div id="pin-display" class="{{if not .RequirePIN}}opacity-40{{end}}">
-                    <p id="pin-value" class="text-6xl font-mono font-bold text-indigo-600 mt-2 tracking-widest cursor-pointer" onclick="editPIN()" title="Click to change PIN">{{.PIN}}</p>
-                    <div id="pin-edit" class="hidden mt-2">
-                        <input type="text" id="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                            class="w-32 px-3 py-2 text-2xl font-mono text-center border-2 border-indigo-300 rounded-xl focus:border-indigo-500 outline-none"
-                            placeholder="----">
-                        <div class="flex justify-center gap-2 mt-2">
-                            <button onclick="savePIN()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg">Save</button>
-                            <button onclick="cancelEditPIN()" class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-lg">Cancel</button>
+        <div class="flex flex-col gap-1 w-full mt-auto">
+            <a href="/" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-300 cursor-pointer rounded-r-lg" title="Mobile Check-in">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Mobile</span>
+            </a>
+            <a href="/kiosk" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-300 cursor-pointer rounded-r-lg" title="Kiosk Check-in">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Kiosk</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="ml-20 flex-1 min-h-screen">
+        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-5">
+            <div>
+                <h1 id="page-title" class="text-lg font-semibold text-gray-800">Check In / Out</h1>
+                <p id="page-subtitle" class="text-sm text-gray-400">{{.Date}}</p>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <button onclick="window.print()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition">Print</button>
+                <a href="/logout" class="text-sm text-gray-400 hover:text-gray-600 transition" title="Sign out">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </a>
+            </div>
+        </header>
+
+        <div class="p-6">
+            <!-- ==================== CHECK-IN SECTION ==================== -->
+            <section id="section-checkin" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl shadow p-6 text-center">
+                        <div class="flex items-center justify-center gap-3 mb-2">
+                            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Check-in PIN</h2>
+                            <button id="pin-toggle" onclick="togglePINRequirement()"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none {{if .RequirePIN}}bg-indigo-600{{else}}bg-gray-300{{end}}"
+                                title="Toggle PIN requirement">
+                                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{if .RequirePIN}}translate-x-6{{else}}translate-x-1{{end}}"></span>
+                            </button>
+                        </div>
+                        <div id="pin-display" class="{{if not .RequirePIN}}opacity-40{{end}}">
+                            <p id="pin-value" class="text-6xl font-mono font-bold text-indigo-600 mt-2 tracking-widest cursor-pointer" onclick="editPIN()" title="Click to change PIN">{{.PIN}}</p>
+                            <div id="pin-edit" class="hidden mt-2">
+                                <input type="text" id="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                                    class="w-32 px-3 py-2 text-2xl font-mono text-center border-2 border-indigo-300 rounded-xl focus:border-indigo-500 outline-none" placeholder="----">
+                                <div class="flex justify-center gap-2 mt-2">
+                                    <button onclick="savePIN()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg">Save</button>
+                                    <button onclick="cancelEditPIN()" class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-lg">Cancel</button>
+                                </div>
+                            </div>
+                            <p class="text-gray-400 text-sm mt-2" id="pin-label">{{if .RequirePIN}}Click PIN to change{{else}}PIN is disabled{{end}}</p>
                         </div>
                     </div>
-                    <p class="text-gray-400 text-sm mt-2" id="pin-label">{{if .RequirePIN}}Click PIN to change — share with students{{else}}PIN is disabled — students check in without it{{end}}</p>
+                    <div class="bg-white rounded-2xl shadow p-6 text-center">
+                        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Check In</h2>
+                        <img id="qr-img" src="{{.QRDataURIMDNS}}" alt="QR Code"
+                            class="mx-auto mt-2 w-48 h-48 cursor-pointer" title="Tap to toggle IP/mDNS"
+                            onclick="toggleQR()" data-qr-mdns="{{.QRDataURIMDNS}}" data-qr-ip="{{.QRDataURIIP}}">
+                        <p id="qr-url" class="text-xs text-gray-400 mt-2 break-all">{{.ServerURLMDNS}}</p>
+                        <p class="text-xs text-gray-300 mt-1 cursor-pointer select-none" onclick="toggleQR()">tap QR to switch</p>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- QR Code Card -->
-            <div class="bg-white rounded-2xl shadow p-6 text-center">
-                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Check In</h2>
-                <img id="qr-img" src="{{.QRDataURIMDNS}}" alt="QR Code"
-                    class="mx-auto mt-2 w-48 h-48 cursor-pointer" title="Tap to toggle IP/mDNS"
-                    onclick="toggleQR()"
-                    data-qr-mdns="{{.QRDataURIMDNS}}" data-qr-ip="{{.QRDataURIIP}}">
-                <p id="qr-url" class="text-xs text-gray-400 mt-2 break-all">{{.ServerURLMDNS}}</p>
-                <p class="text-xs text-gray-300 mt-1 cursor-pointer select-none" onclick="toggleQR()">tap QR to switch</p>
+            <!-- ==================== ATTENDANCE SECTION ==================== -->
+            <section id="section-attendance" class="hidden">
+                <!-- Date Range + Quick Filters -->
+                <div class="flex items-center gap-3 mb-4 flex-wrap no-print">
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="att-from" class="text-sm border rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-300">
+                        <span class="text-gray-400">to</span>
+                        <input type="date" id="att-to" class="text-sm border rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-300">
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="setAttRange('today')" class="att-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 transition">Today</button>
+                        <button onclick="setAttRange('week')" class="att-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 transition">This Week</button>
+                        <button onclick="setAttRange('month')" class="att-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 transition">This Month</button>
+                        <button onclick="setAttRange('last7')" class="att-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 transition">Last 7 Days</button>
+                        <button onclick="setAttRange('last30')" class="att-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 transition">Last 30 Days</button>
+                    </div>
+                    <button onclick="refreshAttendees()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition">Apply</button>
+                </div>
+
+                <!-- Metrics Cards -->
+                <div id="att-metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-white rounded-xl shadow p-4 text-center">
+                        <p class="text-2xl font-bold text-indigo-600" id="metric-checkins">0</p>
+                        <p class="text-xs text-gray-400 mt-1">Total Check-ins</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-4 text-center">
+                        <p class="text-2xl font-bold text-green-600" id="metric-students">0</p>
+                        <p class="text-xs text-gray-400 mt-1">Unique Students</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-4 text-center">
+                        <p class="text-2xl font-bold text-amber-600" id="metric-avgduration">0m</p>
+                        <p class="text-xs text-gray-400 mt-1">Avg Duration</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow p-4 text-center">
+                        <p class="text-2xl font-bold text-purple-600" id="metric-days">0</p>
+                        <p class="text-xs text-gray-400 mt-1">Active Days</p>
+                    </div>
+                </div>
+
+                <!-- Daily Breakdown Chart (simple bar) -->
+                <div id="att-chart-container" class="hidden bg-white rounded-2xl shadow p-4 mb-4">
+                    <h3 class="text-sm font-semibold text-gray-600 mb-3">Daily Check-ins</h3>
+                    <div id="att-chart" class="flex items-end gap-1 h-32"></div>
+                </div>
+
+                <!-- Attendance Table -->
+                <div class="bg-white rounded-2xl shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-700">
+                            Attendance
+                            <span id="att-count" class="ml-2 bg-indigo-100 text-indigo-600 text-sm font-bold px-2 py-1 rounded-full">0</span>
+                        </h2>
+                        <div class="flex gap-2 no-print">
+                            <button onclick="exportCSV()" class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition">Export CSV</button>
+                            <a href="/admin/export/xlsx" class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition">Export XLSX</a>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b text-sm text-gray-400">
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('date')">Date <span id="sort-date" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('student_name')">Name <span id="sort-student_name" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('device_type')">Device <span id="sort-device_type" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_in')">Check In <span id="sort-check_in" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_out')">Check Out <span id="sort-check_out" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('duration')">Duration <span id="sort-duration" class="sort-arrow"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendee-list"></tbody>
+                        </table>
+                        <p id="att-empty" class="hidden text-center text-gray-400 py-8">No attendance records found</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== SCHEDULE SECTION ==================== -->
+            <section id="section-schedule" class="hidden">
+                <div id="conflicts-banner" class="hidden mb-6">
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl shadow p-4">
+                        <h3 class="text-amber-700 font-semibold flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                            Schedule Conflicts
+                        </h3>
+                        <ul id="conflict-list" class="mt-2 text-sm text-amber-600 space-y-1"></ul>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4" id="week-grid"></div>
+                <div class="mt-6 bg-white rounded-2xl shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Today's Sessions</h2>
+                    <div id="today-sessions"><p class="text-gray-400 text-center py-4">Loading...</p></div>
+                </div>
+            </section>
+
+            <!-- ==================== PROGRESS SECTION ==================== -->
+            <section id="section-progress" class="hidden">
+                <!-- Global Tracker Items -->
+                <div class="bg-white rounded-2xl shadow p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-700">Tracker Items</h2>
+                        <button onclick="openTrackerItemModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            Add Item
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-400 mb-4">These items appear for all students at checkout. Each student must respond Done/Not Done before checking out.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead><tr class="border-b text-sm text-gray-400">
+                                <th class="pb-2 font-medium">Name</th>
+                                <th class="pb-2 font-medium">Notes</th>
+                                <th class="pb-2 font-medium text-center">Priority</th>
+                                <th class="pb-2 font-medium text-center">Recurrence</th>
+                                <th class="pb-2 font-medium text-center">Due Date</th>
+                                <th class="pb-2 font-medium text-center">Active</th>
+                                <th class="pb-2 font-medium text-right">Actions</th>
+                            </tr></thead>
+                            <tbody id="tracker-items-tbody"></tbody>
+                        </table>
+                        <p id="tracker-items-empty" class="hidden text-center text-gray-400 py-8">No tracker items defined. Add one to start tracking student progress.</p>
+                    </div>
+                </div>
+
+                <!-- Student Ad Hoc Items -->
+                <div class="bg-white rounded-2xl shadow p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Student-Specific Items</h2>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="flex-1 max-w-md">
+                            <input type="text" id="adhoc-student-search" placeholder="Search student by name or ID..."
+                                oninput="searchStudentForAdhoc(this.value)"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
+                            <div id="adhoc-student-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20"></div>
+                        </div>
+                        <span id="adhoc-student-label" class="text-sm text-gray-500"></span>
+                    </div>
+                    <div id="adhoc-items-container" class="hidden">
+                        <div class="flex items-center gap-2 mb-3">
+                            <input type="text" id="adhoc-new-name" placeholder="New item name..."
+                                class="flex-1 max-w-sm px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <button onclick="addAdhocItem()" class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition">Add</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead><tr class="border-b text-sm text-gray-400">
+                                    <th class="pb-2 font-medium">Name</th>
+                                    <th class="pb-2 font-medium">Added By</th>
+                                    <th class="pb-2 font-medium text-right">Actions</th>
+                                </tr></thead>
+                                <tbody id="adhoc-items-tbody"></tbody>
+                            </table>
+                            <p id="adhoc-items-empty" class="hidden text-center text-gray-400 py-6">No ad hoc items for this student.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Response Viewer -->
+                <div class="bg-white rounded-2xl shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Daily Responses</h2>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="flex-1 max-w-md">
+                            <input type="text" id="resp-student-search" placeholder="Search student by name or ID..."
+                                oninput="searchStudentForResp(this.value)"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
+                            <div id="resp-student-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20"></div>
+                        </div>
+                        <input type="date" id="resp-date" onchange="loadResponses()"
+                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead><tr class="border-b text-sm text-gray-400">
+                                <th class="pb-2 font-medium">Item</th>
+                                <th class="pb-2 font-medium">Type</th>
+                                <th class="pb-2 font-medium">Status</th>
+                                <th class="pb-2 font-medium">Time</th>
+                            </tr></thead>
+                            <tbody id="resp-tbody"></tbody>
+                        </table>
+                        <p id="resp-empty" class="text-center text-gray-400 py-8">Select a student to view their responses.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== AUDIT SECTION ==================== -->
+            <section id="section-audit" class="hidden">
+                <!-- PIN Mode Selector -->
+                <div class="bg-white rounded-2xl shadow p-6 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3">PIN Mode</h2>
+                    <div class="flex gap-3">
+                        <button onclick="setPinMode('off')" id="pin-mode-off" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Off</button>
+                        <button onclick="setPinMode('center')" id="pin-mode-center" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Center-wide PIN</button>
+                        <button onclick="setPinMode('per-student')" id="pin-mode-per-student" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Per-student PIN</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">
+                        <strong>Off</strong>: No PIN required. <strong>Center</strong>: One daily PIN for all. <strong>Per-student</strong>: Each student has their own PIN.
+                    </p>
+                </div>
+
+                <!-- Per-Student PIN Override -->
+                <div class="bg-white rounded-2xl shadow p-6 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3">Per-Student PIN Override</h2>
+                    <p class="text-sm text-gray-400 mb-3">Require personal PIN for specific students, even when global PIN mode is Off or Center-wide.</p>
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="flex-1 max-w-md relative">
+                            <input type="text" id="pin-override-search" placeholder="Search student by name or ID..."
+                                oninput="searchStudentForPinOverride(this.value)"
+                                class="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <div id="pin-override-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20 w-full"></div>
+                        </div>
+                    </div>
+                    <div id="pin-override-list" class="space-y-2"></div>
+                    <p id="pin-override-empty" class="text-sm text-gray-400 text-center py-4">No students with PIN override enabled.</p>
+                </div>
+
+                <!-- Flagged Check-ins -->
+                <div class="bg-white rounded-2xl shadow p-6 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-semibold text-gray-700">Flagged Check-ins <span id="flag-count" class="ml-2 bg-red-100 text-red-600 text-sm font-bold px-2 py-1 rounded-full">0</span></h2>
+                        <input type="date" id="audit-date" onchange="loadAuditData()" class="text-sm border rounded-lg px-3 py-1.5 outline-none">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead><tr class="border-b text-gray-400">
+                                <th class="py-2 px-2">Student</th>
+                                <th class="py-2 px-2">Time</th>
+                                <th class="py-2 px-2">Device IP</th>
+                                <th class="py-2 px-2">Reason</th>
+                                <th class="py-2 px-2 text-right">Action</th>
+                            </tr></thead>
+                            <tbody id="audit-flags-tbody"></tbody>
+                        </table>
+                        <p id="audit-flags-empty" class="hidden text-center text-gray-400 py-6">No flagged check-ins.</p>
+                    </div>
+                </div>
+
+                <!-- Device Summary -->
+                <div class="bg-white rounded-2xl shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3">Device Summary</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead><tr class="border-b text-gray-400">
+                                <th class="py-2 px-2">Device IP</th>
+                                <th class="py-2 px-2">Fingerprint</th>
+                                <th class="py-2 px-2">Device ID</th>
+                                <th class="py-2 px-2 text-center">Check-ins</th>
+                                <th class="py-2 px-2 text-center">Students</th>
+                                <th class="py-2 px-2">Names</th>
+                            </tr></thead>
+                            <tbody id="audit-devices-tbody"></tbody>
+                        </table>
+                        <p id="audit-devices-empty" class="hidden text-center text-gray-400 py-6">No device data for this date.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== DATA SECTION (tabbed spreadsheet) ==================== -->
+            <section id="section-data" class="hidden">
+                <!-- Tabs -->
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex gap-1 border-b border-gray-200" id="data-tabs">
+                        <button onclick="switchDataTab('students')" id="dtab-students" class="data-tab px-4 py-2 text-sm font-medium border-b-2 transition">Students</button>
+                        <button onclick="switchDataTab('parents')" id="dtab-parents" class="data-tab px-4 py-2 text-sm font-medium border-b-2 transition">Parents</button>
+                        <button onclick="switchDataTab('teachers')" id="dtab-teachers" class="data-tab px-4 py-2 text-sm font-medium border-b-2 transition">Teachers</button>
+                        <button onclick="switchDataTab('rooms')" id="dtab-rooms" class="data-tab px-4 py-2 text-sm font-medium border-b-2 transition">Rooms</button>
+                        <button onclick="switchDataTab('schedules')" id="dtab-schedules" class="data-tab px-4 py-2 text-sm font-medium border-b-2 transition">Schedules</button>
+                    </div>
+                    <!-- Import / Export dropdown -->
+                    <div class="flex gap-2 no-print">
+                        <div class="relative" id="export-dropdown">
+                            <button onclick="toggleDropdown('export-menu')" class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                                Export
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div id="export-menu" class="hidden absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-20">
+                                <div class="py-1">
+                                    <button onclick="exportCurrentTabCSV()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Current tab as CSV</button>
+                                    <button onclick="location.href='/admin/export/csv/zip'" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All tabs as CSV (ZIP)</button>
+                                    <div class="border-t my-1"></div>
+                                    <button onclick="location.href='/admin/export/xlsx'" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Spreadsheet (XLSX)</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="triggerImport()" class="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            Import
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter + New + Show Deleted -->
+                <div class="flex items-center gap-4 mb-4 no-print">
+                    <div class="max-w-md flex-1">
+                        <input type="text" id="data-filter" placeholder="Filter by any field..."
+                            oninput="dataFilterText=this.value; renderDataTab()"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
+                    </div>
+                    <button onclick="openNewModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        New
+                    </button>
+                    <label class="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap">
+                        <input type="checkbox" id="show-deleted" onchange="toggleShowDeleted()" class="rounded">
+                        Show deleted
+                    </label>
+                </div>
+
+                <!-- Table -->
+                <div class="bg-white rounded-2xl shadow p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <span id="data-count" class="text-sm text-gray-500"></span>
+                        <div id="import-status" class="hidden text-sm px-3 py-1 rounded-lg"></div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead id="data-thead"><tr class="border-b text-sm text-gray-400"></tr></thead>
+                            <tbody id="data-tbody"></tbody>
+                        </table>
+                        <p id="data-empty" class="hidden text-center text-gray-400 py-8">No records found</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Entity Edit Modal -->
+    <div id="entity-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 id="modal-title" class="text-lg font-semibold text-gray-800">Edit</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="px-6 py-4 overflow-y-auto flex-1">
+                <div id="modal-form"></div>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                <button onclick="closeModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="saveModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
             </div>
         </div>
+    </div>
 
-        <!-- Attendance Table -->
-        <div class="bg-white rounded-2xl shadow p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-700">
-                    Attendance
-                    <span id="count" class="ml-2 bg-indigo-100 text-indigo-600 text-sm font-bold px-2 py-1 rounded-full">{{.Count}}</span>
-                </h2>
-                <div class="flex gap-2 no-print">
-                    <button onclick="exportCSV()" class="text-sm bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
-                        Export CSV
-                    </button>
-                    <button onclick="window.print()" class="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition">
-                        Print
-                    </button>
-                </div>
+    <!-- Tracker Item Modal -->
+    <div id="tracker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 id="tracker-modal-title" class="text-lg font-semibold text-gray-800">Add Tracker Item</h3>
+                <button onclick="closeTrackerModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
+            <div class="px-6 py-4 space-y-3">
+                <input type="hidden" id="tracker-item-id" value="0">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Name <span class="text-red-400">*</span></label>
+                    <input type="text" id="tracker-item-name" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none" placeholder="e.g. SAT Mock Test, Homework...">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Notes</label>
+                    <input type="text" id="tracker-item-notes" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none" placeholder="Optional description">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Start Date</label>
+                        <input type="date" id="tracker-item-start-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Due Date</label>
+                        <input type="date" id="tracker-item-due-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Priority</label>
+                        <select id="tracker-item-priority" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Recurrence</label>
+                        <select id="tracker-item-recurrence" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="none">One-time</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Category</label>
+                    <input type="text" id="tracker-item-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Math, SAT Prep">
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-600">
+                    <input type="checkbox" id="tracker-item-active" checked class="rounded">
+                    Active
+                </label>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                <button onclick="closeTrackerModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="saveTrackerItem()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
+            </div>
+        </div>
+    </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="border-b text-sm text-gray-400">
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('student_name')">
-                                Name <span id="sort-student_name" class="sort-arrow"></span>
-                            </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('device_type')">
-                                Device <span id="sort-device_type" class="sort-arrow"></span>
-                            </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_in')">
-                                Check In <span id="sort-check_in" class="sort-arrow"></span>
-                            </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_out')">
-                                Check Out <span id="sort-check_out" class="sort-arrow"></span>
-                            </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('duration')">
-                                Duration <span id="sort-duration" class="sort-arrow"></span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody id="attendee-list"></tbody>
-                </table>
-                <p id="empty-msg" class="hidden text-center text-gray-400 py-8">No students signed in yet</p>
+    <!-- Password Reset Modal -->
+    <div id="pwd-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 id="pwd-modal-title" class="text-lg font-semibold text-gray-800">Reset Password</h3>
+                <button onclick="closePwdModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="px-6 py-4">
+                <input type="hidden" id="pwd-entity-id">
+                <p id="pwd-entity-name" class="text-sm text-gray-600 mb-3"></p>
+                <p class="text-xs text-gray-400 mb-1">Memos username: <span id="pwd-username" class="font-mono"></span></p>
+                <label class="block text-sm text-gray-600 mb-1 mt-3">New Password</label>
+                <input type="text" id="pwd-value" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Enter new password" autocomplete="off">
+                <div id="pwd-status" class="hidden text-sm mt-3 px-3 py-1.5 rounded-lg"></div>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                <button onclick="closePwdModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="submitPasswordReset()" class="text-sm bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg">Reset Password</button>
             </div>
         </div>
     </div>
 
     <script>
+        // ==================== NAVIGATION ====================
+        let currentSection = 'checkin';
+        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'data'];
+        const sectionMeta = {
+            checkin:    { title: 'Check In / Out', subtitle: '{{.Date}}' },
+            attendance: { title: 'Attendance', subtitle: '{{.Date}}' },
+            schedule:   { title: 'Schedule', subtitle: 'Weekly Schedule' },
+            progress:   { title: 'Progress Tracker', subtitle: 'Manage tracker items & view responses' },
+            audit:      { title: 'Audit', subtitle: 'Anti-fraud monitoring & PIN settings' },
+            data:       { title: 'Data', subtitle: 'Manage entity data' }
+        };
+
+        function navigate(section) {
+            currentSection = section;
+            sections.forEach(s => {
+                document.getElementById('section-' + s).classList.toggle('hidden', s !== section);
+                const nav = document.getElementById('nav-' + s);
+                if (nav) {
+                    nav.classList.toggle('active', s === section);
+                    nav.querySelector('span').classList.toggle('text-white', s === section);
+                    nav.querySelector('svg').classList.toggle('text-white', s === section);
+                }
+            });
+            document.getElementById('page-title').textContent = sectionMeta[section].title;
+            document.getElementById('page-subtitle').textContent = sectionMeta[section].subtitle;
+
+            if (section === 'attendance') refreshAttendees();
+            if (section === 'schedule' && !scheduleLoaded) loadSchedule();
+            if (section === 'progress') loadTrackerItems();
+            if (section === 'audit') loadAuditData();
+            if (section === 'data') loadDataSection();
+
+            history.replaceState(null, '', '#' + section);
+        }
+
+        const hash = location.hash.replace('#', '');
+        navigate(sections.includes(hash) ? hash : 'checkin');
+
+        // ==================== CHECK-IN / PIN ====================
         let requirePIN = {{.RequirePIN}};
 
         async function togglePINRequirement() {
             requirePIN = !requirePIN;
-            try {
-                await fetch('/api/admin/pin/toggle', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ require_pin: requirePIN })
-                });
-            } catch (err) { /* ignore */ }
-            const btn = document.getElementById('pin-toggle');
-            const thumb = btn.querySelector('span');
-            const display = document.getElementById('pin-display');
-            const label = document.getElementById('pin-label');
-            if (requirePIN) {
-                btn.className = btn.className.replace('bg-gray-300', 'bg-indigo-600');
-                thumb.className = thumb.className.replace('translate-x-1', 'translate-x-6');
-                display.classList.remove('opacity-40');
-                label.textContent = 'Click PIN to change — share with students';
-            } else {
-                btn.className = btn.className.replace('bg-indigo-600', 'bg-gray-300');
-                thumb.className = thumb.className.replace('translate-x-6', 'translate-x-1');
-                display.classList.add('opacity-40');
-                label.textContent = 'PIN is disabled — students check in without it';
-            }
+            try { await fetch('/api/admin/pin/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ require_pin: requirePIN }) }); } catch (err) {}
+            const btn = document.getElementById('pin-toggle'), thumb = btn.querySelector('span'), display = document.getElementById('pin-display'), label = document.getElementById('pin-label');
+            if (requirePIN) { btn.className = btn.className.replace('bg-gray-300', 'bg-indigo-600'); thumb.className = thumb.className.replace('translate-x-1', 'translate-x-6'); display.classList.remove('opacity-40'); label.textContent = 'Click PIN to change'; }
+            else { btn.className = btn.className.replace('bg-indigo-600', 'bg-gray-300'); thumb.className = thumb.className.replace('translate-x-6', 'translate-x-1'); display.classList.add('opacity-40'); label.textContent = 'PIN is disabled'; }
         }
 
         function editPIN() {
@@ -151,168 +604,847 @@
             document.getElementById('pin-edit').classList.remove('hidden');
             const input = document.getElementById('pin-input');
             input.value = document.getElementById('pin-value').textContent.trim();
-            input.focus();
-            input.select();
+            input.focus(); input.select();
         }
-
-        function cancelEditPIN() {
-            document.getElementById('pin-value').classList.remove('hidden');
-            document.getElementById('pin-edit').classList.add('hidden');
-        }
+        function cancelEditPIN() { document.getElementById('pin-value').classList.remove('hidden'); document.getElementById('pin-edit').classList.add('hidden'); }
 
         async function savePIN() {
             const pin = document.getElementById('pin-input').value.trim();
             if (!/^\d{4}$/.test(pin)) { alert('PIN must be 4 digits'); return; }
-            try {
-                const res = await fetch('/api/admin/pin', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ pin: pin })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    document.getElementById('pin-value').textContent = pin;
-                    cancelEditPIN();
-                }
-            } catch (err) { alert('Failed to update PIN'); }
+            try { const res = await fetch('/api/admin/pin', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) }); const data = await res.json(); if (data.ok) { document.getElementById('pin-value').textContent = pin; cancelEditPIN(); } } catch (err) { alert('Failed to update PIN'); }
         }
 
         let qrShowingMDNS = true;
-        const qrURLMDNS = "{{.ServerURLMDNS}}";
-        const qrURLIP = "{{.ServerURLIP}}";
-
+        const qrURLMDNS = "{{.ServerURLMDNS}}", qrURLIP = "{{.ServerURLIP}}";
         function toggleQR() {
-            const img = document.getElementById('qr-img');
-            const urlEl = document.getElementById('qr-url');
+            const img = document.getElementById('qr-img'), urlEl = document.getElementById('qr-url');
             qrShowingMDNS = !qrShowingMDNS;
-            if (qrShowingMDNS) {
-                img.src = img.dataset.qrMdns;
-                urlEl.textContent = qrURLMDNS;
-            } else {
-                img.src = img.dataset.qrIp;
-                urlEl.textContent = qrURLIP;
-            }
+            img.src = qrShowingMDNS ? img.dataset.qrMdns : img.dataset.qrIp;
+            urlEl.textContent = qrShowingMDNS ? qrURLMDNS : qrURLIP;
         }
 
-        let attendeesData = [];
-        let sortColumn = 'check_in';
-        let sortAsc = false; // default: newest first
+        // ==================== ATTENDANCE ====================
+        let attendeesData = [], sortColumn = 'check_in', sortAsc = false;
 
-        function updateSortArrows() {
-            document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '');
-            const arrowEl = document.getElementById('sort-' + sortColumn);
-            if (arrowEl) arrowEl.textContent = sortAsc ? ' \u25B2' : ' \u25BC';
-        }
-        updateSortArrows();
+        function updateSortArrows() { document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = ''); const el = document.getElementById('sort-' + sortColumn); if (el) el.textContent = sortAsc ? ' \u25B2' : ' \u25BC'; }
+        function sortBy(col) { if (sortColumn === col) sortAsc = !sortAsc; else { sortColumn = col; sortAsc = (col === 'student_name' || col === 'device_type' || col === 'date'); } renderAttendees(); }
+        function getSortValue(a, col) { switch(col) { case 'date': return a.date||''; case 'student_name': return (a.student_name||'').toLowerCase(); case 'device_type': return a.device_type||''; case 'check_in': return a.check_in_raw||''; case 'check_out': return a.check_out_raw||''; case 'duration': return a.duration_minutes||0; } return ''; }
+        function getSortedAttendees() { return [...attendeesData].sort((a,b) => { let va = getSortValue(a,sortColumn), vb = getSortValue(b,sortColumn); if (typeof va === 'number') return sortAsc ? va-vb : vb-va; return sortAsc ? (va<vb?-1:va>vb?1:0) : (va>vb?-1:va<vb?1:0); }); }
 
-        function sortBy(col) {
-            if (sortColumn === col) {
-                sortAsc = !sortAsc;
-            } else {
-                sortColumn = col;
-                sortAsc = (col === 'student_name' || col === 'device_type');
+        // Initialize date pickers to today
+        (function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('att-from').value = today;
+            document.getElementById('att-to').value = today;
+        })();
+
+        function setAttRange(preset) {
+            const today = new Date();
+            let from = new Date(today), to = new Date(today);
+            switch(preset) {
+                case 'today': break;
+                case 'week':
+                    const dow = today.getDay();
+                    from.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+                    break;
+                case 'month':
+                    from.setDate(1);
+                    break;
+                case 'last7':
+                    from.setDate(today.getDate() - 6);
+                    break;
+                case 'last30':
+                    from.setDate(today.getDate() - 29);
+                    break;
             }
-            renderAttendees();
-        }
-
-        function getSortValue(a, col) {
-            switch (col) {
-                case 'student_name': return (a.student_name || '').toLowerCase();
-                case 'device_type': return a.device_type || '';
-                case 'check_in': return a.check_in_raw || '';
-                case 'check_out': return a.check_out_raw || '';
-                case 'duration': return a.duration_minutes || 0;
-            }
-            return '';
+            document.getElementById('att-from').value = from.toISOString().split('T')[0];
+            document.getElementById('att-to').value = to.toISOString().split('T')[0];
+            // Highlight active button
+            document.querySelectorAll('.att-quick').forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-700'));
+            event.target.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            refreshAttendees();
         }
 
         function renderAttendees() {
-            const tbody = document.getElementById('attendee-list');
-            const countEl = document.getElementById('count');
-            const emptyMsg = document.getElementById('empty-msg');
-
-            countEl.textContent = attendeesData.length;
-
-            updateSortArrows();
-
-            if (attendeesData.length === 0) {
-                tbody.innerHTML = '';
-                emptyMsg.classList.remove('hidden');
-                return;
-            }
-
+            const tbody = document.getElementById('attendee-list'), countEl = document.getElementById('att-count'), emptyMsg = document.getElementById('att-empty');
+            countEl.textContent = attendeesData.length; updateSortArrows();
+            if (!attendeesData.length) { tbody.innerHTML = ''; emptyMsg.classList.remove('hidden'); return; }
             emptyMsg.classList.add('hidden');
-
+            const fromDate = document.getElementById('att-from').value;
+            const toDate = document.getElementById('att-to').value;
+            const showDate = fromDate !== toDate;
             tbody.innerHTML = getSortedAttendees().map(a => {
-                const checkInStr = a.check_in_time;
-                let checkOutStr = '<span class="text-green-500">active</span>';
-                let durationStr = '\u2014';
-                if (a.check_out_time) {
-                    checkOutStr = a.check_out_time;
-                    durationStr = a.duration;
-                }
-                const badge = a.device_type === 'mobile'
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-purple-100 text-purple-600';
+                const badge = a.device_type === 'mobile' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600';
                 return `<tr class="border-b hover:bg-gray-50">
+                    <td class="py-2 px-3 text-sm text-gray-500">${a.date || ''}</td>
                     <td class="py-2 px-3 font-medium">${a.student_name}</td>
                     <td class="py-2 px-3"><span class="text-xs px-2 py-1 rounded-full ${badge}">${a.device_type}</span></td>
-                    <td class="py-2 px-3 text-sm text-gray-500">${checkInStr}</td>
-                    <td class="py-2 px-3 text-sm text-gray-500">${checkOutStr}</td>
-                    <td class="py-2 px-3 text-sm text-gray-500">${durationStr}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500">${a.check_in_time}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500">${a.check_out_time ? a.check_out_time : '<span class="text-green-500 font-medium">active</span>'}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500">${a.check_out_time ? a.duration : '\u2014'}</td>
                 </tr>`;
             }).join('');
         }
 
-        function refreshAttendees() {
-            fetch('/api/attendees')
-                .then(r => r.json())
-                .then(attendees => {
-                    attendeesData = attendees;
-                    renderAttendees();
-                })
-                .catch(err => console.error('Refresh failed:', err));
-        }
+        async function refreshAttendees() {
+            const from = document.getElementById('att-from').value;
+            const to = document.getElementById('att-to').value;
+            const params = new URLSearchParams();
+            if (from) params.set('from', from);
+            if (to) params.set('to', to);
 
-        function getSortedAttendees() {
-            return [...attendeesData].sort((a, b) => {
-                let va = getSortValue(a, sortColumn);
-                let vb = getSortValue(b, sortColumn);
-                if (typeof va === 'number') {
-                    return sortAsc ? va - vb : vb - va;
+            try {
+                const [attRes, metRes] = await Promise.all([
+                    fetch('/api/attendees?' + params),
+                    fetch('/api/attendees/metrics?' + params)
+                ]);
+                attendeesData = await attRes.json();
+                renderAttendees();
+
+                const m = await metRes.json();
+                document.getElementById('metric-checkins').textContent = m.total_checkins || 0;
+                document.getElementById('metric-students').textContent = m.unique_students || 0;
+                const avgMins = Math.round(m.avg_duration_mins || 0);
+                document.getElementById('metric-avgduration').textContent = avgMins >= 60 ? Math.floor(avgMins/60) + 'h ' + (avgMins%60) + 'm' : avgMins + 'm';
+                document.getElementById('metric-days').textContent = m.day_count || 0;
+
+                // Render daily chart
+                const chartEl = document.getElementById('att-chart');
+                const chartContainer = document.getElementById('att-chart-container');
+                if (m.by_day && m.by_day.length > 1) {
+                    chartContainer.classList.remove('hidden');
+                    const max = Math.max(...m.by_day.map(d => d.checkins), 1);
+                    chartEl.innerHTML = m.by_day.map(d => {
+                        const pct = Math.max((d.checkins / max) * 100, 4);
+                        const label = d.date.slice(5); // MM-DD
+                        return `<div class="flex-1 flex flex-col items-center gap-1">
+                            <span class="text-[10px] text-gray-500">${d.checkins}</span>
+                            <div class="w-full bg-indigo-400 rounded-t" style="height:${pct}%" title="${d.date}: ${d.checkins} check-ins"></div>
+                            <span class="text-[10px] text-gray-400">${label}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    chartContainer.classList.add('hidden');
                 }
-                if (va < vb) return sortAsc ? -1 : 1;
-                if (va > vb) return sortAsc ? 1 : -1;
-                return 0;
-            });
+            } catch(e) { console.error(e); }
         }
 
         function exportCSV() {
-            const sorted = getSortedAttendees();
-            const rows = [['Name', 'Device', 'Check In', 'Check Out', 'Duration']];
-            sorted.forEach(a => {
-                rows.push([
-                    a.student_name,
-                    a.device_type,
-                    a.check_in_time,
-                    a.check_out_time || '',
-                    a.duration || ''
-                ]);
+            const rows = [['Date','Name','Device','Check In','Check Out','Duration']];
+            getSortedAttendees().forEach(a => rows.push([a.date||'', a.student_name, a.device_type, a.check_in_time, a.check_out_time||'', a.duration||'']));
+            const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+            const from = document.getElementById('att-from').value || 'all';
+            const to = document.getElementById('att-to').value || '';
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+            a.download = 'attendance-'+from+(to && to !== from ? '-to-'+to : '')+'.csv'; a.click();
+        }
+        setInterval(() => { if (currentSection === 'attendance') refreshAttendees(); }, 10000);
+
+        // ==================== AUDIT ====================
+        let currentPinMode = 'off';
+
+        (function initAudit() {
+            document.getElementById('audit-date').value = new Date().toISOString().split('T')[0];
+            fetch('/api/settings').then(r => r.json()).then(s => {
+                currentPinMode = s.pin_mode || 'off';
+                updatePinModeButtons();
+            }).catch(() => {});
+        })();
+
+        function updatePinModeButtons() {
+            document.querySelectorAll('.pin-mode-btn').forEach(b => {
+                b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600');
+                b.classList.add('text-gray-600');
             });
-            const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const today = new Date().toISOString().slice(0, 10);
-            a.download = 'classgo-export-' + today + '.csv';
-            a.click();
-            URL.revokeObjectURL(url);
+            const active = document.getElementById('pin-mode-' + currentPinMode);
+            if (active) {
+                active.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+                active.classList.remove('text-gray-600');
+            }
         }
 
-        // Initial load + auto-refresh
-        refreshAttendees();
-        setInterval(refreshAttendees, 5000);
+        async function setPinMode(mode) {
+            try {
+                await fetch('/api/admin/pin/mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pin_mode: mode })
+                });
+                currentPinMode = mode;
+                updatePinModeButtons();
+            } catch(e) { alert('Failed to update PIN mode'); }
+        }
+
+        // Per-student PIN override
+        let pinOverrideTimeout = null;
+
+        function searchStudentForPinOverride(q) {
+            clearTimeout(pinOverrideTimeout);
+            const div = document.getElementById('pin-override-results');
+            if (!q || q.length < 2) { div.classList.add('hidden'); return; }
+            pinOverrideTimeout = setTimeout(async () => {
+                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const students = await res.json();
+                if (!students || !students.length) { div.classList.add('hidden'); return; }
+                div.innerHTML = students.map(s =>
+                    `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm" onclick="togglePinOverride('${s.id}', '${esc(s.first_name + ' ' + s.last_name)}', true)">${esc(s.first_name + ' ' + s.last_name)} <span class="text-gray-400">${esc(s.id)}</span></div>`
+                ).join('');
+                div.classList.remove('hidden');
+            }, 300);
+        }
+
+        async function togglePinOverride(studentId, name, require) {
+            document.getElementById('pin-override-results').classList.add('hidden');
+            document.getElementById('pin-override-search').value = '';
+            try {
+                await fetch('/api/v1/student/pin/require', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_id: studentId, require_pin: require })
+                });
+                loadPinOverrideList();
+            } catch(e) { alert('Failed'); }
+        }
+
+        async function resetStudentPinFromAudit(studentId) {
+            if (!confirm('Reset PIN for this student? They will need to create a new one.')) return;
+            try {
+                await fetch('/api/v1/student/pin/reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_id: studentId })
+                });
+                alert('PIN reset. Student will be prompted to create a new PIN.');
+            } catch(e) { alert('Failed'); }
+        }
+
+        async function loadPinOverrideList() {
+            try {
+                const res = await fetch('/api/v1/directory?include_deleted=0');
+                const data = await res.json();
+                const students = (data.students || []).filter(s => s.require_pin);
+                const container = document.getElementById('pin-override-list');
+                const empty = document.getElementById('pin-override-empty');
+                if (!students.length) {
+                    container.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                empty.classList.add('hidden');
+                container.innerHTML = students.map(s => `
+                    <div class="flex items-center justify-between border rounded-lg p-3 hover:bg-gray-50">
+                        <div>
+                            <span class="font-medium text-gray-800">${esc(s.first_name + ' ' + s.last_name)}</span>
+                            <span class="text-sm text-gray-400 ml-2">${esc(s.id)}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="resetStudentPinFromAudit('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800">Reset PIN</button>
+                            <button onclick="togglePinOverride('${s.id}', '', false)" class="text-xs text-red-500 hover:text-red-700">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadAuditData() {
+            loadPinOverrideList();
+            const date = document.getElementById('audit-date').value;
+            try {
+                const [flagsRes, devicesRes] = await Promise.all([
+                    fetch('/api/v1/audit/flags?from=' + date + '&to=' + date),
+                    fetch('/api/v1/audit/devices?date=' + date)
+                ]);
+                const flags = await flagsRes.json();
+                const devices = await devicesRes.json();
+
+                // Render flags
+                const flagsTbody = document.getElementById('audit-flags-tbody');
+                const flagsEmpty = document.getElementById('audit-flags-empty');
+                document.getElementById('flag-count').textContent = flags.length;
+                if (!flags.length) {
+                    flagsTbody.innerHTML = '';
+                    flagsEmpty.classList.remove('hidden');
+                } else {
+                    flagsEmpty.classList.add('hidden');
+                    flagsTbody.innerHTML = flags.map(f => `
+                        <tr class="border-b hover:bg-red-50">
+                            <td class="py-2 px-2 font-medium">${esc(f.student_name)}</td>
+                            <td class="py-2 px-2 text-gray-500">${f.created_at || ''}</td>
+                            <td class="py-2 px-2 text-gray-500 font-mono text-xs">${esc(f.client_ip)}</td>
+                            <td class="py-2 px-2"><span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">${esc(f.flag_reason)}</span></td>
+                            <td class="py-2 px-2 text-right"><button onclick="dismissFlag(${f.id})" class="text-xs text-indigo-600 hover:text-indigo-800">Dismiss</button></td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Render devices
+                const devicesTbody = document.getElementById('audit-devices-tbody');
+                const devicesEmpty = document.getElementById('audit-devices-empty');
+                if (!devices.length) {
+                    devicesTbody.innerHTML = '';
+                    devicesEmpty.classList.remove('hidden');
+                } else {
+                    devicesEmpty.classList.add('hidden');
+                    devicesTbody.innerHTML = devices.map(d => {
+                        const suspicious = d.unique_students >= 3;
+                        return `
+                        <tr class="border-b ${suspicious ? 'bg-red-50' : 'hover:bg-gray-50'}">
+                            <td class="py-2 px-2 font-mono text-xs">${esc(d.client_ip)}</td>
+                            <td class="py-2 px-2 font-mono text-xs text-gray-400">${esc((d.fingerprint || '').slice(0, 12))}${d.fingerprint && d.fingerprint.length > 12 ? '...' : ''}</td>
+                            <td class="py-2 px-2 font-mono text-xs text-gray-400">${esc((d.device_id || '').slice(0, 12))}${d.device_id && d.device_id.length > 12 ? '...' : ''}</td>
+                            <td class="py-2 px-2 text-center">${d.total_checkins}</td>
+                            <td class="py-2 px-2 text-center"><span class="${suspicious ? 'text-red-600 font-bold' : ''}">${d.unique_students}</span></td>
+                            <td class="py-2 px-2 text-xs text-gray-500">${esc(d.students || '')}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function dismissFlag(id) {
+            try {
+                await fetch('/api/v1/audit/dismiss', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                loadAuditData();
+            } catch(e) { alert('Failed'); }
+        }
+
+        // ==================== SCHEDULE ====================
+        let scheduleLoaded = false;
+        const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+
+        async function loadSchedule() {
+            try {
+                const [wR,tR,cR] = await Promise.all([fetch('/api/v1/schedule/week'),fetch('/api/v1/schedule/today'),fetch('/api/v1/schedule/conflicts')]);
+                renderWeekGrid(await wR.json()); renderTodaySessions(await tR.json()); renderConflicts(await cR.json()); scheduleLoaded = true;
+            } catch(err) { console.error('Schedule load failed:', err); }
+        }
+
+        function renderWeekGrid(sessions) {
+            const grid = document.getElementById('week-grid'), byDay = {}; DAYS.forEach(d => byDay[d]=[]);
+            sessions.forEach(s => { if (byDay[s.day_of_week]) byDay[s.day_of_week].push(s); });
+            const today = new Date().toLocaleDateString('en-US',{weekday:'long'});
+            grid.innerHTML = DAYS.map(day => {
+                const ds = byDay[day], isToday = day===today;
+                const content = ds.length === 0 ? '<p class="text-gray-300 text-sm text-center py-4">No sessions</p>' :
+                    ds.map(s => `<div class="border-l-4 border-indigo-400 pl-3 py-2"><p class="text-sm font-medium text-gray-800">${s.subject||'Session'}</p><p class="text-xs text-gray-500">${s.start_time} - ${s.end_time}</p><p class="text-xs text-gray-400">${s.room_id||''} ${s.teacher_id?'| '+s.teacher_id:''}</p>${s.student_ids?.length?`<p class="text-xs text-gray-400 mt-1">${s.student_ids.join(', ')}</p>`:''}</div>`).join('');
+                return `<div class="bg-white rounded-2xl shadow overflow-hidden ${isToday?'ring-2 ring-indigo-400':''}"><div class="${isToday?'bg-indigo-600 text-white':'bg-gray-100 text-gray-700'} px-4 py-2 text-center font-semibold text-sm">${day}</div><div class="p-3 space-y-2">${content}</div></div>`;
+            }).join('');
+        }
+
+        function renderTodaySessions(sessions) {
+            const c = document.getElementById('today-sessions');
+            if (!sessions.length) { c.innerHTML = '<p class="text-gray-400 text-center py-4">No sessions scheduled for today</p>'; return; }
+            c.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="border-b text-sm text-gray-400"><th class="py-2 px-3">Time</th><th class="py-2 px-3">Subject</th><th class="py-2 px-3">Room</th><th class="py-2 px-3">Teacher</th><th class="py-2 px-3">Students</th></tr></thead><tbody>${sessions.map(s=>`<tr class="border-b hover:bg-gray-50"><td class="py-2 px-3 text-sm font-medium">${s.start_time} - ${s.end_time}</td><td class="py-2 px-3 text-sm">${s.subject||'-'}</td><td class="py-2 px-3 text-sm text-gray-500">${s.room_id||'-'}</td><td class="py-2 px-3 text-sm text-gray-500">${s.teacher_id||'-'}</td><td class="py-2 px-3 text-sm text-gray-400">${(s.student_ids||[]).join(', ')||'-'}</td></tr>`).join('')}</tbody></table></div>`;
+        }
+
+        function renderConflicts(conflicts) {
+            const banner = document.getElementById('conflicts-banner'), list = document.getElementById('conflict-list');
+            if (!conflicts.length) { banner.classList.add('hidden'); return; }
+            banner.classList.remove('hidden');
+            list.innerHTML = conflicts.map(c => `<li class="flex items-start gap-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${c.type==='room'?'bg-red-100 text-red-700':c.type==='teacher'?'bg-orange-100 text-orange-700':'bg-yellow-100 text-yellow-700'}">${c.type}</span><span>${c.detail}</span></li>`).join('');
+        }
+
+        // ==================== PROGRESS TRACKER ====================
+        let trackerItems = [];
+        let adhocStudentID = '', adhocStudentName = '';
+        let respStudentID = '', respStudentName = '';
+        let adhocSearchTimeout = null, respSearchTimeout = null;
+
+        async function loadTrackerItems() {
+            try {
+                const res = await fetch('/api/v1/tracker/items');
+                trackerItems = await res.json();
+                renderTrackerItems();
+            } catch(e) { console.error('Failed to load tracker items:', e); }
+        }
+
+        function renderTrackerItems() {
+            const tbody = document.getElementById('tracker-items-tbody');
+            const empty = document.getElementById('tracker-items-empty');
+            if (!trackerItems || trackerItems.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            const pColors = { high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-gray-100 text-gray-500' };
+            tbody.innerHTML = trackerItems.map(it => `
+                <tr class="border-b hover:bg-gray-50 ${it.deleted ? 'opacity-40' : ''}">
+                    <td class="py-2 text-sm text-gray-700">${esc(it.name)}${it.category ? ` <span class="text-xs text-gray-400">(${esc(it.category)})</span>` : ''}</td>
+                    <td class="py-2 text-sm text-gray-500">${esc(it.notes || '')}</td>
+                    <td class="py-2 text-center">
+                        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${pColors[it.priority] || pColors.medium}">${it.priority}</span>
+                    </td>
+                    <td class="py-2 text-center text-xs text-gray-500">${it.recurrence}</td>
+                    <td class="py-2 text-center text-xs text-gray-500">${it.due_date || '-'}</td>
+                    <td class="py-2 text-center">
+                        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${it.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${it.active ? 'Yes' : 'No'}</span>
+                    </td>
+                    <td class="py-2 text-right space-x-2">
+                        <button onclick="editTrackerItem(${it.id})" class="text-indigo-600 hover:text-indigo-800 text-sm">Edit</button>
+                        <button onclick="deleteTrackerItem(${it.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        function openTrackerItemModal(item) {
+            document.getElementById('tracker-item-id').value = item ? item.id : 0;
+            document.getElementById('tracker-item-name').value = item ? item.name : '';
+            document.getElementById('tracker-item-notes').value = item ? (item.notes || '') : '';
+            document.getElementById('tracker-item-start-date').value = item ? (item.start_date || '') : '';
+            document.getElementById('tracker-item-due-date').value = item ? (item.due_date || '') : '';
+            document.getElementById('tracker-item-priority').value = item ? (item.priority || 'medium') : 'medium';
+            document.getElementById('tracker-item-recurrence').value = item ? (item.recurrence || 'daily') : 'daily';
+            document.getElementById('tracker-item-category').value = item ? (item.category || '') : '';
+            document.getElementById('tracker-item-active').checked = item ? item.active : true;
+            document.getElementById('tracker-modal-title').textContent = item ? 'Edit Tracker Item' : 'Add Tracker Item';
+            document.getElementById('tracker-modal').classList.remove('hidden');
+        }
+
+        function closeTrackerModal() {
+            document.getElementById('tracker-modal').classList.add('hidden');
+        }
+
+        function editTrackerItem(id) {
+            const item = trackerItems.find(it => it.id === id);
+            if (item) openTrackerItemModal(item);
+        }
+
+        async function saveTrackerItem() {
+            const id = parseInt(document.getElementById('tracker-item-id').value) || 0;
+            const name = document.getElementById('tracker-item-name').value.trim();
+            const notes = document.getElementById('tracker-item-notes').value.trim();
+            const active = document.getElementById('tracker-item-active').checked;
+            if (!name) { alert('Name is required'); return; }
+            try {
+                await fetch('/api/v1/tracker/items', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: id || undefined, name, notes, active,
+                        start_date: document.getElementById('tracker-item-start-date').value || '',
+                        due_date: document.getElementById('tracker-item-due-date').value || '',
+                        priority: document.getElementById('tracker-item-priority').value || 'medium',
+                        recurrence: document.getElementById('tracker-item-recurrence').value || 'daily',
+                        category: document.getElementById('tracker-item-category').value.trim() || ''
+                    })
+                });
+                closeTrackerModal();
+                loadTrackerItems();
+            } catch(e) { alert('Failed to save'); }
+        }
+
+        async function deleteTrackerItem(id) {
+            if (!confirm('Delete this tracker item?')) return;
+            try {
+                await fetch('/api/v1/tracker/items/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                loadTrackerItems();
+            } catch(e) { alert('Failed to delete'); }
+        }
+
+        // Student Ad Hoc Items
+        function searchStudentForAdhoc(q) {
+            clearTimeout(adhocSearchTimeout);
+            if (!q || q.length < 2) { document.getElementById('adhoc-student-results').classList.add('hidden'); return; }
+            adhocSearchTimeout = setTimeout(async () => {
+                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const students = await res.json();
+                const div = document.getElementById('adhoc-student-results');
+                if (!students || students.length === 0) { div.classList.add('hidden'); return; }
+                div.innerHTML = students.map(s =>
+                    `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm" onclick="selectAdhocStudent('${s.id}', '${esc(s.first_name + ' ' + s.last_name)}')">${esc(s.first_name + ' ' + s.last_name)} <span class="text-gray-400">${esc(s.id)}</span></div>`
+                ).join('');
+                div.classList.remove('hidden');
+            }, 300);
+        }
+
+        function selectAdhocStudent(id, name) {
+            adhocStudentID = id;
+            adhocStudentName = name;
+            document.getElementById('adhoc-student-search').value = name;
+            document.getElementById('adhoc-student-results').classList.add('hidden');
+            document.getElementById('adhoc-student-label').textContent = 'ID: ' + id;
+            document.getElementById('adhoc-items-container').classList.remove('hidden');
+            loadAdhocItems();
+        }
+
+        async function loadAdhocItems() {
+            if (!adhocStudentID) return;
+            try {
+                const res = await fetch('/api/tracker/student-items?student_id=' + encodeURIComponent(adhocStudentID));
+                const items = await res.json();
+                const tbody = document.getElementById('adhoc-items-tbody');
+                const empty = document.getElementById('adhoc-items-empty');
+                if (!items || items.length === 0) {
+                    tbody.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                empty.classList.add('hidden');
+                tbody.innerHTML = items.map(it => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="py-2 text-sm text-gray-700">${esc(it.name)}</td>
+                        <td class="py-2 text-sm text-gray-500">${esc(it.created_by || 'admin')}</td>
+                        <td class="py-2 text-right">
+                            <button onclick="deleteAdhocItem(${it.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function addAdhocItem() {
+            const name = document.getElementById('adhoc-new-name').value.trim();
+            if (!name || !adhocStudentID) return;
+            try {
+                await fetch('/api/tracker/student-items', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_id: adhocStudentID, name, created_by: 'admin', active: true })
+                });
+                document.getElementById('adhoc-new-name').value = '';
+                loadAdhocItems();
+            } catch(e) { alert('Failed to add'); }
+        }
+
+        async function deleteAdhocItem(id) {
+            if (!confirm('Delete this item?')) return;
+            try {
+                await fetch('/api/tracker/student-items/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                loadAdhocItems();
+            } catch(e) { alert('Failed to delete'); }
+        }
+
+        // Response Viewer
+        function searchStudentForResp(q) {
+            clearTimeout(respSearchTimeout);
+            if (!q || q.length < 2) { document.getElementById('resp-student-results').classList.add('hidden'); return; }
+            respSearchTimeout = setTimeout(async () => {
+                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const students = await res.json();
+                const div = document.getElementById('resp-student-results');
+                if (!students || students.length === 0) { div.classList.add('hidden'); return; }
+                div.innerHTML = students.map(s =>
+                    `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm" onclick="selectRespStudent('${s.id}', '${esc(s.first_name + ' ' + s.last_name)}')">${esc(s.first_name + ' ' + s.last_name)} <span class="text-gray-400">${esc(s.id)}</span></div>`
+                ).join('');
+                div.classList.remove('hidden');
+            }, 300);
+        }
+
+        function selectRespStudent(id, name) {
+            respStudentID = id;
+            respStudentName = name;
+            document.getElementById('resp-student-search').value = name;
+            document.getElementById('resp-student-results').classList.add('hidden');
+            if (!document.getElementById('resp-date').value) {
+                document.getElementById('resp-date').value = new Date().toISOString().split('T')[0];
+            }
+            loadResponses();
+        }
+
+        async function loadResponses() {
+            if (!respStudentID) return;
+            const date = document.getElementById('resp-date').value;
+            if (!date) return;
+            try {
+                const res = await fetch('/api/v1/tracker/responses?student_id=' + encodeURIComponent(respStudentID) + '&date=' + date);
+                const responses = await res.json();
+                const tbody = document.getElementById('resp-tbody');
+                const empty = document.getElementById('resp-empty');
+                if (!responses || responses.length === 0) {
+                    tbody.innerHTML = '';
+                    empty.textContent = 'No responses found for ' + respStudentName + ' on ' + date;
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                empty.classList.add('hidden');
+                tbody.innerHTML = responses.map(r => `
+                    <tr class="border-b">
+                        <td class="py-2 text-sm text-gray-700">${esc(r.item_name)}</td>
+                        <td class="py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.item_type === 'global' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'}">${r.item_type}</span></td>
+                        <td class="py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${r.status === 'done' ? 'Done' : 'Not Done'}</span></td>
+                        <td class="py-2 text-sm text-gray-500">${r.responded_at || ''}</td>
+                    </tr>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        // ==================== DATA (tabbed spreadsheet) ====================
+        let dataStore = null, currentDataTab = 'students', dataFilterText = '', showDeleted = false;
+
+        const dataTabs = ['students', 'parents', 'teachers', 'rooms', 'schedules'];
+        const refFields = { parent_id: 'parents', teacher_id: 'teachers', room_id: 'rooms', student_ids: 'students' };
+        const dataColumns = {
+            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
+            parents:   [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'notes',label:'Notes'}],
+            teachers:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'subjects',label:'Subjects'},{key:'active',label:'Active'}],
+            rooms:     [{key:'id',label:'ID'},{key:'name',label:'Name'},{key:'capacity',label:'Capacity'},{key:'notes',label:'Notes'}],
+            schedules: [{key:'id',label:'ID'},{key:'day_of_week',label:'Day'},{key:'start_time',label:'Start'},{key:'end_time',label:'End'},{key:'teacher_id',label:'Teacher',ref:'teachers'},{key:'room_id',label:'Room',ref:'rooms'},{key:'subject',label:'Subject'},{key:'student_ids',label:'Students',ref:'students'},{key:'effective_from',label:'From'},{key:'effective_until',label:'Until'}]
+        };
+
+        function resolveRef(id, refType) {
+            if (!id || !dataStore || !dataStore[refType]) return id;
+            const item = dataStore[refType].find(r => r.id === id);
+            if (!item) return id;
+            if (item.first_name) return `${item.first_name} ${item.last_name}/${id}`;
+            if (item.name) return `${item.name}/${id}`;
+            return id;
+        }
+
+        function fmtVal(val, key) {
+            if (val == null) return '';
+            if (key === 'active') return val ? 'Yes' : 'No';
+            if (key === 'deleted') return val ? 'Yes' : 'No';
+            const ref = refFields[key];
+            if (ref && Array.isArray(val)) return val.map(v => resolveRef(v, ref)).join('; ');
+            if (ref && typeof val === 'string' && val) return resolveRef(val, ref);
+            if (Array.isArray(val)) return val.join('; ');
+            return String(val);
+        }
+
+        async function loadDataSection(force) {
+            if (!dataStore || force) {
+                const url = showDeleted ? '/api/v1/directory?include_deleted=1' : '/api/v1/directory';
+                try { dataStore = await (await fetch(url)).json(); } catch(e) { console.error('Data load failed:', e); return; }
+            }
+            renderDataTab();
+        }
+
+        function switchDataTab(tab) { currentDataTab = tab; renderDataTab(); }
+
+        function toggleShowDeleted() {
+            showDeleted = document.getElementById('show-deleted').checked;
+            dataStore = null;
+            loadDataSection(true);
+        }
+
+        function renderDataTab() {
+            dataTabs.forEach(t => {
+                const btn = document.getElementById('dtab-' + t);
+                btn.className = t === currentDataTab
+                    ? 'data-tab px-4 py-2 text-sm font-medium border-b-2 transition text-indigo-600 border-indigo-600'
+                    : 'data-tab px-4 py-2 text-sm font-medium border-b-2 transition text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300';
+            });
+
+            const cols = dataColumns[currentDataTab];
+            const filter = (dataFilterText || '').toLowerCase();
+            const allRows = (dataStore && dataStore[currentDataTab]) || [];
+            const rows = filter ? allRows.filter(row => cols.some(c => fmtVal(row[c.key], c.key).toLowerCase().includes(filter))) : allRows;
+
+            document.getElementById('data-count').textContent = `${rows.length} of ${allRows.length} records`;
+
+            // Header with Actions column
+            document.getElementById('data-thead').innerHTML = '<tr class="border-b text-sm text-gray-400">' +
+                cols.map(c => `<th class="py-2 px-3 whitespace-nowrap">${c.label}</th>`).join('') +
+                '<th class="py-2 px-3 whitespace-nowrap no-print">Actions</th></tr>';
+
+            const tbody = document.getElementById('data-tbody');
+            const empty = document.getElementById('data-empty');
+
+            if (!rows.length) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+            tbody.innerHTML = rows.map(row => {
+                const isDeleted = row.deleted;
+                const rowCls = isDeleted ? 'border-b bg-red-50 opacity-60' : 'border-b hover:bg-gray-50';
+                return `<tr class="${rowCls}">` +
+                    cols.map(c => {
+                        const val = fmtVal(row[c.key], c.key);
+                        let cls = 'text-gray-700';
+                        if (c.key === 'active') cls = row[c.key] ? 'text-green-600' : 'text-red-500';
+                        return `<td class="py-2 px-3 text-sm ${cls} max-w-xs truncate" title="${val.replace(/"/g,'&quot;')}">${val}</td>`;
+                    }).join('') +
+                    `<td class="py-2 px-3 whitespace-nowrap no-print">
+                        <button onclick='openEditModal(${JSON.stringify(row).replace(/'/g,"&#39;")})' class="text-indigo-600 hover:text-indigo-800 text-sm mr-1" title="Edit">Edit</button>
+                        ${!isDeleted && ['students','parents','teachers'].includes(currentDataTab) ? `<button onclick="openPasswordModal('${row.id}','${(row.first_name||'').replace(/'/g,"\\'")} ${(row.last_name||'').replace(/'/g,"\\'")}')" class="text-amber-600 hover:text-amber-800 text-sm mr-1" title="Reset Password">Pwd</button>` : ''}
+                        ${!isDeleted ? `<button onclick="deleteRecord('${row.id}')" class="text-red-500 hover:text-red-700 text-sm" title="Delete">Del</button>` : ''}
+                    </td></tr>`;
+            }).join('');
+        }
+
+        // ==================== MODAL ====================
+        function openNewModal() {
+            const cols = dataColumns[currentDataTab];
+            openModal('New ' + currentDataTab.slice(0, -1), {}, cols);
+        }
+
+        function openEditModal(row) {
+            const cols = dataColumns[currentDataTab];
+            openModal('Edit ' + currentDataTab.slice(0, -1), row, cols);
+        }
+
+        function openModal(title, row, cols) {
+            const modal = document.getElementById('entity-modal');
+            document.getElementById('modal-title').textContent = title;
+            const form = document.getElementById('modal-form');
+            form.innerHTML = cols.map(c => {
+                const val = row[c.key] ?? '';
+                const isRef = !!c.ref;
+                const isBool = c.key === 'active';
+                const isArray = Array.isArray(val);
+                const displayVal = isArray ? val.join('; ') : val;
+
+                if (isBool) {
+                    return `<div class="mb-3"><label class="flex items-center gap-2 text-sm text-gray-600">
+                        <input type="checkbox" name="${c.key}" ${val !== false ? 'checked' : ''} class="rounded">
+                        ${c.label}</label></div>`;
+                }
+                if (isRef) {
+                    const refItems = (dataStore && dataStore[c.ref]) || [];
+                    const isMulti = c.key === 'student_ids';
+                    if (isMulti) {
+                        return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label} <span class="text-gray-400 text-xs">(semicolon-separated)</span></label>
+                            <input type="text" name="${c.key}" value="${displayVal}" class="w-full px-3 py-1.5 border rounded-lg text-sm" list="list-${c.key}">
+                            <datalist id="list-${c.key}">${refItems.map(r => `<option value="${r.id}">${r.first_name ? r.first_name+' '+r.last_name : r.name} (${r.id})</option>`).join('')}</datalist></div>`;
+                    }
+                    return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                        <select name="${c.key}" class="w-full px-3 py-1.5 border rounded-lg text-sm">
+                            <option value="">-- None --</option>
+                            ${refItems.map(r => {
+                                const label = r.first_name ? `${r.first_name} ${r.last_name} (${r.id})` : `${r.name} (${r.id})`;
+                                return `<option value="${r.id}" ${r.id === displayVal ? 'selected' : ''}>${label}</option>`;
+                            }).join('')}
+                        </select></div>`;
+                }
+                if (c.key === 'day_of_week') {
+                    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+                    return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                        <select name="${c.key}" class="w-full px-3 py-1.5 border rounded-lg text-sm">
+                            ${days.map(d => `<option value="${d}" ${d === displayVal ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select></div>`;
+                }
+                return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                    <input type="text" name="${c.key}" value="${String(displayVal).replace(/"/g,'&quot;')}" class="w-full px-3 py-1.5 border rounded-lg text-sm" ${c.key === 'id' && row.id ? 'readonly class="bg-gray-100"' : ''}></div>`;
+            }).join('');
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('entity-modal').classList.add('hidden'); }
+
+        async function saveModal() {
+            const form = document.getElementById('modal-form');
+            const data = {};
+            form.querySelectorAll('input[type=text], select').forEach(el => { data[el.name] = el.value; });
+            form.querySelectorAll('input[type=checkbox]').forEach(el => { data[el.name] = el.checked; });
+            // Convert student_ids string back to semicolon format for storage
+            if (data.student_ids && typeof data.student_ids === 'string') {
+                data.student_ids = data.student_ids; // stored as semicolon-separated string
+            }
+            if (!data.id) { alert('ID is required'); return; }
+
+            try {
+                const res = await fetch('/api/v1/data', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'save', type: currentDataTab, data })
+                });
+                const result = await res.json();
+                if (result.ok) { closeModal(); dataStore = null; loadDataSection(true); }
+                else alert(result.error || 'Save failed');
+            } catch(e) { alert('Save failed'); }
+        }
+
+        async function deleteRecord(id) {
+            if (!confirm(`Delete this record? (ID: ${id})`)) return;
+            try {
+                const res = await fetch('/api/v1/data', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'delete', type: currentDataTab, id })
+                });
+                const result = await res.json();
+                if (result.ok) { dataStore = null; loadDataSection(true); }
+                else alert(result.error || 'Delete failed');
+            } catch(e) { alert('Delete failed'); }
+        }
+
+        // ==================== PASSWORD RESET ====================
+        function openPasswordModal(id, name) {
+            document.getElementById('pwd-entity-id').value = id;
+            document.getElementById('pwd-entity-name').textContent = name;
+            document.getElementById('pwd-username').textContent = id.toLowerCase();
+            document.getElementById('pwd-value').value = '';
+            document.getElementById('pwd-status').classList.add('hidden');
+            document.getElementById('pwd-modal').classList.remove('hidden');
+            document.getElementById('pwd-value').focus();
+        }
+
+        function closePwdModal() { document.getElementById('pwd-modal').classList.add('hidden'); }
+
+        async function submitPasswordReset() {
+            const id = document.getElementById('pwd-entity-id').value;
+            const password = document.getElementById('pwd-value').value.trim();
+            const status = document.getElementById('pwd-status');
+            if (!password || password.length < 4) {
+                status.className = 'text-sm mt-3 px-3 py-1.5 rounded-lg bg-red-100 text-red-700';
+                status.textContent = 'Password must be at least 4 characters';
+                status.classList.remove('hidden');
+                return;
+            }
+            try {
+                const res = await fetch('/api/v1/password-reset', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ type: currentDataTab, id, password })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    status.className = 'text-sm mt-3 px-3 py-1.5 rounded-lg bg-green-100 text-green-700';
+                    status.textContent = result.message;
+                } else {
+                    status.className = 'text-sm mt-3 px-3 py-1.5 rounded-lg bg-red-100 text-red-700';
+                    status.textContent = result.error || 'Reset failed';
+                }
+                status.classList.remove('hidden');
+            } catch(e) {
+                status.className = 'text-sm mt-3 px-3 py-1.5 rounded-lg bg-red-100 text-red-700';
+                status.textContent = 'Reset failed';
+                status.classList.remove('hidden');
+            }
+        }
+
+        function exportCurrentTabCSV() {
+            location.href = '/admin/export/csv?type=' + currentDataTab;
+            closeDropdowns();
+        }
+
+        async function triggerImport() {
+            const status = document.getElementById('import-status');
+            status.className = 'text-sm px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700';
+            status.textContent = 'Importing...'; status.classList.remove('hidden');
+            try {
+                const res = await fetch('/api/v1/import', { method: 'POST' });
+                const result = await res.json();
+                if (result.ok) {
+                    status.className = 'text-sm px-3 py-1 rounded-lg bg-green-100 text-green-700';
+                    status.textContent = result.message;
+                    dataStore = null; loadDataSection(true);
+                } else {
+                    status.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
+                    status.textContent = result.error || 'Import failed';
+                }
+            } catch(e) {
+                status.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
+                status.textContent = 'Import failed';
+            }
+            setTimeout(() => status.classList.add('hidden'), 5000);
+        }
+
+        // ==================== DROPDOWN UTILS ====================
+        function toggleDropdown(id) { document.getElementById(id).classList.toggle('hidden'); }
+        function closeDropdowns() { document.querySelectorAll('#export-menu').forEach(m => m.classList.add('hidden')); }
+        document.addEventListener('click', e => { if (!e.target.closest('#export-dropdown')) closeDropdowns(); });
     </script>
 </body>
 </html>

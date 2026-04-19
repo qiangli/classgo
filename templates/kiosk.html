@@ -6,6 +6,7 @@
     <title>{{.AppName}} - Kiosk</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/fingerprint.js"></script>
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center select-none">
 
@@ -21,6 +22,22 @@
         <div class="text-white" style="font-size:10rem">&#128075;</div>
         <p id="checkout-name" class="text-white text-6xl font-bold mt-4"></p>
         <p class="text-orange-100 text-3xl mt-3">Signed out!</p>
+    </div>
+
+    <!-- Tracker Overlay (shown during checkout) -->
+    <div id="tracker-overlay" class="hidden fixed inset-0 bg-gray-900 z-50 overflow-y-auto">
+        <div class="max-w-2xl mx-auto p-8 pt-12">
+            <h2 class="text-3xl font-bold text-white mb-2">Before you go...</h2>
+            <p class="text-lg text-gray-400 mb-1"><span id="tracker-student-name" class="text-white font-medium"></span></p>
+            <p class="text-gray-500 mb-6">Please respond to each item:</p>
+            <div id="tracker-items-list" class="space-y-4"></div>
+            <button id="tracker-submit-btn" disabled
+                class="w-full mt-8 py-4 bg-red-500 hover:bg-red-600 text-white text-xl font-semibold rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Complete Check Out
+            </button>
+            <button onclick="cancelTracker()"
+                class="w-full mt-3 py-3 text-gray-500 hover:text-gray-300 text-lg transition">Cancel</button>
+        </div>
     </div>
 
     <!-- Main Kiosk UI -->
@@ -126,6 +143,18 @@
         let studentId = '';
         let currentInput = '';
         let kioskPinRequired = true;
+        let kioskPinMode = 'off';
+        let kioskFingerprint = '';
+        const kioskDeviceId = 'kiosk';
+
+        // Initialize fingerprint
+        (async function() {
+            try {
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                kioskFingerprint = result.visitorId;
+            } catch(e) {}
+        })();
 
         const display = document.getElementById('display');
         const stepLabel = document.getElementById('step-label');
@@ -140,7 +169,8 @@
 
         // Fetch settings
         fetch('/api/settings').then(r => r.json()).then(s => {
-            kioskPinRequired = s.require_pin;
+            kioskPinMode = s.pin_mode || 'off';
+            kioskPinRequired = s.require_pin || kioskPinMode === 'center' || kioskPinMode === 'per-student';
         }).catch(() => {});
 
         nameInput.addEventListener('input', () => {
@@ -273,7 +303,9 @@
                 const checkinPayload = {
                     student_name: studentName,
                     pin: currentInput,
-                    device_type: 'kiosk'
+                    device_type: 'kiosk',
+                    fingerprint: kioskFingerprint,
+                    device_id: kioskDeviceId
                 };
                 if (studentId) checkinPayload.student_id = studentId;
                 const res = await fetch('/api/checkin', {
@@ -298,11 +330,35 @@
             }
         }
 
+        let kioskTrackerPin = '';
+        let kioskTrackerResponses = {};
+
         async function doCheckOut() {
+            kioskTrackerPin = currentInput;
+
+            // Check for due tracker items
+            try {
+                const params = new URLSearchParams();
+                if (studentId) params.set('student_id', studentId);
+                params.set('student_name', studentName);
+                const dueRes = await fetch('/api/tracker/due?' + params);
+                const dueItems = await dueRes.json();
+                if (dueItems && dueItems.length > 0) {
+                    showKioskTrackerScreen(studentName, studentId, dueItems);
+                    return;
+                }
+            } catch(e) { /* proceed without tracker */ }
+
+            await performKioskCheckout();
+        }
+
+        async function performKioskCheckout() {
             try {
                 const checkoutPayload = {
                     student_name: studentName,
-                    pin: currentInput
+                    pin: kioskTrackerPin,
+                    fingerprint: kioskFingerprint,
+                    device_id: kioskDeviceId
                 };
                 if (studentId) checkoutPayload.student_id = studentId;
                 const res = await fetch('/api/checkout', {
@@ -325,6 +381,117 @@
                 currentInput = '';
                 updateDisplay();
             }
+        }
+
+        function showKioskTrackerScreen(name, sid, items) {
+            kioskTrackerResponses = {};
+            const overlay = document.getElementById('tracker-overlay');
+            const container = document.getElementById('tracker-items-list');
+            document.getElementById('tracker-student-name').textContent = name;
+
+            const pBorder = { high: 'border-l-4 border-l-red-500', medium: 'border-l-4 border-l-amber-500', low: '' };
+            container.innerHTML = items.map(it => `
+                <div class="bg-gray-800 rounded-2xl p-4 ${pBorder[it.priority] || ''}" data-item-type="${it.item_type}" data-item-id="${it.item_id}" data-item-name="${escAttr(it.name)}">
+                    <div class="flex items-center gap-2 mb-3">
+                        <p class="text-white text-lg font-medium flex-1">${escHtml(it.name)}</p>
+                        ${it.priority === 'high' ? '<span class="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300">HIGH</span>' : ''}
+                        ${it.category ? `<span class="text-xs text-gray-500">${escHtml(it.category)}</span>` : ''}
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="setKioskTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'done')"
+                            class="kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-green-400 text-green-400 hover:bg-green-900 transition">Done</button>
+                        <button onclick="setKioskTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'not_done')"
+                            class="kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-gray-500 text-gray-400 hover:bg-gray-800 transition">Not Done</button>
+                    </div>
+                    <input type="text" class="kiosk-tracker-notes hidden mt-3 w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-xl text-white text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                        placeholder="Why not done? (optional)" data-notes-key="${it.item_type}:${it.item_id}">
+                </div>
+            `).join('');
+
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.onclick = () => submitKioskTrackerAndCheckout(name, sid, items);
+            overlay.classList.remove('hidden');
+        }
+
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function setKioskTrackerResponse(btn, itemType, itemId, status) {
+            const key = itemType + ':' + itemId;
+            kioskTrackerResponses[key] = { item_type: itemType, item_id: itemId, status };
+
+            const row = btn.closest('[data-item-type]');
+            const buttons = row.querySelectorAll('.kiosk-tracker-btn');
+            buttons.forEach(b => {
+                if (b.textContent.trim() === 'Done') {
+                    b.className = 'kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-green-400 text-green-400 hover:bg-green-900 transition';
+                } else {
+                    b.className = 'kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-gray-500 text-gray-400 hover:bg-gray-800 transition';
+                }
+            });
+
+            if (status === 'done') {
+                btn.className = 'kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-green-500 bg-green-500 text-white transition';
+            } else {
+                btn.className = 'kiosk-tracker-btn flex-1 py-3 text-lg rounded-xl border-2 border-red-500 bg-red-500 text-white transition';
+            }
+
+            // Show/hide notes input for "Not Done"
+            const notesInput = row.querySelector('.kiosk-tracker-notes');
+            if (notesInput) {
+                notesInput.classList.toggle('hidden', status === 'done');
+                if (status === 'done') notesInput.value = '';
+            }
+
+            const totalItems = document.getElementById('tracker-items-list').children.length;
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = Object.keys(kioskTrackerResponses).length < totalItems;
+        }
+
+        async function submitKioskTrackerAndCheckout(name, sid, items) {
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Checking out...';
+
+            const responses = items.map(it => {
+                const key = it.item_type + ':' + it.item_id;
+                const resp = kioskTrackerResponses[key];
+                const notesEl = document.querySelector(`[data-notes-key="${key}"]`);
+                return {
+                    item_type: it.item_type,
+                    item_id: it.item_id,
+                    item_name: it.name,
+                    status: resp ? resp.status : 'not_done',
+                    notes: notesEl ? notesEl.value.trim() : ''
+                };
+            });
+
+            try {
+                const payload = { student_name: name, pin: kioskTrackerPin, responses, fingerprint: kioskFingerprint, device_id: kioskDeviceId };
+                if (sid) payload.student_id = sid;
+                const res = await fetch('/api/tracker/respond', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                document.getElementById('tracker-overlay').classList.add('hidden');
+                if (data.ok) {
+                    showCheckOutSuccess(name);
+                } else {
+                    showError(data.error || 'Sign out failed');
+                }
+            } catch (err) {
+                showError('Connection error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Complete Check Out';
+        }
+
+        function cancelTracker() {
+            document.getElementById('tracker-overlay').classList.add('hidden');
+            resetKiosk();
         }
 
         function showSuccess(name) {
