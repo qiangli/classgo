@@ -144,25 +144,25 @@ type TrackerItem struct {
 }
 
 type StudentTrackerItem struct {
-	ID          int    `json:"id"`
-	StudentID   string `json:"student_id"`
-	Name        string `json:"name"`
-	Notes       string `json:"notes"`
-	StartDate   string `json:"start_date"`
-	DueDate     string `json:"due_date"`
-	Priority    string `json:"priority"`
-	Recurrence  string `json:"recurrence"`
-	Category    string `json:"category"`
-	CreatedBy   string `json:"created_by"`
-	OwnerType   string `json:"owner_type"`
-	Completed   bool   `json:"completed"`
-	CompletedAt string `json:"completed_at"`
+	ID              int    `json:"id"`
+	StudentID       string `json:"student_id"`
+	Name            string `json:"name"`
+	Notes           string `json:"notes"`
+	StartDate       string `json:"start_date"`
+	DueDate         string `json:"due_date"`
+	Priority        string `json:"priority"`
+	Recurrence      string `json:"recurrence"`
+	Category        string `json:"category"`
+	CreatedBy       string `json:"created_by"`
+	OwnerType       string `json:"owner_type"`
+	Completed       bool   `json:"completed"`
+	CompletedAt     string `json:"completed_at"`
 	CompletedBy     string `json:"completed_by"`
 	RequiresSignoff bool   `json:"requires_signoff"`
 	Active          bool   `json:"active"`
-	Deleted     bool   `json:"deleted"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	Deleted         bool   `json:"deleted"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 type TrackerResponse struct {
