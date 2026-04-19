@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	"classgo/internal/models"
@@ -44,20 +45,50 @@ func TodayAttendees(db *sql.DB) ([]models.Attendance, error) {
 
 // AttendeesByDateRange returns attendance records within a date range (inclusive).
 // Dates should be in YYYY-MM-DD format. If from is empty, defaults to today.
-func AttendeesByDateRange(db *sql.DB, from, to string) ([]models.Attendance, error) {
-	q := "SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance"
+// Optional filters: studentID, teacherID, parentID filter via attendance_meta joins.
+func AttendeesByDateRange(db *sql.DB, from, to, studentID, teacherID, parentID string) ([]models.Attendance, error) {
+	q := "SELECT DISTINCT a.id, a.student_name, a.device_type, a.check_in_time, a.check_out_time FROM attendance a"
+	var joins []string
+	var wheres []string
 	var args []any
 
+	needMeta := studentID != "" || teacherID != "" || parentID != ""
+	if needMeta {
+		joins = append(joins, "LEFT JOIN attendance_meta am ON am.attendance_id = a.id")
+	}
+	if studentID != "" {
+		wheres = append(wheres, "am.student_id = ?")
+		args = append(args, studentID)
+	}
+	if teacherID != "" {
+		joins = append(joins, "LEFT JOIN schedules sch ON sch.id = am.schedule_id")
+		wheres = append(wheres, "sch.teacher_id = ?")
+		args = append(args, teacherID)
+	}
+	if parentID != "" {
+		joins = append(joins, "LEFT JOIN students st ON st.id = am.student_id")
+		wheres = append(wheres, "st.parent_id = ?")
+		args = append(args, parentID)
+	}
+
+	for _, j := range joins {
+		q += " " + j
+	}
+
 	if from != "" && to != "" {
-		q += " WHERE date(check_in_time) >= ? AND date(check_in_time) <= ?"
+		wheres = append(wheres, "date(a.check_in_time) >= ?", "date(a.check_in_time) <= ?")
 		args = append(args, from, to)
 	} else if from != "" {
-		q += " WHERE date(check_in_time) >= ?"
+		wheres = append(wheres, "date(a.check_in_time) >= ?")
 		args = append(args, from)
 	} else {
-		q += " WHERE date(check_in_time) = date('now','localtime')"
+		wheres = append(wheres, "date(a.check_in_time) = date('now','localtime')")
 	}
-	q += " ORDER BY check_in_time DESC"
+
+	if len(wheres) > 0 {
+		q += " WHERE " + strings.Join(wheres, " AND ")
+	}
+	q += " ORDER BY a.check_in_time DESC"
 
 	rows, err := db.Query(q, args...)
 	if err != nil {

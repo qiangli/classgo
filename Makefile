@@ -2,7 +2,7 @@ APP := classgo
 BIN := bin/$(APP)
 PID_FILE := bin/.pid
 
-.PHONY: help tidy build build-all test start stop clean memos-frontend
+.PHONY: help tidy build build-all test start stop clean memos-frontend tailwind
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -15,10 +15,13 @@ tidy: ## Run fmt, vet, and mod tidy
 test: ## Run tests
 	go test -v -count=1 ./...
 
+tailwind: ## Build Tailwind CSS from templates
+	./tailwindcss -i static/css/input.css -o static/css/tailwind.css --content 'templates/*.html' --minify
+
 memos-frontend: ## Build Memos React frontend
 	cd memos/web && pnpm install --frozen-lockfile && pnpm run release
 
-build: tidy memos-frontend ## Build binary to bin/
+build: tidy tailwind memos-frontend ## Build binary to bin/
 	@mkdir -p bin
 	go build -o $(BIN) .
 

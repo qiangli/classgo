@@ -68,6 +68,12 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 		req.StudentID = a.findStudentID(req.StudentName)
 	}
 
+	// Reject check-in if student is not in the system
+	if req.StudentID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Student not found. Please check the name and try again."})
+		return
+	}
+
 	// Validate PIN based on mode
 	needsSetup, pinErr := a.ValidatePIN(req.StudentID, req.PIN)
 	if needsSetup {
@@ -253,11 +259,15 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleAttendees(w http.ResponseWriter, r *http.Request) {
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
+	studentID := r.URL.Query().Get("student_id")
+	teacherID := r.URL.Query().Get("teacher_id")
+	parentID := r.URL.Query().Get("parent_id")
 
 	var attendees []models.Attendance
 	var err error
-	if from != "" || to != "" {
-		attendees, err = database.AttendeesByDateRange(a.DB, from, to)
+	hasFilter := from != "" || to != "" || studentID != "" || teacherID != "" || parentID != ""
+	if hasFilter {
+		attendees, err = database.AttendeesByDateRange(a.DB, from, to, studentID, teacherID, parentID)
 	} else {
 		attendees, err = database.TodayAttendees(a.DB)
 	}

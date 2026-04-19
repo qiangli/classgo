@@ -7,6 +7,12 @@ config.json
 # ycode local artifacts
 .agents/
 
+# Tailwind CLI binary (downloaded at build time)
+tailwindcss
+
+# Built Tailwind CSS (generated from templates)
+static/css/tailwind.css
+
 memos/web/node_modules/
 memos/server/router/frontend/dist/
 data/memos/
@@ -14,3 +20,5 @@ data/csv/
 data/tutoros.xlsx
 data/*.db
 data/backups
+data/csv.example/backups/
+data/csv.example/memos/

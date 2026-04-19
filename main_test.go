@@ -43,6 +43,14 @@ func setupTest(t *testing.T) (*handlers.App, func()) {
 		t.Fatal(err)
 	}
 
+	// Insert test students so check-in validation passes
+	for _, s := range []struct{ id, first, last string }{
+		{"S001", "Alice", ""},
+		{"S002", "Bob", ""},
+	} {
+		db.Exec("INSERT INTO students (id, first_name, last_name, active) VALUES (?, ?, ?, 1)", s.id, s.first, s.last)
+	}
+
 	app := &handlers.App{
 		DB:      db,
 		Tmpl:    tmpl,
@@ -429,5 +437,23 @@ func TestFullFlowBothDeviceTypes(t *testing.T) {
 		if dur == "" {
 			t.Errorf("%s: duration should not be empty", name)
 		}
+	}
+}
+
+func TestCheckInUnregisteredStudent(t *testing.T) {
+	app, cleanup := setupTest(t)
+	defer cleanup()
+
+	w := postJSON(app.HandleCheckIn, `{"student_name":"Unknown Person","pin":"1234","device_type":"mobile"}`)
+	if w.Code != 400 {
+		t.Errorf("expected 400 for unregistered student, got %d", w.Code)
+	}
+	resp := decodeResp(t, w)
+	if resp["ok"] != false {
+		t.Error("expected ok=false for unregistered student")
+	}
+	errMsg, _ := resp["error"].(string)
+	if !strings.Contains(strings.ToLower(errMsg), "not found") {
+		t.Errorf("expected 'not found' error, got: %s", errMsg)
 	}
 }

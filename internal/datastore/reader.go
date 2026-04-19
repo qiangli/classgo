@@ -35,6 +35,11 @@ func ReadAll(dataDir string) (*EntityData, error) {
 		return readCSVDir(csvDir)
 	}
 
+	// Fall back to CSV files directly in the data directory
+	if _, err := os.Stat(filepath.Join(dataDir, "students.csv")); err == nil {
+		return readCSVDir(dataDir)
+	}
+
 	return &EntityData{}, nil
 }
 

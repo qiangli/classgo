@@ -3,5 +3,11 @@ S001,Alice,Wang,6,Lincoln Middle,P001,,,,,yes
 S002,Bob,Wang,8,Washington High,P001,,,,,yes
 S003,Carlos,Garcia,7,Lincoln Middle,P002,,,,,yes
 S004,Diana,Chen,5,Lincoln Elementary,P003,,,,,yes
-S005,Emma,Taylor,6,Lincoln Middle,P001,,,,,yes
-S006,Frank,Miller,7,Washington High,P002,,,,,yes
+S005,Emma,Taylor,6,Lincoln Middle,P004,,,,,yes
+S006,Frank,Miller,7,Washington High,P005,,,,,yes
+S007,Grace,Lee,9,Washington High,P006,grace@example.com,,,,yes
+S008,Henry,Kim,4,Lincoln Elementary,P007,,,555-3333,,yes
+S009,Ivy,Patel,8,Lincoln Middle,P008,,,,,yes
+S010,Jack,Brown,6,Lincoln Middle,P004,,,,,yes
+S011,Karen,Davis,10,Washington High,P005,,,,,no
+S012,Leo,Martinez,5,Lincoln Elementary,P006,,,,,no
