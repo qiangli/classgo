@@ -16,7 +16,7 @@ import (
 	"classgo/internal/scheduling"
 )
 
-func (a *App) HandleSignIn(w http.ResponseWriter, r *http.Request) {
+func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -50,11 +50,11 @@ func (a *App) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 
 	var existingID int
 	err := a.DB.QueryRow(
-		"SELECT id FROM attendance WHERE student_name = ? AND date(sign_in_time) = date('now','localtime') AND sign_out_time IS NULL LIMIT 1",
+		"SELECT id FROM attendance WHERE student_name = ? AND date(check_in_time) = date('now','localtime') AND check_out_time IS NULL LIMIT 1",
 		req.StudentName,
 	).Scan(&existingID)
 	if err == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Already signed in today!"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Already checked in today!"})
 		return
 	}
 
@@ -79,31 +79,31 @@ func (a *App) HandleSignIn(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	studentName := r.URL.Query().Get("student_name")
 	if studentName == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"signed_in": false, "error": "student_name required"})
+		writeJSON(w, http.StatusBadRequest, map[string]any{"checked_in": false, "error": "student_name required"})
 		return
 	}
 
 	var id int
-	var signOutTime sql.NullString
+	var checkOutTime sql.NullString
 	err := a.DB.QueryRow(
-		"SELECT id, sign_out_time FROM attendance WHERE student_name = ? AND date(sign_in_time) = date('now','localtime') ORDER BY sign_in_time DESC LIMIT 1",
+		"SELECT id, check_out_time FROM attendance WHERE student_name = ? AND date(check_in_time) = date('now','localtime') ORDER BY check_in_time DESC LIMIT 1",
 		studentName,
-	).Scan(&id, &signOutTime)
+	).Scan(&id, &checkOutTime)
 	if err == sql.ErrNoRows {
-		writeJSON(w, http.StatusOK, map[string]any{"signed_in": false})
+		writeJSON(w, http.StatusOK, map[string]any{"checked_in": false})
 		return
 	}
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"signed_in": false, "error": "Database error"})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"checked_in": false, "error": "Database error"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"signed_in":  true,
-		"signed_out": signOutTime.Valid,
+		"checked_in":  true,
+		"checked_out": checkOutTime.Valid,
 	})
 }
 
-func (a *App) HandleSignOut(w http.ResponseWriter, r *http.Request) {
+func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -131,7 +131,7 @@ func (a *App) HandleSignOut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := a.DB.Exec(
-		"UPDATE attendance SET sign_out_time = datetime('now','localtime') WHERE student_name = ? AND date(sign_in_time) = date('now','localtime') AND sign_out_time IS NULL",
+		"UPDATE attendance SET check_out_time = datetime('now','localtime') WHERE student_name = ? AND date(check_in_time) = date('now','localtime') AND check_out_time IS NULL",
 		req.StudentName,
 	)
 	if err != nil {
@@ -141,7 +141,7 @@ func (a *App) HandleSignOut(w http.ResponseWriter, r *http.Request) {
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "No active sign-in found"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "No active check-in found"})
 		return
 	}
 
@@ -169,12 +169,12 @@ func (a *App) HandleExport(w http.ResponseWriter, r *http.Request) {
 
 	if from != "" && to != "" {
 		rows, err = a.DB.Query(
-			"SELECT id, student_name, device_type, sign_in_time, sign_out_time FROM attendance WHERE date(sign_in_time) BETWEEN ? AND ? ORDER BY sign_in_time DESC",
+			"SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance WHERE date(check_in_time) BETWEEN ? AND ? ORDER BY check_in_time DESC",
 			from, to,
 		)
 	} else {
 		rows, err = a.DB.Query(
-			"SELECT id, student_name, device_type, sign_in_time, sign_out_time FROM attendance ORDER BY sign_in_time DESC",
+			"SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC",
 		)
 	}
 	if err != nil {
@@ -188,25 +188,25 @@ func (a *App) HandleExport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
 	writer := csv.NewWriter(w)
-	writer.Write([]string{"ID", "Student Name", "Device Type", "Sign In", "Sign Out", "Duration"})
+	writer.Write([]string{"ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"})
 
 	for rows.Next() {
 		var id int
-		var studentName, deviceType, signIn string
-		var signOut sql.NullString
-		if err := rows.Scan(&id, &studentName, &deviceType, &signIn, &signOut); err != nil {
+		var studentName, deviceType, checkIn string
+		var checkOut sql.NullString
+		if err := rows.Scan(&id, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
 			continue
 		}
-		inTime, _ := models.ParseTimestamp(signIn)
-		signInFmt := inTime.Format("2006-01-02 3:04 PM")
-		signOutFmt := ""
+		inTime, _ := models.ParseTimestamp(checkIn)
+		checkInFmt := inTime.Format("2006-01-02 3:04 PM")
+		checkOutFmt := ""
 		durationStr := ""
-		if signOut.Valid {
-			outTime, _ := models.ParseTimestamp(signOut.String)
-			signOutFmt = outTime.Format("2006-01-02 3:04 PM")
+		if checkOut.Valid {
+			outTime, _ := models.ParseTimestamp(checkOut.String)
+			checkOutFmt = outTime.Format("2006-01-02 3:04 PM")
 			durationStr = models.FormatDuration(outTime.Sub(inTime))
 		}
-		writer.Write([]string{fmt.Sprintf("%d", id), studentName, deviceType, signInFmt, signOutFmt, durationStr})
+		writer.Write([]string{fmt.Sprintf("%d", id), studentName, deviceType, checkInFmt, checkOutFmt, durationStr})
 	}
 	writer.Flush()
 }
@@ -236,13 +236,11 @@ func (a *App) HandleExportXLSX(w http.ResponseWriter, r *http.Request) {
 // linkAttendanceMeta tries to match a student name to structured data and
 // link the attendance record to the student and their current scheduled session.
 func (a *App) linkAttendanceMeta(attendanceID int64, studentName string) {
-	// Look up student by name (case-insensitive, first_name + last_name)
 	studentID := a.findStudentID(studentName)
 	if studentID == "" {
 		return
 	}
 
-	// Find the student's scheduled session for now
 	scheduleID := a.findCurrentSchedule(studentID)
 
 	_, err := a.DB.Exec(
@@ -254,13 +252,10 @@ func (a *App) linkAttendanceMeta(attendanceID int64, studentName string) {
 	}
 }
 
-// findStudentID looks up a student by name. Tries exact match on "first last",
-// then partial match on first name or last name.
 func (a *App) findStudentID(name string) string {
 	name = strings.TrimSpace(name)
 	nameLower := strings.ToLower(name)
 
-	// Try exact match on "first_name last_name"
 	var id string
 	err := a.DB.QueryRow(
 		"SELECT id FROM students WHERE LOWER(first_name || ' ' || last_name) = ? AND active = 1 LIMIT 1",
@@ -270,7 +265,6 @@ func (a *App) findStudentID(name string) string {
 		return id
 	}
 
-	// Try matching first name only
 	err = a.DB.QueryRow(
 		"SELECT id FROM students WHERE LOWER(first_name) = ? AND active = 1 LIMIT 1",
 		nameLower,
@@ -282,7 +276,6 @@ func (a *App) findStudentID(name string) string {
 	return ""
 }
 
-// findCurrentSchedule finds the schedule for a student that covers the current time.
 func (a *App) findCurrentSchedule(studentID string) string {
 	data, err := datastore.ReadFromDB(a.DB)
 	if err != nil {
@@ -295,7 +288,6 @@ func (a *App) findCurrentSchedule(studentID string) string {
 	currentTime := now.Format("15:04")
 
 	for _, s := range sessions {
-		// Check if student is in this session
 		inSession := false
 		for _, sid := range s.StudentIDs {
 			if sid == studentID {
@@ -307,7 +299,6 @@ func (a *App) findCurrentSchedule(studentID string) string {
 			continue
 		}
 
-		// Check if current time is within the session window (with 30min grace before)
 		graceStart := subtractMinutes(s.StartTime, 30)
 		if currentTime >= graceStart && currentTime <= s.EndTime {
 			return s.ScheduleID
@@ -317,7 +308,6 @@ func (a *App) findCurrentSchedule(studentID string) string {
 	return ""
 }
 
-// subtractMinutes subtracts minutes from an HH:MM time string.
 func subtractMinutes(timeStr string, minutes int) string {
 	t, err := time.Parse("15:04", timeStr)
 	if err != nil {

@@ -66,12 +66,12 @@ type Attendance struct {
 	ID              int        `json:"id"`
 	StudentName     string     `json:"student_name"`
 	DeviceType      string     `json:"device_type"`
-	SignInTime      time.Time  `json:"-"`
-	SignOutTime     *time.Time `json:"-"`
-	SignInTimeStr   string     `json:"sign_in_time"`
-	SignOutTimeStr  string     `json:"sign_out_time"`
-	SignInRaw       string     `json:"sign_in_raw"`
-	SignOutRaw      string     `json:"sign_out_raw"`
+	CheckInTime     time.Time  `json:"-"`
+	CheckOutTime    *time.Time `json:"-"`
+	CheckInTimeStr  string     `json:"check_in_time"`
+	CheckOutTimeStr string     `json:"check_out_time"`
+	CheckInRaw      string     `json:"check_in_raw"`
+	CheckOutRaw     string     `json:"check_out_raw"`
 	Duration        string     `json:"duration"`
 	DurationMinutes float64    `json:"duration_minutes"`
 }
@@ -88,7 +88,7 @@ type AdminData struct {
 	Date          string
 }
 
-type SignInPageData struct {
+type CheckInPageData struct {
 	AppName       string
 	QRDataURIIP   template.URL
 	QRDataURIMDNS template.URL

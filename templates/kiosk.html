@@ -16,10 +16,10 @@
         <p id="success-status" class="text-green-100 text-3xl mt-3">Signed in!</p>
     </div>
 
-    <!-- Sign-Out Success Overlay -->
-    <div id="signout-overlay" class="hidden fixed inset-0 bg-orange-500 flex flex-col items-center justify-center z-50">
+    <!-- Check-Out Success Overlay -->
+    <div id="checkout-overlay" class="hidden fixed inset-0 bg-orange-500 flex flex-col items-center justify-center z-50">
         <div class="text-white" style="font-size:10rem">&#128075;</div>
-        <p id="signout-name" class="text-white text-6xl font-bold mt-4"></p>
+        <p id="checkout-name" class="text-white text-6xl font-bold mt-4"></p>
         <p class="text-orange-100 text-3xl mt-3">Signed out!</p>
     </div>
 
@@ -55,13 +55,13 @@
                 class="w-full px-6 py-5 bg-gray-800 text-white text-2xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
                 placeholder="Type your name">
             <div class="grid grid-cols-2 gap-4 mt-4">
-                <button onclick="startSignIn()"
+                <button onclick="startCheckIn()"
                     class="py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-2xl font-bold rounded-2xl transition">
-                    Sign In
+                    Check In
                 </button>
-                <button onclick="startSignOut()"
+                <button onclick="startCheckOut()"
                     class="py-5 bg-orange-500 hover:bg-orange-600 text-white text-2xl font-bold rounded-2xl transition">
-                    Sign Out
+                    Check Out
                 </button>
             </div>
         </div>
@@ -120,7 +120,7 @@
             }
         }
 
-        let mode = ''; // 'signin' or 'signout'
+        let mode = ''; // 'checkin' or 'checkout'
         let studentName = '';
         let currentInput = '';
 
@@ -141,19 +141,19 @@
             setTimeout(() => errorMsg.classList.add('hidden'), 3000);
         }
 
-        function startSignIn() {
+        function startCheckIn() {
             const name = nameInput.value.trim();
             if (!name) return;
             studentName = name;
-            mode = 'signin';
+            mode = 'checkin';
             currentInput = '';
-            stepLabel.textContent = 'Enter PIN to sign in';
+            stepLabel.textContent = 'Enter PIN to check in';
             nameStep.classList.add('hidden');
             keypad.classList.remove('hidden');
             updateDisplay();
         }
 
-        async function startSignOut() {
+        async function startCheckOut() {
             const name = nameInput.value.trim();
             if (!name) return;
             try {
@@ -168,9 +168,9 @@
                 return;
             }
             studentName = name;
-            mode = 'signout';
+            mode = 'checkout';
             currentInput = '';
-            stepLabel.textContent = 'Enter PIN to sign out';
+            stepLabel.textContent = 'Enter PIN to check out';
             nameStep.classList.add('hidden');
             keypad.classList.remove('hidden');
             updateDisplay();
@@ -192,21 +192,21 @@
                 showError('PIN must be 4 digits');
                 return;
             }
-            if (mode === 'signin') {
-                doSignIn();
+            if (mode === 'checkin') {
+                doCheckIn();
             } else {
-                doSignOut();
+                doCheckOut();
             }
         }
 
         // Allow Enter key in name input
         nameInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') startSignIn();
+            if (e.key === 'Enter') startCheckIn();
         });
 
-        async function doSignIn() {
+        async function doCheckIn() {
             try {
-                const res = await fetch('/api/signin', {
+                const res = await fetch('/api/checkin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -221,7 +221,7 @@
                 if (data.ok) {
                     showSuccess(studentName);
                 } else {
-                    showError(data.error || 'Sign in failed');
+                    showError(data.error || 'Check in failed');
                     currentInput = '';
                     updateDisplay();
                 }
@@ -232,9 +232,9 @@
             }
         }
 
-        async function doSignOut() {
+        async function doCheckOut() {
             try {
-                const res = await fetch('/api/signout', {
+                const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -246,7 +246,7 @@
                 const data = await res.json();
 
                 if (data.ok) {
-                    showSignOutSuccess(studentName);
+                    showCheckOutSuccess(studentName);
                 } else {
                     showError(data.error || 'Sign out failed');
                     currentInput = '';
@@ -269,9 +269,9 @@
             }, 3000);
         }
 
-        function showSignOutSuccess(name) {
-            const overlay = document.getElementById('signout-overlay');
-            document.getElementById('signout-name').textContent = name;
+        function showCheckOutSuccess(name) {
+            const overlay = document.getElementById('checkout-overlay');
+            document.getElementById('checkout-name').textContent = name;
             overlay.classList.remove('hidden');
             setTimeout(() => {
                 overlay.classList.add('hidden');

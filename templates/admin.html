@@ -46,7 +46,7 @@
 
             <!-- QR Code Card -->
             <div class="bg-white rounded-2xl shadow p-6 text-center">
-                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Sign In</h2>
+                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Scan to Check In</h2>
                 <img id="qr-img" src="{{.QRDataURIMDNS}}" alt="QR Code"
                     class="mx-auto mt-2 w-48 h-48 cursor-pointer" title="Tap to toggle IP/mDNS"
                     onclick="toggleQR()"
@@ -83,11 +83,11 @@
                             <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('device_type')">
                                 Device <span id="sort-device_type" class="sort-arrow"></span>
                             </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('sign_in')">
-                                Sign In <span id="sort-sign_in" class="sort-arrow"></span>
+                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_in')">
+                                Check In <span id="sort-check_in" class="sort-arrow"></span>
                             </th>
-                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('sign_out')">
-                                Sign Out <span id="sort-sign_out" class="sort-arrow"></span>
+                            <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_out')">
+                                Check Out <span id="sort-check_out" class="sort-arrow"></span>
                             </th>
                             <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('duration')">
                                 Duration <span id="sort-duration" class="sort-arrow"></span>
@@ -120,7 +120,7 @@
         }
 
         let attendeesData = [];
-        let sortColumn = 'sign_in';
+        let sortColumn = 'check_in';
         let sortAsc = false; // default: newest first
 
         function updateSortArrows() {
@@ -144,8 +144,8 @@
             switch (col) {
                 case 'student_name': return (a.student_name || '').toLowerCase();
                 case 'device_type': return a.device_type || '';
-                case 'sign_in': return a.sign_in_raw || '';
-                case 'sign_out': return a.sign_out_raw || '';
+                case 'check_in': return a.check_in_raw || '';
+                case 'check_out': return a.check_out_raw || '';
                 case 'duration': return a.duration_minutes || 0;
             }
             return '';
@@ -169,11 +169,11 @@
             emptyMsg.classList.add('hidden');
 
             tbody.innerHTML = getSortedAttendees().map(a => {
-                const signInStr = a.sign_in_time;
-                let signOutStr = '<span class="text-green-500">active</span>';
+                const checkInStr = a.check_in_time;
+                let checkOutStr = '<span class="text-green-500">active</span>';
                 let durationStr = '\u2014';
-                if (a.sign_out_time) {
-                    signOutStr = a.sign_out_time;
+                if (a.check_out_time) {
+                    checkOutStr = a.check_out_time;
                     durationStr = a.duration;
                 }
                 const badge = a.device_type === 'mobile'
@@ -182,8 +182,8 @@
                 return `<tr class="border-b hover:bg-gray-50">
                     <td class="py-2 px-3 font-medium">${a.student_name}</td>
                     <td class="py-2 px-3"><span class="text-xs px-2 py-1 rounded-full ${badge}">${a.device_type}</span></td>
-                    <td class="py-2 px-3 text-sm text-gray-500">${signInStr}</td>
-                    <td class="py-2 px-3 text-sm text-gray-500">${signOutStr}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500">${checkInStr}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500">${checkOutStr}</td>
                     <td class="py-2 px-3 text-sm text-gray-500">${durationStr}</td>
                 </tr>`;
             }).join('');
@@ -214,13 +214,13 @@
 
         function exportCSV() {
             const sorted = getSortedAttendees();
-            const rows = [['Name', 'Device', 'Sign In', 'Sign Out', 'Duration']];
+            const rows = [['Name', 'Device', 'Check In', 'Check Out', 'Duration']];
             sorted.forEach(a => {
                 rows.push([
                     a.student_name,
                     a.device_type,
-                    a.sign_in_time,
-                    a.sign_out_time || '',
+                    a.check_in_time,
+                    a.check_out_time || '',
                     a.duration || ''
                 ]);
             });

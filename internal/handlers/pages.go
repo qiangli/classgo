@@ -27,7 +27,7 @@ func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 	}
 	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
 	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
-	data := models.SignInPageData{
+	data := models.CheckInPageData{
 		AppName:       a.AppName,
 		ServerURLIP:   ipURL,
 		ServerURLMDNS: mdnsURL,
@@ -38,7 +38,7 @@ func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleKiosk(w http.ResponseWriter, r *http.Request) {
 	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
 	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
-	data := models.SignInPageData{
+	data := models.CheckInPageData{
 		AppName:       a.AppName,
 		QRDataURIIP:   template.URL(GenerateQR(ipURL)),
 		QRDataURIMDNS: template.URL(GenerateQR(mdnsURL)),

@@ -45,7 +45,7 @@ func (s *Syncer) SyncAttendanceSummary() error {
 	dayName := time.Now().Format("Monday, January 2")
 
 	rows, err := s.db.Query(
-		"SELECT student_name, sign_in_time, sign_out_time FROM attendance WHERE date(sign_in_time) = date('now','localtime') ORDER BY sign_in_time",
+		"SELECT student_name, check_in_time, check_out_time FROM attendance WHERE date(check_in_time) = date('now','localtime') ORDER BY check_in_time",
 	)
 	if err != nil {
 		return err

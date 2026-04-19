@@ -186,13 +186,13 @@ func writeScheduleSheet(f *excelize.File, schedules []models.Schedule) {
 func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 	sheet := "Attendance"
 	f.NewSheet(sheet)
-	headers := []string{"ID", "Student Name", "Device Type", "Sign In", "Sign Out", "Duration"}
+	headers := []string{"ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 
-	rows, err := db.Query("SELECT id, student_name, device_type, sign_in_time, sign_out_time FROM attendance ORDER BY sign_in_time DESC")
+	rows, err := db.Query("SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC")
 	if err != nil {
 		return err
 	}
@@ -201,26 +201,26 @@ func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 	r := 2
 	for rows.Next() {
 		var id int
-		var studentName, deviceType, signIn string
-		var signOut sql.NullString
-		if err := rows.Scan(&id, &studentName, &deviceType, &signIn, &signOut); err != nil {
+		var studentName, deviceType, checkIn string
+		var checkOut sql.NullString
+		if err := rows.Scan(&id, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
 			continue
 		}
-		inTime, _ := models.ParseTimestamp(signIn)
-		signInFmt := inTime.Format("2006-01-02 3:04 PM")
-		signOutFmt := ""
+		inTime, _ := models.ParseTimestamp(checkIn)
+		checkInFmt := inTime.Format("2006-01-02 3:04 PM")
+		checkOutFmt := ""
 		durationStr := ""
-		if signOut.Valid {
-			outTime, _ := models.ParseTimestamp(signOut.String)
-			signOutFmt = outTime.Format("2006-01-02 3:04 PM")
+		if checkOut.Valid {
+			outTime, _ := models.ParseTimestamp(checkOut.String)
+			checkOutFmt = outTime.Format("2006-01-02 3:04 PM")
 			durationStr = models.FormatDuration(outTime.Sub(inTime))
 		}
 
 		f.SetCellValue(sheet, cellName(1, r), id)
 		f.SetCellValue(sheet, cellName(2, r), studentName)
 		f.SetCellValue(sheet, cellName(3, r), deviceType)
-		f.SetCellValue(sheet, cellName(4, r), signInFmt)
-		f.SetCellValue(sheet, cellName(5, r), signOutFmt)
+		f.SetCellValue(sheet, cellName(4, r), checkInFmt)
+		f.SetCellValue(sheet, cellName(5, r), checkOutFmt)
 		f.SetCellValue(sheet, cellName(6, r), durationStr)
 		r++
 	}

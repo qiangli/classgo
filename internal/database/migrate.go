@@ -16,10 +16,10 @@ func MigrateDB(db *sql.DB) error {
 		id           INTEGER PRIMARY KEY AUTOINCREMENT,
 		student_name TEXT NOT NULL,
 		device_type  TEXT NOT NULL CHECK(device_type IN ('mobile','kiosk')),
-		sign_in_time DATETIME DEFAULT (datetime('now','localtime')),
-		sign_out_time DATETIME
+		check_in_time DATETIME DEFAULT (datetime('now','localtime')),
+		check_out_time DATETIME
 	);
-	CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date(sign_in_time));
+	CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date(check_in_time));
 
 	CREATE TABLE IF NOT EXISTS students (
 		id         TEXT PRIMARY KEY,

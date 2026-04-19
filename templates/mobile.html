@@ -13,7 +13,7 @@
     <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50 transition-opacity duration-300">
         <div class="text-white text-8xl mb-4">&#10003;</div>
         <p id="success-name" class="text-white text-4xl font-bold text-center px-4"></p>
-        <p id="success-status" class="text-green-100 text-xl mt-2">Signed in!</p>
+        <p id="success-status" class="text-green-100 text-xl mt-2">Checked in!</p>
     </div>
 
     <div class="w-full max-w-sm">
@@ -22,7 +22,7 @@
                 <img src="/static/logo.svg" alt="Logo" class="w-8 h-8">
                 <h1 class="text-3xl font-bold text-indigo-600">{{.AppName}}</h1>
             </div>
-            <p class="text-gray-400 mt-1">Sign in to class</p>
+            <p class="text-gray-400 mt-1">Check in to class</p>
             <a href="#" id="add-home-link" onclick="toggleHomeScreen(event)"
                 class="inline-flex items-center gap-1 mt-2 text-xs text-indigo-400 hover:text-indigo-600 no-underline">
                 <span id="home-arrow" class="inline-block text-base transition-transform duration-200">&#9656;</span>
@@ -54,24 +54,24 @@
             <div class="text-center">
                 <div id="confirmed-icon" class="text-green-500 text-6xl mb-3">&#10003;</div>
                 <p id="confirmed-name" class="text-2xl font-bold text-gray-800"></p>
-                <p id="confirmed-status" class="text-green-600 mt-1">Signed in!</p>
+                <p id="confirmed-status" class="text-green-600 mt-1">Checked in!</p>
             </div>
-            <button id="signout-btn" onclick="doSignOut()"
+            <button id="checkout-btn" onclick="doCheckOut()"
                 class="w-full mt-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition">
-                Sign Out
+                Check Out
             </button>
             <button id="twistie-btn" onclick="toggleForm()"
                 class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition flex items-center justify-center gap-1">
                 <span id="twistie-arrow" class="inline-block transition-transform duration-200">&#9656;</span>
-                Sign in again
+                Check in again
             </button>
         </div>
 
         <!-- Sign-in Form Card -->
-        <div id="signin-card" class="bg-white rounded-2xl shadow-lg p-6">
+        <div id="checkin-card" class="bg-white rounded-2xl shadow-lg p-6">
             <div id="message" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
 
-            <form id="signin-form" class="space-y-4">
+            <form id="checkin-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Your Name</label>
                     <input type="text" id="student-name" required autocomplete="off"
@@ -93,23 +93,23 @@
 
                 <button type="submit" id="submit-btn"
                     class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">
-                    Sign In
+                    Check In
                 </button>
             </form>
         </div>
     </div>
 
     <script>
-        const form = document.getElementById('signin-form');
+        const form = document.getElementById('checkin-form');
         const studentNameInput = document.getElementById('student-name');
         const pinInput = document.getElementById('pin');
         const rememberMe = document.getElementById('remember-me');
         const messageEl = document.getElementById('message');
         const submitBtn = document.getElementById('submit-btn');
-        const signinCard = document.getElementById('signin-card');
+        const checkinCard = document.getElementById('checkin-card');
         const confirmedCard = document.getElementById('confirmed-card');
         const twistieArrow = document.getElementById('twistie-arrow');
-        const signoutBtn = document.getElementById('signout-btn');
+        const checkoutBtn = document.getElementById('checkout-btn');
 
         let formExpanded = false;
 
@@ -147,29 +147,29 @@
             try {
                 const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
                 const data = await res.json();
-                if (data.signed_in) {
-                    showConfirmation(name, true, data.signed_out);
+                if (data.checked_in) {
+                    showConfirmation(name, true, data.checked_out);
                 }
             } catch (err) {
                 // Status check failed — just show the form
             }
         }
 
-        function showConfirmation(name, alreadySignedIn, signedOut) {
+        function showConfirmation(name, alreadyCheckedIn, signedOut) {
             document.getElementById('confirmed-name').textContent = name;
             if (signedOut) {
                 document.getElementById('confirmed-icon').innerHTML = '&#128075;';
-                document.getElementById('confirmed-status').textContent = 'Signed out!';
+                document.getElementById('confirmed-status').textContent = 'Checked out!';
                 document.getElementById('confirmed-status').className = 'text-gray-500 mt-1';
-                signoutBtn.classList.add('hidden');
+                checkoutBtn.classList.add('hidden');
             } else {
                 document.getElementById('confirmed-icon').innerHTML = '&#10003;';
-                document.getElementById('confirmed-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+                document.getElementById('confirmed-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
                 document.getElementById('confirmed-status').className = 'text-green-600 mt-1';
-                signoutBtn.classList.remove('hidden');
+                checkoutBtn.classList.remove('hidden');
             }
             confirmedCard.classList.remove('hidden');
-            signinCard.classList.add('hidden');
+            checkinCard.classList.add('hidden');
             formExpanded = false;
             twistieArrow.style.transform = '';
         }
@@ -177,10 +177,10 @@
         function toggleForm() {
             formExpanded = !formExpanded;
             if (formExpanded) {
-                signinCard.classList.remove('hidden');
+                checkinCard.classList.remove('hidden');
                 twistieArrow.style.transform = 'rotate(90deg)';
             } else {
-                signinCard.classList.add('hidden');
+                checkinCard.classList.add('hidden');
                 twistieArrow.style.transform = '';
             }
         }
@@ -191,25 +191,25 @@
             messageEl.classList.remove('hidden');
         }
 
-        function showSuccess(name, alreadySignedIn) {
+        function showSuccess(name, alreadyCheckedIn) {
             const overlay = document.getElementById('success-overlay');
             document.getElementById('success-name').textContent = name;
-            document.getElementById('success-status').textContent = alreadySignedIn ? 'Already signed in!' : 'Signed in!';
+            document.getElementById('success-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
             overlay.classList.remove('hidden');
 
             setTimeout(() => {
                 overlay.classList.add('hidden');
-                showConfirmation(name, alreadySignedIn, false);
+                showConfirmation(name, alreadyCheckedIn, false);
             }, 3000);
         }
 
-        async function doSignOut() {
+        async function doCheckOut() {
             const name = document.getElementById('confirmed-name').textContent;
-            const pin = prompt('Enter PIN to sign out:');
+            const pin = prompt('Enter PIN to check out:');
             if (!pin) return;
 
             try {
-                const res = await fetch('/api/signout', {
+                const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ student_name: name, pin: pin })
@@ -218,7 +218,7 @@
                 if (data.ok) {
                     showConfirmation(name, false, true);
                 } else {
-                    alert(data.error || 'Sign out failed');
+                    alert(data.error || 'Check out failed');
                 }
             } catch (err) {
                 alert('Connection error');
@@ -228,11 +228,11 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Signing in...';
+            submitBtn.textContent = 'Checking in...';
             messageEl.classList.add('hidden');
 
             try {
-                const res = await fetch('/api/signin', {
+                const res = await fetch('/api/checkin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -245,8 +245,8 @@
                 const data = await res.json();
 
                 if (data.ok) {
-                    const alreadySignedIn = (data.message || '').toLowerCase().includes('already');
-                    showSuccess(studentNameInput.value.trim(), alreadySignedIn);
+                    const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
+                    showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
                     pinInput.value = '';
 
                     if (rememberMe.checked) {
@@ -264,7 +264,7 @@
             }
 
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
+            submitBtn.textContent = 'Check In';
         });
     </script>
 </body>
