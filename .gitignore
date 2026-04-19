@@ -7,3 +7,5 @@ config.json
 # ycode local artifacts
 .agents/
 
+memos/web/node_modules/
+memos/server/router/frontend/dist/
