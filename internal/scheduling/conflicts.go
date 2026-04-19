@@ -7,7 +7,7 @@ import (
 
 // Conflict represents a scheduling conflict between two sessions.
 type Conflict struct {
-	Type     string  `json:"type"`     // "room", "teacher", "student"
+	Type     string  `json:"type"` // "room", "teacher", "student"
 	Session1 Session `json:"session1"`
 	Session2 Session `json:"session2"`
 	Detail   string  `json:"detail"`

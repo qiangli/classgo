@@ -18,8 +18,8 @@ type Watcher struct {
 	watcher *fsnotify.Watcher
 	done    chan struct{}
 
-	mu        sync.Mutex
-	onChange  func() // optional callback after successful import
+	mu       sync.Mutex
+	onChange func() // optional callback after successful import
 }
 
 // NewWatcher creates a file watcher for the data directory.
@@ -30,10 +30,10 @@ func NewWatcher(dataDir string, db *sql.DB, onChange func()) (*Watcher, error) {
 	}
 
 	w := &Watcher{
-		dataDir: dataDir,
-		db:      db,
-		watcher: fsw,
-		done:    make(chan struct{}),
+		dataDir:  dataDir,
+		db:       db,
+		watcher:  fsw,
+		done:     make(chan struct{}),
 		onChange: onChange,
 	}
 
