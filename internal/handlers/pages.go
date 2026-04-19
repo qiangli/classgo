@@ -1,0 +1,66 @@
+package handlers
+
+import (
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"time"
+
+	"classgo/internal/database"
+	"classgo/internal/models"
+)
+
+func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
+	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
+	data := models.SignInPageData{
+		AppName:       a.AppName,
+		ServerURLIP:   ipURL,
+		ServerURLMDNS: mdnsURL,
+	}
+	a.Tmpl.ExecuteTemplate(w, "mobile.html", data)
+}
+
+func (a *App) HandleKiosk(w http.ResponseWriter, r *http.Request) {
+	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
+	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
+	data := models.SignInPageData{
+		AppName:       a.AppName,
+		QRDataURIIP:   template.URL(GenerateQR(ipURL)),
+		QRDataURIMDNS: template.URL(GenerateQR(mdnsURL)),
+		ServerURLIP:   ipURL,
+		ServerURLMDNS: mdnsURL,
+	}
+	a.Tmpl.ExecuteTemplate(w, "kiosk.html", data)
+}
+
+func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
+	pin := a.EnsureDailyPIN()
+	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
+	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
+
+	attendees, err := database.TodayAttendees(a.DB)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Error fetching attendees: %v", err)
+		return
+	}
+
+	data := models.AdminData{
+		AppName:       a.AppName,
+		PIN:           pin,
+		QRDataURIIP:   template.URL(GenerateQR(ipURL)),
+		QRDataURIMDNS: template.URL(GenerateQR(mdnsURL)),
+		ServerURLIP:   ipURL,
+		ServerURLMDNS: mdnsURL,
+		Attendees:     attendees,
+		Count:         len(attendees),
+		Date:          time.Now().Format("Monday, January 2, 2006"),
+	}
+	a.Tmpl.ExecuteTemplate(w, "admin.html", data)
+}

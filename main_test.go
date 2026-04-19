@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"classgo/internal/database"
+	"classgo/internal/handlers"
 )
 
-func setupTest(t *testing.T) func() {
+func setupTest(t *testing.T) (*handlers.App, func()) {
 	t.Helper()
 
 	tmpFile, err := os.CreateTemp("", "classgo-test-*.db")
@@ -23,37 +24,33 @@ func setupTest(t *testing.T) func() {
 	tmpFile.Close()
 	dbPath := tmpFile.Name()
 
-	// Open test database
-	var openErr error
-	db, openErr = openDB(dbPath)
-	if openErr != nil {
+	db, err := database.OpenDB(dbPath)
+	if err != nil {
 		os.Remove(dbPath)
-		t.Fatal(openErr)
+		t.Fatal(err)
 	}
 
-	if err := migrateDB(); err != nil {
+	if err := database.MigrateDB(db); err != nil {
 		db.Close()
 		os.Remove(dbPath)
 		t.Fatal(err)
 	}
 
-	// Set a known PIN
-	mu.Lock()
-	dailyPIN = "1234"
-	pinDate = time.Now().Format("2006-01-02")
-	mu.Unlock()
-
-	appName = "TestApp"
-
-	// Parse templates
-	tmpl, err = template.ParseGlob("templates/*.html")
+	tmpl, err := template.ParseGlob("templates/*.html")
 	if err != nil {
 		db.Close()
 		os.Remove(dbPath)
 		t.Fatal(err)
 	}
 
-	return func() {
+	app := &handlers.App{
+		DB:      db,
+		Tmpl:    tmpl,
+		AppName: "TestApp",
+	}
+	app.SetPIN("1234")
+
+	return app, func() {
 		db.Close()
 		os.Remove(dbPath)
 	}
@@ -84,13 +81,12 @@ func decodeResp(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 }
 
 func TestSignInMobile(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
 	beforeSignIn := time.Now()
 
-	// Sign in
-	w := postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 	resp := decodeResp(t, w)
 
 	if w.Code != 200 {
@@ -103,8 +99,7 @@ func TestSignInMobile(t *testing.T) {
 		t.Fatalf("expected welcome message with name, got: %s", msg)
 	}
 
-	// Verify attendees
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 
@@ -120,19 +115,16 @@ func TestSignInMobile(t *testing.T) {
 		t.Errorf("expected device_type=mobile, got %v", a["device_type"])
 	}
 
-	// Validate sign_in_time is a correctly formatted local time string
 	signInStr, ok := a["sign_in_time"].(string)
 	if !ok || signInStr == "" {
 		t.Fatalf("sign_in_time is missing or empty: %v", a["sign_in_time"])
 	}
 
-	// Parse the formatted time string (e.g., "3:04 PM")
 	parsedSignIn, err := time.Parse("3:04 PM", signInStr)
 	if err != nil {
 		t.Fatalf("failed to parse sign_in_time %q: %v", signInStr, err)
 	}
 
-	// Check the hour/minute match the current time (within a 2-minute window)
 	nowH, nowM, _ := beforeSignIn.Clock()
 	parsedH, parsedM, _ := parsedSignIn.Clock()
 	diffMin := (nowH*60 + nowM) - (parsedH*60 + parsedM)
@@ -143,7 +135,6 @@ func TestSignInMobile(t *testing.T) {
 		t.Errorf("sign_in_time %q is too far from current time %02d:%02d (diff=%d min)", signInStr, nowH, nowM, diffMin)
 	}
 
-	// sign_out_time should be empty
 	if a["sign_out_time"] != "" {
 		t.Errorf("expected empty sign_out_time, got %v", a["sign_out_time"])
 	}
@@ -153,17 +144,17 @@ func TestSignInMobile(t *testing.T) {
 }
 
 func TestSignInKiosk(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	w := postJSON(handleSignIn, `{"student_name":"Bob","pin":"1234","device_type":"kiosk"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Bob","pin":"1234","device_type":"kiosk"}`)
 	resp := decodeResp(t, w)
 
 	if resp["ok"] != true {
 		t.Fatalf("sign-in failed: %v", resp)
 	}
 
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 
@@ -176,13 +167,12 @@ func TestSignInKiosk(t *testing.T) {
 }
 
 func TestDuplicateSignIn(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 
-	// Second sign-in should say "already"
-	w := postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 	resp := decodeResp(t, w)
 
 	if resp["ok"] != true {
@@ -193,8 +183,7 @@ func TestDuplicateSignIn(t *testing.T) {
 		t.Errorf("expected 'already' message, got: %s", msg)
 	}
 
-	// Should still be only 1 record
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 	if len(attendees) != 1 {
@@ -203,14 +192,12 @@ func TestDuplicateSignIn(t *testing.T) {
 }
 
 func TestSignOut(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Sign in first
-	postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 
-	// Sign out
-	w := postJSON(handleSignOut, `{"student_name":"Alice","pin":"1234"}`)
+	w := postJSON(app.HandleSignOut, `{"student_name":"Alice","pin":"1234"}`)
 	resp := decodeResp(t, w)
 
 	if resp["ok"] != true {
@@ -220,8 +207,7 @@ func TestSignOut(t *testing.T) {
 		t.Errorf("expected goodbye message with name, got: %s", msg)
 	}
 
-	// Verify attendees shows sign-out time and duration
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 
@@ -235,13 +221,11 @@ func TestSignOut(t *testing.T) {
 		t.Fatal("sign_out_time should not be empty after sign-out")
 	}
 
-	// Validate sign_out_time format
 	_, err := time.Parse("3:04 PM", signOutStr)
 	if err != nil {
 		t.Errorf("failed to parse sign_out_time %q: %v", signOutStr, err)
 	}
 
-	// Duration should be set (even if 0m)
 	dur, _ := a["duration"].(string)
 	if dur == "" {
 		t.Error("duration should not be empty after sign-out")
@@ -252,10 +236,10 @@ func TestSignOut(t *testing.T) {
 }
 
 func TestSignOutWithoutSignIn(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	w := postJSON(handleSignOut, `{"student_name":"Nobody","pin":"1234"}`)
+	w := postJSON(app.HandleSignOut, `{"student_name":"Nobody","pin":"1234"}`)
 	resp := decodeResp(t, w)
 
 	if resp["ok"] == true {
@@ -268,16 +252,13 @@ func TestSignOutWithoutSignIn(t *testing.T) {
 }
 
 func TestSignOutThenSignInAgain(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Sign in
-	postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
-	// Sign out
-	postJSON(handleSignOut, `{"student_name":"Alice","pin":"1234"}`)
+	postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	postJSON(app.HandleSignOut, `{"student_name":"Alice","pin":"1234"}`)
 
-	// Sign in again — should succeed (not "already signed in")
-	w := postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 	resp := decodeResp(t, w)
 
 	if resp["ok"] != true {
@@ -288,8 +269,7 @@ func TestSignOutThenSignInAgain(t *testing.T) {
 		t.Error("should allow sign-in after sign-out, but got 'already' message")
 	}
 
-	// Should now be 2 records
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 	if len(attendees) != 2 {
@@ -298,21 +278,18 @@ func TestSignOutThenSignInAgain(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Not signed in
-	w := getJSON(handleStatus, "/api/status?student_name=Alice")
+	w := getJSON(app.HandleStatus, "/api/status?student_name=Alice")
 	resp := decodeResp(t, w)
 	if resp["signed_in"] != false {
 		t.Error("expected signed_in=false before sign-in")
 	}
 
-	// Sign in
-	postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 
-	// Should be signed in, not signed out
-	w = getJSON(handleStatus, "/api/status?student_name=Alice")
+	w = getJSON(app.HandleStatus, "/api/status?student_name=Alice")
 	resp = decodeResp(t, w)
 	if resp["signed_in"] != true {
 		t.Error("expected signed_in=true after sign-in")
@@ -321,10 +298,9 @@ func TestStatus(t *testing.T) {
 		t.Error("expected signed_out=false before sign-out")
 	}
 
-	// Sign out
-	postJSON(handleSignOut, `{"student_name":"Alice","pin":"1234"}`)
+	postJSON(app.HandleSignOut, `{"student_name":"Alice","pin":"1234"}`)
 
-	w = getJSON(handleStatus, "/api/status?student_name=Alice")
+	w = getJSON(app.HandleStatus, "/api/status?student_name=Alice")
 	resp = decodeResp(t, w)
 	if resp["signed_in"] != true {
 		t.Error("expected signed_in=true after sign-out (record exists)")
@@ -335,66 +311,60 @@ func TestStatus(t *testing.T) {
 }
 
 func TestInvalidPIN(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	w := postJSON(handleSignIn, `{"student_name":"Alice","pin":"9999","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"9999","device_type":"mobile"}`)
 	if w.Code != 401 {
 		t.Errorf("expected 401 for bad PIN, got %d", w.Code)
 	}
 
-	w = postJSON(handleSignOut, `{"student_name":"Alice","pin":"9999"}`)
+	w = postJSON(app.HandleSignOut, `{"student_name":"Alice","pin":"9999"}`)
 	if w.Code != 401 {
 		t.Errorf("expected 401 for bad PIN on sign-out, got %d", w.Code)
 	}
 }
 
 func TestMissingFields(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Missing name
-	w := postJSON(handleSignIn, `{"pin":"1234","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"pin":"1234","device_type":"mobile"}`)
 	if w.Code != 400 {
 		t.Errorf("expected 400 for missing name, got %d", w.Code)
 	}
 
-	// Missing PIN
-	w = postJSON(handleSignIn, `{"student_name":"Alice","device_type":"mobile"}`)
+	w = postJSON(app.HandleSignIn, `{"student_name":"Alice","device_type":"mobile"}`)
 	if w.Code != 400 {
 		t.Errorf("expected 400 for missing PIN, got %d", w.Code)
 	}
 }
 
 func TestFullFlowBothDeviceTypes(t *testing.T) {
-	cleanup := setupTest(t)
+	app, cleanup := setupTest(t)
 	defer cleanup()
 
 	now := time.Now()
 
-	// Mobile sign-in
-	w := postJSON(handleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
+	w := postJSON(app.HandleSignIn, `{"student_name":"Alice","pin":"1234","device_type":"mobile"}`)
 	resp := decodeResp(t, w)
 	if resp["ok"] != true {
 		t.Fatalf("mobile sign-in failed: %v", resp)
 	}
 
-	// Kiosk sign-in
-	w = postJSON(handleSignIn, `{"student_name":"Bob","pin":"1234","device_type":"kiosk"}`)
+	w = postJSON(app.HandleSignIn, `{"student_name":"Bob","pin":"1234","device_type":"kiosk"}`)
 	resp = decodeResp(t, w)
 	if resp["ok"] != true {
 		t.Fatalf("kiosk sign-in failed: %v", resp)
 	}
 
-	// Both signed in
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	var attendees []map[string]any
 	json.NewDecoder(w.Body).Decode(&attendees)
 	if len(attendees) != 2 {
 		t.Fatalf("expected 2 attendees, got %d", len(attendees))
 	}
 
-	// Validate times for both
 	for _, a := range attendees {
 		name := a["student_name"].(string)
 		signInStr := a["sign_in_time"].(string)
@@ -405,7 +375,6 @@ func TestFullFlowBothDeviceTypes(t *testing.T) {
 			continue
 		}
 
-		// Verify the time is close to now
 		pH, pM, _ := parsed.Clock()
 		nH, nM, _ := now.Clock()
 		diff := (nH*60 + nM) - (pH*60 + pM)
@@ -421,21 +390,19 @@ func TestFullFlowBothDeviceTypes(t *testing.T) {
 		}
 	}
 
-	// Sign out both
-	w = postJSON(handleSignOut, `{"student_name":"Alice","pin":"1234"}`)
+	w = postJSON(app.HandleSignOut, `{"student_name":"Alice","pin":"1234"}`)
 	resp = decodeResp(t, w)
 	if resp["ok"] != true {
 		t.Fatalf("Alice sign-out failed: %v", resp)
 	}
 
-	w = postJSON(handleSignOut, `{"student_name":"Bob","pin":"1234"}`)
+	w = postJSON(app.HandleSignOut, `{"student_name":"Bob","pin":"1234"}`)
 	resp = decodeResp(t, w)
 	if resp["ok"] != true {
 		t.Fatalf("Bob sign-out failed: %v", resp)
 	}
 
-	// Verify all have sign-out times and durations
-	w = getJSON(handleAttendees, "/api/attendees")
+	w = getJSON(app.HandleAttendees, "/api/attendees")
 	json.NewDecoder(w.Body).Decode(&attendees)
 
 	for _, a := range attendees {

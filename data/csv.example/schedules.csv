@@ -1,0 +1,6 @@
+id,day_of_week,start_time,end_time,teacher_id,room_id,subject,student_ids,effective_from,effective_until
+SCH001,Monday,15:30,17:00,T01,R01,math,S001;S002,2026-01-06,
+SCH002,Wednesday,15:30,17:00,T01,R01,math,S001;S002,2026-01-06,
+SCH003,Tuesday,16:00,17:30,T02,R02,english,S003;S004,2026-01-06,
+SCH004,Thursday,16:00,17:30,T02,R02,english,S003;S004,2026-01-06,
+SCH005,Friday,15:00,16:30,T01,R03,science,S001;S003,2026-01-06,

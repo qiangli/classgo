@@ -1,0 +1,5 @@
+id,first_name,last_name,grade,school,parent_id,notes,active
+S001,Alice,Wang,6,Lincoln Middle,P001,,yes
+S002,Bob,Wang,8,Washington High,P001,,yes
+S003,Carlos,Garcia,7,Lincoln Middle,P002,,yes
+S004,Diana,Chen,5,Lincoln Elementary,P003,,yes
