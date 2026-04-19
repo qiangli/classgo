@@ -108,6 +108,7 @@ func main() {
 	mux.HandleFunc("/api/attendees", handlers.NoCache(app.HandleAttendees))
 	mux.HandleFunc("/admin/export", handlers.NoCache(app.HandleExport))
 	mux.HandleFunc("/admin/export/xlsx", handlers.NoCache(app.HandleExportXLSX))
+	mux.HandleFunc("/schedule", handlers.NoCache(app.HandleSchedulePage))
 	mux.HandleFunc("/api/v1/schedule/today", handlers.NoCache(app.HandleScheduleToday))
 	mux.HandleFunc("/api/v1/schedule/week", handlers.NoCache(app.HandleScheduleWeek))
 	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.HandleScheduleConflicts))

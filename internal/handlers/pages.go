@@ -11,6 +11,15 @@ import (
 	"classgo/internal/models"
 )
 
+func (a *App) HandleSchedulePage(w http.ResponseWriter, r *http.Request) {
+	data := struct {
+		AppName string
+	}{
+		AppName: a.AppName,
+	}
+	a.Tmpl.ExecuteTemplate(w, "schedule.html", data)
+}
+
 func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
