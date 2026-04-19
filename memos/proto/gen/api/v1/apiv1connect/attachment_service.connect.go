@@ -5,10 +5,10 @@
 package apiv1connect
 
 import (
+	v1 "classgo/memos/proto/gen/api/v1"
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "classgo/memos/proto/gen/api/v1"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
