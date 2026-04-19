@@ -56,19 +56,25 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 		req.StudentName = a.lookupStudentName(req.StudentID)
 	}
 
-	if req.StudentName == "" || req.PIN == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Name and PIN are required"})
+	if req.StudentName == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Name is required"})
 		return
+	}
+
+	if a.RequirePIN() {
+		if req.PIN == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "PIN is required"})
+			return
+		}
+		pin := a.EnsureDailyPIN()
+		if req.PIN != pin {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid PIN"})
+			return
+		}
 	}
 
 	if req.DeviceType != "mobile" && req.DeviceType != "kiosk" {
 		req.DeviceType = "mobile"
-	}
-
-	pin := a.EnsureDailyPIN()
-	if req.PIN != pin {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid PIN"})
-		return
 	}
 
 	var existingID int
@@ -151,15 +157,21 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 		req.StudentName = a.lookupStudentName(req.StudentID)
 	}
 
-	if req.StudentName == "" || req.PIN == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Name and PIN are required"})
+	if req.StudentName == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Name is required"})
 		return
 	}
 
-	pin := a.EnsureDailyPIN()
-	if req.PIN != pin {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid PIN"})
-		return
+	if a.RequirePIN() {
+		if req.PIN == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "PIN is required"})
+			return
+		}
+		pin := a.EnsureDailyPIN()
+		if req.PIN != pin {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid PIN"})
+			return
+		}
 	}
 
 	result, err := a.DB.Exec(

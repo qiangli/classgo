@@ -81,9 +81,9 @@
                     <ul id="search-results" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"></ul>
                 </div>
 
-                <div>
+                <div id="pin-field">
                     <label class="block text-sm font-medium text-gray-600 mb-1">PIN</label>
-                    <input type="text" id="pin" required inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"
+                    <input type="text" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"
                         class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-center text-2xl tracking-widest"
                         placeholder="----">
                 </div>
@@ -116,6 +116,15 @@
         const checkoutBtn = document.getElementById('checkout-btn');
 
         let formExpanded = false;
+        let pinRequired = true;
+
+        // Fetch settings to check if PIN is required
+        fetch('/api/settings').then(r => r.json()).then(s => {
+            pinRequired = s.require_pin;
+            if (!pinRequired) {
+                document.getElementById('pin-field').classList.add('hidden');
+            }
+        }).catch(() => {});
         let searchTimeout = null;
         let highlightIndex = -1;
 
@@ -286,8 +295,11 @@
 
         async function doCheckOut() {
             const name = document.getElementById('confirmed-name').textContent;
-            const pin = prompt('Enter PIN to check out:');
-            if (!pin) return;
+            let pin = '';
+            if (pinRequired) {
+                pin = prompt('Enter PIN to check out:');
+                if (!pin) return;
+            }
 
             try {
                 const checkoutPayload = { student_name: name, pin: pin };

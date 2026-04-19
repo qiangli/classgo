@@ -39,9 +39,27 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 no-print">
             <!-- PIN Card -->
             <div class="bg-white rounded-2xl shadow p-6 text-center">
-                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Today's PIN</h2>
-                <p class="text-6xl font-mono font-bold text-indigo-600 mt-2 tracking-widest">{{.PIN}}</p>
-                <p class="text-gray-400 text-sm mt-2">Share this PIN with your students</p>
+                <div class="flex items-center justify-center gap-3 mb-2">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Check-in PIN</h2>
+                    <button id="pin-toggle" onclick="togglePINRequirement()"
+                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none {{if .RequirePIN}}bg-indigo-600{{else}}bg-gray-300{{end}}"
+                        title="Toggle PIN requirement">
+                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{if .RequirePIN}}translate-x-6{{else}}translate-x-1{{end}}"></span>
+                    </button>
+                </div>
+                <div id="pin-display" class="{{if not .RequirePIN}}opacity-40{{end}}">
+                    <p id="pin-value" class="text-6xl font-mono font-bold text-indigo-600 mt-2 tracking-widest cursor-pointer" onclick="editPIN()" title="Click to change PIN">{{.PIN}}</p>
+                    <div id="pin-edit" class="hidden mt-2">
+                        <input type="text" id="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                            class="w-32 px-3 py-2 text-2xl font-mono text-center border-2 border-indigo-300 rounded-xl focus:border-indigo-500 outline-none"
+                            placeholder="----">
+                        <div class="flex justify-center gap-2 mt-2">
+                            <button onclick="savePIN()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg">Save</button>
+                            <button onclick="cancelEditPIN()" class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-lg">Cancel</button>
+                        </div>
+                    </div>
+                    <p class="text-gray-400 text-sm mt-2" id="pin-label">{{if .RequirePIN}}Click PIN to change — share with students{{else}}PIN is disabled — students check in without it{{end}}</p>
+                </div>
             </div>
 
             <!-- QR Code Card -->
@@ -102,6 +120,66 @@
     </div>
 
     <script>
+        let requirePIN = {{.RequirePIN}};
+
+        async function togglePINRequirement() {
+            requirePIN = !requirePIN;
+            try {
+                await fetch('/api/admin/pin/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ require_pin: requirePIN })
+                });
+            } catch (err) { /* ignore */ }
+            const btn = document.getElementById('pin-toggle');
+            const thumb = btn.querySelector('span');
+            const display = document.getElementById('pin-display');
+            const label = document.getElementById('pin-label');
+            if (requirePIN) {
+                btn.className = btn.className.replace('bg-gray-300', 'bg-indigo-600');
+                thumb.className = thumb.className.replace('translate-x-1', 'translate-x-6');
+                display.classList.remove('opacity-40');
+                label.textContent = 'Click PIN to change — share with students';
+            } else {
+                btn.className = btn.className.replace('bg-indigo-600', 'bg-gray-300');
+                thumb.className = thumb.className.replace('translate-x-6', 'translate-x-1');
+                display.classList.add('opacity-40');
+                label.textContent = 'PIN is disabled — students check in without it';
+            }
+        }
+
+        function editPIN() {
+            if (!requirePIN) return;
+            document.getElementById('pin-value').classList.add('hidden');
+            document.getElementById('pin-edit').classList.remove('hidden');
+            const input = document.getElementById('pin-input');
+            input.value = document.getElementById('pin-value').textContent.trim();
+            input.focus();
+            input.select();
+        }
+
+        function cancelEditPIN() {
+            document.getElementById('pin-value').classList.remove('hidden');
+            document.getElementById('pin-edit').classList.add('hidden');
+        }
+
+        async function savePIN() {
+            const pin = document.getElementById('pin-input').value.trim();
+            if (!/^\d{4}$/.test(pin)) { alert('PIN must be 4 digits'); return; }
+            try {
+                const res = await fetch('/api/admin/pin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pin: pin })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    document.getElementById('pin-value').textContent = pin;
+                    cancelEditPIN();
+                }
+            } catch (err) { alert('Failed to update PIN'); }
+        }
+
         let qrShowingMDNS = true;
         const qrURLMDNS = "{{.ServerURLMDNS}}";
         const qrURLIP = "{{.ServerURLIP}}";

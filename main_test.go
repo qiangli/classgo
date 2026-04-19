@@ -49,6 +49,7 @@ func setupTest(t *testing.T) (*handlers.App, func()) {
 		AppName: "TestApp",
 	}
 	app.SetPIN("1234")
+	app.SetRequirePIN(true)
 
 	return app, func() {
 		db.Close()

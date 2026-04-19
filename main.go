@@ -146,11 +146,15 @@ func main() {
 		DataDir:     cfg.DataDir,
 		MemosSyncer: memosSyncer,
 	}
+	app.SetRequirePIN(true)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handlers.NoCache(app.HandleMobile))
 	mux.HandleFunc("/kiosk", handlers.NoCache(app.HandleKiosk))
 	mux.HandleFunc("/admin", handlers.NoCache(app.HandleAdmin))
+	mux.HandleFunc("/api/settings", handlers.NoCache(app.HandleSettings))
+	mux.HandleFunc("/api/admin/pin/toggle", handlers.NoCache(app.HandlePINToggle))
+	mux.HandleFunc("/api/admin/pin", handlers.NoCache(app.HandlePINChange))
 	mux.HandleFunc("/api/students/search", handlers.NoCache(app.HandleStudentSearch))
 	mux.HandleFunc("/api/checkin", handlers.NoCache(app.HandleCheckIn))
 	mux.HandleFunc("/api/checkout", handlers.NoCache(app.HandleCheckOut))

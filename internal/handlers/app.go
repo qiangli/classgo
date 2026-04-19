@@ -27,9 +27,10 @@ type App struct {
 	DataDir     string
 	MemosSyncer *memos.Syncer
 
-	dailyPIN string
-	pinDate  string
-	mu       sync.Mutex
+	dailyPIN   string
+	pinDate    string
+	requirePIN bool
+	mu         sync.Mutex
 }
 
 // HandleMemosSync triggers a manual Memos sync.
@@ -75,6 +76,57 @@ func (a *App) SetPIN(pin string) {
 	defer a.mu.Unlock()
 	a.dailyPIN = pin
 	a.pinDate = time.Now().Format("2006-01-02")
+}
+
+func (a *App) RequirePIN() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.requirePIN
+}
+
+func (a *App) SetRequirePIN(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.requirePIN = v
+}
+
+// HandlePINToggle toggles PIN requirement on/off via POST.
+func (a *App) HandlePINToggle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		RequirePIN bool `json:"require_pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+	a.SetRequirePIN(req.RequirePIN)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "require_pin": req.RequirePIN})
+}
+
+// HandleSettings returns current settings (PIN requirement, etc).
+func (a *App) HandleSettings(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"require_pin": a.RequirePIN()})
+}
+
+// HandlePINChange allows the admin to set a custom PIN.
+func (a *App) HandlePINChange(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.PIN) != 4 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "PIN must be 4 digits"})
+		return
+	}
+	a.SetPIN(req.PIN)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin": req.PIN})
 }
 
 func GetLocalIP() string {

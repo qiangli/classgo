@@ -63,6 +63,7 @@ func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
 	data := models.AdminData{
 		AppName:       a.AppName,
 		PIN:           pin,
+		RequirePIN:    a.RequirePIN(),
 		QRDataURIIP:   template.URL(GenerateQR(ipURL)),
 		QRDataURIMDNS: template.URL(GenerateQR(mdnsURL)),
 		ServerURLIP:   ipURL,

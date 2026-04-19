@@ -79,6 +79,7 @@ type Attendance struct {
 type AdminData struct {
 	AppName       string
 	PIN           string
+	RequirePIN    bool
 	QRDataURIIP   template.URL
 	QRDataURIMDNS template.URL
 	ServerURLIP   string

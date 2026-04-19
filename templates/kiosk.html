@@ -128,6 +128,7 @@
         let studentName = '';
         let studentId = '';
         let currentInput = '';
+        let kioskPinRequired = true;
 
         const display = document.getElementById('display');
         const stepLabel = document.getElementById('step-label');
@@ -139,6 +140,11 @@
         const kioskSearchResults = document.getElementById('kiosk-search-results');
 
         let kioskSearchTimeout = null;
+
+        // Fetch settings
+        fetch('/api/settings').then(r => r.json()).then(s => {
+            kioskPinRequired = s.require_pin;
+        }).catch(() => {});
 
         nameInput.addEventListener('input', () => {
             kioskStudentId.value = '';
@@ -198,6 +204,10 @@
             kioskSearchResults.classList.add('hidden');
             mode = 'checkin';
             currentInput = '';
+            if (!kioskPinRequired) {
+                doCheckIn();
+                return;
+            }
             stepLabel.textContent = 'Enter PIN to check in';
             nameStep.classList.add('hidden');
             keypad.classList.remove('hidden');
@@ -223,6 +233,10 @@
             kioskSearchResults.classList.add('hidden');
             mode = 'checkout';
             currentInput = '';
+            if (!kioskPinRequired) {
+                doCheckOut();
+                return;
+            }
             stepLabel.textContent = 'Enter PIN to check out';
             nameStep.classList.add('hidden');
             keypad.classList.remove('hidden');
