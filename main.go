@@ -151,6 +151,7 @@ func main() {
 	mux.HandleFunc("/", handlers.NoCache(app.HandleMobile))
 	mux.HandleFunc("/kiosk", handlers.NoCache(app.HandleKiosk))
 	mux.HandleFunc("/admin", handlers.NoCache(app.HandleAdmin))
+	mux.HandleFunc("/api/students/search", handlers.NoCache(app.HandleStudentSearch))
 	mux.HandleFunc("/api/checkin", handlers.NoCache(app.HandleCheckIn))
 	mux.HandleFunc("/api/checkout", handlers.NoCache(app.HandleCheckOut))
 	mux.HandleFunc("/api/status", handlers.NoCache(app.HandleStatus))

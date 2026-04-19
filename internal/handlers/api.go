@@ -16,6 +16,23 @@ import (
 	"classgo/internal/scheduling"
 )
 
+func (a *App) HandleStudentSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if q == "" {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	students, err := database.SearchStudents(a.DB, q, 10)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	if students == nil {
+		students = []models.Student{}
+	}
+	writeJSON(w, http.StatusOK, students)
+}
+
 func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -24,6 +41,7 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		StudentName string `json:"student_name"`
+		StudentID   string `json:"student_id"`
 		PIN         string `json:"pin"`
 		DeviceType  string `json:"device_type"`
 	}
@@ -31,6 +49,11 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
 		return
+	}
+
+	// If student_id provided, look up the name
+	if req.StudentID != "" && req.StudentName == "" {
+		req.StudentName = a.lookupStudentName(req.StudentID)
 	}
 
 	if req.StudentName == "" || req.PIN == "" {
@@ -68,9 +91,13 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try to link attendance to student and schedule
+	// Link attendance to student and schedule
 	if attendanceID, err := result.LastInsertId(); err == nil {
-		a.linkAttendanceMeta(attendanceID, req.StudentName)
+		if req.StudentID != "" {
+			a.linkAttendanceMetaByID(attendanceID, req.StudentID)
+		} else {
+			a.linkAttendanceMeta(attendanceID, req.StudentName)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Welcome, %s!", req.StudentName)})
@@ -111,12 +138,17 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		StudentName string `json:"student_name"`
+		StudentID   string `json:"student_id"`
 		PIN         string `json:"pin"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
 		return
+	}
+
+	if req.StudentID != "" && req.StudentName == "" {
+		req.StudentName = a.lookupStudentName(req.StudentID)
 	}
 
 	if req.StudentName == "" || req.PIN == "" {
@@ -231,6 +263,31 @@ func (a *App) HandleExportXLSX(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	f.Write(w)
+}
+
+// lookupStudentName returns "FirstName LastName" for a given student ID.
+func (a *App) lookupStudentName(studentID string) string {
+	var firstName, lastName string
+	err := a.DB.QueryRow(
+		"SELECT first_name, last_name FROM students WHERE id = ? AND active = 1",
+		studentID,
+	).Scan(&firstName, &lastName)
+	if err != nil {
+		return ""
+	}
+	return firstName + " " + lastName
+}
+
+// linkAttendanceMetaByID links an attendance record directly using a known student ID.
+func (a *App) linkAttendanceMetaByID(attendanceID int64, studentID string) {
+	scheduleID := a.findCurrentSchedule(studentID)
+	_, err := a.DB.Exec(
+		"INSERT OR REPLACE INTO attendance_meta (attendance_id, student_id, schedule_id) VALUES (?, ?, ?)",
+		attendanceID, studentID, scheduleID,
+	)
+	if err != nil {
+		log.Printf("linkAttendanceMetaByID error: %v", err)
+	}
 }
 
 // linkAttendanceMeta tries to match a student name to structured data and

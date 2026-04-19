@@ -51,9 +51,13 @@
 
         <!-- Name Input (first step) -->
         <div id="name-step" class="mb-8">
-            <input type="text" id="name-input"
-                class="w-full px-6 py-5 bg-gray-800 text-white text-2xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
-                placeholder="Type your name">
+            <div class="relative">
+                <input type="text" id="name-input"
+                    class="w-full px-6 py-5 bg-gray-800 text-white text-2xl text-center rounded-2xl border-2 border-gray-700 focus:border-indigo-500 outline-none"
+                    placeholder="Search by name or ID" autocomplete="off">
+                <input type="hidden" id="kiosk-student-id" value="">
+                <ul id="kiosk-search-results" class="hidden absolute z-50 left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-2xl shadow-lg max-h-72 overflow-y-auto"></ul>
+            </div>
             <div class="grid grid-cols-2 gap-4 mt-4">
                 <button onclick="startCheckIn()"
                     class="py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-2xl font-bold rounded-2xl transition">
@@ -122,6 +126,7 @@
 
         let mode = ''; // 'checkin' or 'checkout'
         let studentName = '';
+        let studentId = '';
         let currentInput = '';
 
         const display = document.getElementById('display');
@@ -130,6 +135,50 @@
         const keypad = document.getElementById('keypad');
         const nameStep = document.getElementById('name-step');
         const nameInput = document.getElementById('name-input');
+        const kioskStudentId = document.getElementById('kiosk-student-id');
+        const kioskSearchResults = document.getElementById('kiosk-search-results');
+
+        let kioskSearchTimeout = null;
+
+        nameInput.addEventListener('input', () => {
+            kioskStudentId.value = '';
+            studentId = '';
+            const q = nameInput.value.trim();
+            if (q.length < 1) {
+                kioskSearchResults.classList.add('hidden');
+                return;
+            }
+            clearTimeout(kioskSearchTimeout);
+            kioskSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                    const students = await res.json();
+                    if (!students.length) {
+                        kioskSearchResults.classList.add('hidden');
+                        return;
+                    }
+                    kioskSearchResults.innerHTML = students.map(s =>
+                        `<li data-id="${s.id}" data-name="${s.first_name} ${s.last_name}"
+                             class="px-6 py-4 cursor-pointer hover:bg-gray-700 border-b border-gray-700 last:border-0 text-lg text-white">
+                            <span class="font-medium">${s.first_name} ${s.last_name}</span>
+                            <span class="text-gray-400 ml-2">(${s.id})</span>
+                            ${s.grade ? `<span class="text-gray-500 text-sm ml-2">Grade ${s.grade}</span>` : ''}
+                        </li>`
+                    ).join('');
+                    kioskSearchResults.querySelectorAll('li').forEach(li => {
+                        li.addEventListener('click', () => {
+                            nameInput.value = li.dataset.name;
+                            kioskStudentId.value = li.dataset.id;
+                            studentId = li.dataset.id;
+                            kioskSearchResults.classList.add('hidden');
+                        });
+                    });
+                    kioskSearchResults.classList.remove('hidden');
+                } catch (err) {
+                    kioskSearchResults.classList.add('hidden');
+                }
+            }, 300);
+        });
 
         function updateDisplay() {
             display.textContent = currentInput.replace(/./g, '\u2022') || '\u00A0';
@@ -145,6 +194,8 @@
             const name = nameInput.value.trim();
             if (!name) return;
             studentName = name;
+            studentId = kioskStudentId.value || '';
+            kioskSearchResults.classList.add('hidden');
             mode = 'checkin';
             currentInput = '';
             stepLabel.textContent = 'Enter PIN to check in';
@@ -159,8 +210,8 @@
             try {
                 const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
                 const data = await res.json();
-                if (!data.signed_in || data.signed_out) {
-                    showError(name + ' is not signed in');
+                if (!data.checked_in || data.checked_out) {
+                    showError(name + ' is not checked in');
                     return;
                 }
             } catch (err) {
@@ -168,6 +219,8 @@
                 return;
             }
             studentName = name;
+            studentId = kioskStudentId.value || '';
+            kioskSearchResults.classList.add('hidden');
             mode = 'checkout';
             currentInput = '';
             stepLabel.textContent = 'Enter PIN to check out';
@@ -206,14 +259,16 @@
 
         async function doCheckIn() {
             try {
+                const checkinPayload = {
+                    student_name: studentName,
+                    pin: currentInput,
+                    device_type: 'kiosk'
+                };
+                if (studentId) checkinPayload.student_id = studentId;
                 const res = await fetch('/api/checkin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        student_name: studentName,
-                        pin: currentInput,
-                        device_type: 'kiosk'
-                    })
+                    body: JSON.stringify(checkinPayload)
                 });
 
                 const data = await res.json();
@@ -234,13 +289,15 @@
 
         async function doCheckOut() {
             try {
+                const checkoutPayload = {
+                    student_name: studentName,
+                    pin: currentInput
+                };
+                if (studentId) checkoutPayload.student_id = studentId;
                 const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        student_name: studentName,
-                        pin: currentInput
-                    })
+                    body: JSON.stringify(checkoutPayload)
                 });
 
                 const data = await res.json();
@@ -282,7 +339,9 @@
         function resetKiosk() {
             mode = '';
             studentName = '';
+            studentId = '';
             currentInput = '';
+            kioskStudentId.value = '';
             stepLabel.textContent = 'Enter your name';
             nameStep.classList.remove('hidden');
             keypad.classList.add('hidden');

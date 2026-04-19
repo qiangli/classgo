@@ -40,3 +40,37 @@ func TodayAttendees(db *sql.DB) ([]models.Attendance, error) {
 	}
 	return attendees, rows.Err()
 }
+
+// SearchStudents searches active students by ID, first name, last name, or full name.
+func SearchStudents(db *sql.DB, query string, limit int) ([]models.Student, error) {
+	like := "%" + query + "%"
+	rows, err := db.Query(
+		`SELECT id, first_name, last_name, grade, school FROM students
+		 WHERE active = 1 AND (
+		   LOWER(id) LIKE LOWER(?) OR
+		   LOWER(first_name) LIKE LOWER(?) OR
+		   LOWER(last_name) LIKE LOWER(?) OR
+		   LOWER(first_name || ' ' || last_name) LIKE LOWER(?)
+		 )
+		 ORDER BY first_name, last_name LIMIT ?`,
+		like, like, like, like, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var students []models.Student
+	for rows.Next() {
+		var s models.Student
+		var grade, school sql.NullString
+		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school); err != nil {
+			return nil, err
+		}
+		s.Grade = grade.String
+		s.School = school.String
+		s.Active = true
+		students = append(students, s)
+	}
+	return students, rows.Err()
+}
