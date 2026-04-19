@@ -16,6 +16,7 @@ import (
 	"classgo/internal/database"
 	"classgo/internal/datastore"
 	"classgo/internal/handlers"
+	"classgo/internal/memos"
 	"classgo/internal/models"
 )
 
@@ -49,7 +50,6 @@ func loadConfig() models.Config {
 		cfg.DataDir = "./data"
 	}
 
-	// Store rebuild flag in a package-level var for use below
 	rebuildDB = *flagRebuild
 
 	return cfg
@@ -86,16 +86,33 @@ func main() {
 		}
 	}
 
+	// Initialize Memos syncer if configured
+	var memosSyncer *memos.Syncer
+	if cfg.MemosURL != "" && cfg.MemosKey != "" {
+		client := memos.NewClient(cfg.MemosURL, cfg.MemosKey)
+		if err := client.Ping(); err != nil {
+			log.Printf("Warning: Memos not reachable at %s: %v", cfg.MemosURL, err)
+		} else {
+			memosSyncer = memos.NewSyncer(client, db)
+			log.Printf("Memos: connected to %s", cfg.MemosURL)
+			// Initial sync
+			if err := memosSyncer.SyncAll(); err != nil {
+				log.Printf("Warning: Memos initial sync failed: %v", err)
+			}
+		}
+	}
+
 	tmpl, err := template.ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatal("Failed to parse templates:", err)
 	}
 
 	app := &handlers.App{
-		DB:      db,
-		Tmpl:    tmpl,
-		AppName: cfg.AppName,
-		DataDir: cfg.DataDir,
+		DB:          db,
+		Tmpl:        tmpl,
+		AppName:     cfg.AppName,
+		DataDir:     cfg.DataDir,
+		MemosSyncer: memosSyncer,
 	}
 
 	mux := http.NewServeMux()
@@ -112,6 +129,7 @@ func main() {
 	mux.HandleFunc("/api/v1/schedule/today", handlers.NoCache(app.HandleScheduleToday))
 	mux.HandleFunc("/api/v1/schedule/week", handlers.NoCache(app.HandleScheduleWeek))
 	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.HandleScheduleConflicts))
+	mux.HandleFunc("/api/v1/memos/sync", handlers.NoCache(app.HandleMemosSync))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	ipURL := fmt.Sprintf("http://%s:8080", handlers.GetLocalIP())
@@ -127,6 +145,9 @@ func main() {
 	log.Printf("  Kiosk:   %s/kiosk", mdnsURL)
 	log.Printf("  PIN:     %s", pin)
 	log.Printf("  Data:    %s", cfg.DataDir)
+	if cfg.MemosURL != "" {
+		log.Printf("  Memos:   %s", cfg.MemosURL)
+	}
 	log.Println("=================================")
 
 	server := &http.Server{
@@ -134,8 +155,15 @@ func main() {
 		Handler: mux,
 	}
 
-	// Start file watcher for live reimport
-	watcher, err := datastore.NewWatcher(cfg.DataDir, db, nil)
+	// Start file watcher — also trigger Memos sync on data changes
+	watcherCallback := func() {
+		if memosSyncer != nil {
+			if err := memosSyncer.SyncAll(); err != nil {
+				log.Printf("Memos sync after file change: %v", err)
+			}
+		}
+	}
+	watcher, err := datastore.NewWatcher(cfg.DataDir, db, watcherCallback)
 	if err != nil {
 		log.Printf("Warning: file watcher not started: %v", err)
 	} else {

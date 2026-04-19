@@ -16,17 +16,45 @@ import (
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
+
+	"classgo/internal/memos"
 )
 
 type App struct {
-	DB      *sql.DB
-	Tmpl    *template.Template
-	AppName string
-	DataDir string
+	DB          *sql.DB
+	Tmpl        *template.Template
+	AppName     string
+	DataDir     string
+	MemosSyncer *memos.Syncer
 
 	dailyPIN string
 	pinDate  string
 	mu       sync.Mutex
+}
+
+// HandleMemosSync triggers a manual Memos sync.
+func (a *App) HandleMemosSync(w http.ResponseWriter, r *http.Request) {
+	if a.MemosSyncer == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "error": "Memos not configured"})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		// POST triggers attendance summary sync
+		if err := a.MemosSyncer.SyncAttendanceSummary(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Attendance summary synced to Memos"})
+		return
+	}
+
+	// GET triggers full data sync
+	if err := a.MemosSyncer.SyncAll(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Data synced to Memos"})
 }
 
 func (a *App) EnsureDailyPIN() string {
