@@ -63,7 +63,7 @@ const fetchWithCredentials: typeof globalThis.fetch = (input, init) => {
 
 // Separate transport without auth interceptor to prevent recursion
 const refreshTransport = createConnectTransport({
-  baseUrl: window.location.origin,
+  baseUrl: window.location.origin + "/memos",
   useBinaryFormat: true,
   fetch: fetchWithCredentials,
   interceptors: [],
@@ -182,7 +182,7 @@ const authInterceptor: Interceptor = (next) => async (req) => {
 // ============================================================================
 
 const transport = createConnectTransport({
-  baseUrl: window.location.origin,
+  baseUrl: window.location.origin + "/memos",
   useBinaryFormat: true,
   fetch: fetchWithCredentials,
   interceptors: [authInterceptor],

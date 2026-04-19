@@ -96,6 +96,6 @@ export function getShareToken(share: MemoShare): string {
 export function withShareAttachmentLinks(attachments: Attachment[], token: string): Attachment[] {
   return attachments.map((a) => {
     if (a.externalLink) return a;
-    return { ...a, externalLink: `${window.location.origin}/file/${a.name}/${a.filename}?share_token=${encodeURIComponent(token)}` };
+    return { ...a, externalLink: `${window.location.origin}/memos/file/${a.name}/${a.filename}?share_token=${encodeURIComponent(token)}` };
   });
 }

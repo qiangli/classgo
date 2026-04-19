@@ -96,7 +96,7 @@ export function useLiveMemoRefresh() {
       abortControllerRef.current = abortController;
 
       try {
-        const response = await fetch("/api/v1/sse", {
+        const response = await fetch("/memos/api/v1/sse", {
           headers: {
             Authorization: `Bearer ${token}`,
           },

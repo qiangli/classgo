@@ -109,6 +109,6 @@ export const routeConfig: RouteObject[] = [
   },
 ];
 
-const router = createBrowserRouter(routeConfig);
+const router = createBrowserRouter(routeConfig, { basename: "/memos" });
 
 export default router;

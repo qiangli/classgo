@@ -81,7 +81,7 @@ const toLibraryListItem = (attachment: Attachment, locale: string): AttachmentLi
     fileTypeLabel,
     fileSizeLabel,
     memoName: attachment.memo,
-    sourceUrl: attachment.externalLink || `${window.location.origin}/file/${attachment.name}/${attachment.filename}`,
+    sourceUrl: attachment.externalLink || `${window.location.origin}/memos/file/${attachment.name}/${attachment.filename}`,
   };
 };
 

@@ -5,15 +5,15 @@ export const getAttachmentUrl = (attachment: Attachment) => {
     return attachment.externalLink;
   }
 
-  return `${window.location.origin}/file/${attachment.name}/${attachment.filename}`;
+  return `${window.location.origin}/memos/file/${attachment.name}/${attachment.filename}`;
 };
 
 export const getAttachmentThumbnailUrl = (attachment: Attachment) => {
-  return `${window.location.origin}/file/${attachment.name}/${attachment.filename}?thumbnail=true`;
+  return `${window.location.origin}/memos/file/${attachment.name}/${attachment.filename}?thumbnail=true`;
 };
 
 export const getAttachmentMotionClipUrl = (attachment: Attachment) => {
-  return `${window.location.origin}/file/${attachment.name}/${attachment.filename}?motion=true`;
+  return `${window.location.origin}/memos/file/${attachment.name}/${attachment.filename}?motion=true`;
 };
 
 export const getAttachmentType = (attachment: Attachment) => {
