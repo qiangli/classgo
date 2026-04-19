@@ -20,8 +20,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"classgo/memos/internal/util"
-	"classgo/memos/internal/webhook"
+	"classgo/memos/lib/util"
+	"classgo/memos/lib/webhook"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/server/auth"

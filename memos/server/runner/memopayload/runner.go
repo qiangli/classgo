@@ -6,7 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/markdown"
+	"classgo/memos/lib/markdown"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"
 )

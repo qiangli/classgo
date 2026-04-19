@@ -10,8 +10,8 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"golang.org/x/sync/semaphore"
 
-	"classgo/memos/internal/markdown"
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/markdown"
+	"classgo/memos/lib/profile"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	"classgo/memos/server/auth"
 	"classgo/memos/store"

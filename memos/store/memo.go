@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"classgo/memos/internal/base"
+	"classgo/memos/lib/base"
 
 	storepb "classgo/memos/proto/gen/store"
 )

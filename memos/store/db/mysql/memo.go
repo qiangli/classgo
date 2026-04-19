@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"classgo/memos/internal/filter"
+	"classgo/memos/lib/filter"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"
 )

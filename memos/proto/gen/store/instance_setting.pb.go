@@ -1307,7 +1307,7 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"\x06OPENAI\x10\x01\x12\n" +
 	"\n" +
 	"\x06GEMINI\x10\x02B\x9f\x01\n" +
-	"\x0fcom.memos.storeB\x14InstanceSettingProtoP\x01Z)classgo/memos/proto/gen/store\xa2\x02\x03MSX\xaa\x02\vMemos.Store\xca\x02\vMemos\\Store\xe2\x02\x17Memos\\Store\\GPBMetadata\xea\x02\fMemos::Storeb\x06proto3"
+	"\x0fcom.memos.storeB\x14InstanceSettingProtoP\x01Z)github.com/usememos/memos/proto/gen/store\xa2\x02\x03MSX\xaa\x02\vMemos.Store\xca\x02\vMemos\\Store\xe2\x02\x17Memos\\Store\\GPBMetadata\xea\x02\fMemos::Storeb\x06proto3"
 
 var (
 	file_store_instance_setting_proto_rawDescOnce sync.Once

@@ -19,9 +19,9 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 
-	"classgo/memos/internal/motionphoto"
-	"classgo/memos/internal/profile"
-	"classgo/memos/internal/storage/s3"
+	"classgo/memos/lib/motionphoto"
+	"classgo/memos/lib/profile"
+	"classgo/memos/lib/storage/s3"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/server/auth"
 	"classgo/memos/store"

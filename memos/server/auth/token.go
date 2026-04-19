@@ -19,7 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/util"
 )
 
 const (

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -18,6 +19,11 @@ import (
 	"classgo/internal/handlers"
 	"classgo/internal/memos"
 	"classgo/internal/models"
+
+	memosprofile "classgo/memos/lib/profile"
+	memosserver "classgo/memos/server"
+	memosstore "classgo/memos/store"
+	memossqlite "classgo/memos/store/db/sqlite"
 )
 
 func loadConfig() models.Config {
@@ -59,6 +65,10 @@ var rebuildDB bool
 
 func main() {
 	cfg := loadConfig()
+	ctx := context.Background()
+
+	// Ensure data directory exists
+	os.MkdirAll(cfg.DataDir, 0755)
 
 	db, err := database.OpenDB("./classgo.db")
 	if err != nil {
@@ -86,20 +96,43 @@ func main() {
 		}
 	}
 
-	// Initialize Memos syncer if configured
+	// Initialize embedded Memos server
+	memosDataDir := filepath.Join(cfg.DataDir, "memos")
+	os.MkdirAll(memosDataDir, 0755)
+	memosDSN := filepath.Join(memosDataDir, "memos_prod.db")
+
+	memosProfile := &memosprofile.Profile{
+		Data:    memosDataDir,
+		DSN:     memosDSN,
+		Driver:  "sqlite",
+		Version: "0.27.1",
+	}
+	if err := memosProfile.Validate(); err != nil {
+		log.Fatalf("Memos profile validation failed: %v", err)
+	}
+
+	memosDriver, err := memossqlite.NewDB(memosProfile)
+	if err != nil {
+		log.Fatalf("Failed to open Memos database: %v", err)
+	}
+
+	memosStoreInst := memosstore.New(memosDriver, memosProfile)
+	if err := memosStoreInst.Migrate(ctx); err != nil {
+		log.Fatalf("Failed to migrate Memos database: %v", err)
+	}
+
+	memosServer, err := memosserver.NewServer(ctx, memosProfile, memosStoreInst)
+	if err != nil {
+		log.Fatalf("Failed to create Memos server: %v", err)
+	}
+
+	// Initialize Memos syncer using the embedded store directly
 	var memosSyncer *memos.Syncer
+	// Syncer will be wired up in Phase 4 when client is refactored to direct store calls
+	// For now, keep the old HTTP client path if configured
 	if cfg.MemosURL != "" && cfg.MemosKey != "" {
 		client := memos.NewClient(cfg.MemosURL, cfg.MemosKey)
-		if err := client.Ping(); err != nil {
-			log.Printf("Warning: Memos not reachable at %s: %v", cfg.MemosURL, err)
-		} else {
-			memosSyncer = memos.NewSyncer(client, db)
-			log.Printf("Memos: connected to %s", cfg.MemosURL)
-			// Initial sync
-			if err := memosSyncer.SyncAll(); err != nil {
-				log.Printf("Warning: Memos initial sync failed: %v", err)
-			}
-		}
+		memosSyncer = memos.NewSyncer(client, db)
 	}
 
 	tmpl, err := template.ParseGlob("templates/*.html")
@@ -130,6 +163,10 @@ func main() {
 	mux.HandleFunc("/api/v1/schedule/week", handlers.NoCache(app.HandleScheduleWeek))
 	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.HandleScheduleConflicts))
 	mux.HandleFunc("/api/v1/memos/sync", handlers.NoCache(app.HandleMemosSync))
+
+	// Mount Memos under /memos/ — StripPrefix removes /memos before Echo sees the request
+	mux.Handle("/memos/", http.StripPrefix("/memos", memosServer.Handler()))
+
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	ipURL := fmt.Sprintf("http://%s:8080", handlers.GetLocalIP())
@@ -143,11 +180,9 @@ func main() {
 	log.Printf("           %s", ipURL)
 	log.Printf("  Admin:   %s/admin", mdnsURL)
 	log.Printf("  Kiosk:   %s/kiosk", mdnsURL)
+	log.Printf("  Memos:   %s/memos/", mdnsURL)
 	log.Printf("  PIN:     %s", pin)
 	log.Printf("  Data:    %s", cfg.DataDir)
-	if cfg.MemosURL != "" {
-		log.Printf("  Memos:   %s", cfg.MemosURL)
-	}
 	log.Println("=================================")
 
 	server := &http.Server{
@@ -155,7 +190,7 @@ func main() {
 		Handler: mux,
 	}
 
-	// Start file watcher — also trigger Memos sync on data changes
+	// Start file watcher
 	watcherCallback := func() {
 		if memosSyncer != nil {
 			if err := memosSyncer.SyncAll(); err != nil {
@@ -178,9 +213,10 @@ func main() {
 		if watcher != nil {
 			watcher.Stop()
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		memosServer.Shutdown(ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(ctx)
+		server.Shutdown(shutdownCtx)
 		db.Close()
 	}()
 

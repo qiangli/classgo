@@ -14,7 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/version"
+	"classgo/memos/lib/version"
 	storepb "classgo/memos/proto/gen/store"
 )
 

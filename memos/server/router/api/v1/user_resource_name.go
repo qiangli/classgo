@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/base"
+	"classgo/memos/lib/base"
 	"classgo/memos/store"
 )
 

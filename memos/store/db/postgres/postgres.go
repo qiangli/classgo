@@ -9,7 +9,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/store"
 )
 

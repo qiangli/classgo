@@ -15,7 +15,7 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	storepb "classgo/memos/proto/gen/store"
 	apiv1 "classgo/memos/server/router/api/v1"
 	"classgo/memos/server/router/fileserver"
@@ -93,6 +93,12 @@ func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store
 	mcpService.RegisterRoutes(echoServer)
 
 	return s, nil
+}
+
+// Handler returns the Echo server as an http.Handler, for embedding
+// in another HTTP server (e.g., behind http.StripPrefix).
+func (s *Server) Handler() http.Handler {
+	return s.echoServer
 }
 
 func (s *Server) Start(ctx context.Context) error {

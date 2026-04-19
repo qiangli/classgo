@@ -16,9 +16,9 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"classgo/memos/internal/idp"
-	"classgo/memos/internal/idp/oauth2"
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/idp"
+	"classgo/memos/lib/idp/oauth2"
+	"classgo/memos/lib/util"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/server/auth"

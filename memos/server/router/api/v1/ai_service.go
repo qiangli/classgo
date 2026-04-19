@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"classgo/memos/internal/ai"
+	"classgo/memos/lib/ai"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	storepb "classgo/memos/proto/gen/store"
 )

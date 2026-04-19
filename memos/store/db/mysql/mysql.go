@@ -7,7 +7,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/store"
 )
 

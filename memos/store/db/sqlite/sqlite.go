@@ -9,7 +9,7 @@ import (
 	// Note: modernc.org/sqlite driver is imported in functions.go where
 	// RegisterScalarFunction is used. No blank import needed here.
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/store"
 )
 

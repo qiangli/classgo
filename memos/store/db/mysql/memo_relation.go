@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"classgo/memos/internal/filter"
+	"classgo/memos/lib/filter"
 	"classgo/memos/store"
 )
 

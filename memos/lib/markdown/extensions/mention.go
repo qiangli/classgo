@@ -5,7 +5,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/util"
 
-	mparser "classgo/memos/internal/markdown/parser"
+	mparser "classgo/memos/lib/markdown/parser"
 )
 
 type mentionExtension struct{}

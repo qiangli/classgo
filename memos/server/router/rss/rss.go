@@ -14,8 +14,8 @@ import (
 	"github.com/gorilla/feeds"
 	"github.com/labstack/echo/v5"
 
-	"classgo/memos/internal/markdown"
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/markdown"
+	"classgo/memos/lib/profile"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"
 )

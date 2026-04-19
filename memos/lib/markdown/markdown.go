@@ -11,9 +11,9 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
-	mast "classgo/memos/internal/markdown/ast"
-	"classgo/memos/internal/markdown/extensions"
-	"classgo/memos/internal/markdown/renderer"
+	mast "classgo/memos/lib/markdown/ast"
+	"classgo/memos/lib/markdown/extensions"
+	"classgo/memos/lib/markdown/renderer"
 	storepb "classgo/memos/proto/gen/store"
 )
 

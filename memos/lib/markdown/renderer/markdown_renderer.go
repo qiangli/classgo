@@ -8,7 +8,7 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 	east "github.com/yuin/goldmark/extension/ast"
 
-	mast "classgo/memos/internal/markdown/ast"
+	mast "classgo/memos/lib/markdown/ast"
 )
 
 // MarkdownRenderer renders goldmark AST back to markdown text.

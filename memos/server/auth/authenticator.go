@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/util"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"
 )

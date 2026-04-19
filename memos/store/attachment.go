@@ -8,8 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/base"
-	"classgo/memos/internal/storage/s3"
+	"classgo/memos/lib/base"
+	"classgo/memos/lib/storage/s3"
 	storepb "classgo/memos/proto/gen/store"
 )
 

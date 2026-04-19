@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"classgo/memos/internal/base"
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/base"
+	"classgo/memos/lib/util"
 )
 
 const (

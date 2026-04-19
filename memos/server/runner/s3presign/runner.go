@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"classgo/memos/internal/storage/s3"
+	"classgo/memos/lib/storage/s3"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"
 )

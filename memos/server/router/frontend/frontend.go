@@ -12,8 +12,8 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/profile"
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/profile"
+	"classgo/memos/lib/util"
 	"classgo/memos/store"
 )
 

@@ -10,7 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/server/auth"
 	apiv1 "classgo/memos/server/router/api/v1"
 	"classgo/memos/store"

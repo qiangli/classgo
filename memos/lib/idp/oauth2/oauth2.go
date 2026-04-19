@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
-	"classgo/memos/internal/idp"
+	"classgo/memos/lib/idp"
 	storepb "classgo/memos/proto/gen/store"
 )
 

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"classgo/memos/internal/webhook"
+	"classgo/memos/lib/webhook"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/server/runner/memopayload"

@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"classgo/memos/internal/filter"
-	"classgo/memos/internal/util"
+	"classgo/memos/lib/filter"
+	"classgo/memos/lib/util"
 	v1pb "classgo/memos/proto/gen/api/v1"
 	storepb "classgo/memos/proto/gen/store"
 	"classgo/memos/store"

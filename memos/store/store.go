@@ -3,7 +3,7 @@ package store
 import (
 	"time"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/store/cache"
 )
 

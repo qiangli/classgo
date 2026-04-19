@@ -3,7 +3,7 @@ package db
 import (
 	"github.com/pkg/errors"
 
-	"classgo/memos/internal/profile"
+	"classgo/memos/lib/profile"
 	"classgo/memos/store"
 	"classgo/memos/store/db/mysql"
 	"classgo/memos/store/db/postgres"
