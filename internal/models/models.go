@@ -8,10 +8,8 @@ import (
 )
 
 type Config struct {
-	AppName  string `json:"app_name"`
-	DataDir  string `json:"data_dir"`
-	MemosURL string `json:"memos_url"`
-	MemosKey string `json:"memos_api_token"`
+	AppName string `json:"app_name"`
+	DataDir string `json:"data_dir"`
 }
 
 type Student struct {

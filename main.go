@@ -126,14 +126,13 @@ func main() {
 		log.Fatalf("Failed to create Memos server: %v", err)
 	}
 
-	// Initialize Memos syncer using the embedded store directly
-	var memosSyncer *memos.Syncer
-	// Syncer will be wired up in Phase 4 when client is refactored to direct store calls
-	// For now, keep the old HTTP client path if configured
-	if cfg.MemosURL != "" && cfg.MemosKey != "" {
-		client := memos.NewClient(cfg.MemosURL, cfg.MemosKey)
-		memosSyncer = memos.NewSyncer(client, db)
+	// Initialize Memos syncer with direct store access
+	adminUserID, err := memos.EnsureAdminUser(memosStoreInst, "tutoros")
+	if err != nil {
+		log.Printf("Warning: could not ensure Memos admin user: %v", err)
 	}
+	memosClient := memos.NewClient(memosStoreInst, adminUserID)
+	memosSyncer := memos.NewSyncer(memosClient, db)
 
 	tmpl, err := template.ParseGlob("templates/*.html")
 	if err != nil {

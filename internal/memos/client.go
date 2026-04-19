@@ -1,158 +1,139 @@
 package memos
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"time"
+
+	"github.com/lithammer/shortuuid/v4"
+	"golang.org/x/crypto/bcrypt"
+
+	memosstore "classgo/memos/store"
 )
 
-// Client wraps the Memos REST API.
+// Client wraps the Memos store for in-process memo operations.
 type Client struct {
-	BaseURL    string
-	APIToken   string
-	HTTPClient *http.Client
+	store     *memosstore.Store
+	creatorID int32 // Memos user ID to create memos as
 }
 
-// NewClient creates a Memos API client.
-func NewClient(baseURL, apiToken string) *Client {
-	return &Client{
-		BaseURL:  baseURL,
-		APIToken: apiToken,
-		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-	}
+// NewClient creates a client that talks directly to the Memos store.
+func NewClient(store *memosstore.Store, creatorID int32) *Client {
+	return &Client{store: store, creatorID: creatorID}
 }
 
-// Memo represents a Memos memo object.
+// Memo represents a memo to create.
 type Memo struct {
-	Name       string `json:"name,omitempty"`
-	UID        string `json:"uid,omitempty"`
-	Content    string `json:"content"`
-	Visibility string `json:"visibility,omitempty"` // "PRIVATE", "PROTECTED", "PUBLIC"
-	Pinned     bool   `json:"pinned,omitempty"`
+	Content    string
+	Visibility string // "PRIVATE", "PROTECTED", "PUBLIC"
+	Pinned     bool
 }
 
-// MemoResponse is the response from creating/listing memos.
+// MemoResponse is the result of a memo operation.
 type MemoResponse struct {
-	Name       string `json:"name"`
-	UID        string `json:"uid"`
-	Content    string `json:"content"`
-	Visibility string `json:"visibility"`
-	Pinned     bool   `json:"pinned"`
+	Name       string
+	UID        string
+	Content    string
+	Visibility string
+	Pinned     bool
 }
 
-// ListMemosResponse is the response from listing memos.
-type ListMemosResponse struct {
-	Memos         []MemoResponse `json:"memos"`
-	NextPageToken string         `json:"nextPageToken"`
-}
-
-// CreateMemo creates a new memo.
+// CreateMemo creates a new memo in the store.
 func (c *Client) CreateMemo(memo Memo) (*MemoResponse, error) {
-	body, _ := json.Marshal(memo)
-	req, err := http.NewRequest("POST", c.BaseURL+"/api/v1/memos", bytes.NewReader(body))
+	ctx := context.Background()
+
+	vis := memosstore.Protected
+	switch memo.Visibility {
+	case "PUBLIC":
+		vis = memosstore.Public
+	case "PRIVATE":
+		vis = memosstore.Private
+	}
+
+	now := time.Now().Unix()
+	created, err := c.store.CreateMemo(ctx, &memosstore.Memo{
+		UID:        shortuuid.New(),
+		CreatorID:  c.creatorID,
+		Content:    memo.Content,
+		Visibility: vis,
+		Pinned:     memo.Pinned,
+		CreatedTs:  now,
+		UpdatedTs:  now,
+	})
 	if err != nil {
-		return nil, err
-	}
-	c.setHeaders(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("memos create: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("memos create: status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("create memo: %w", err)
 	}
 
-	var result MemoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return &MemoResponse{
+		Name:       fmt.Sprintf("memos/%s", created.UID),
+		UID:        created.UID,
+		Content:    created.Content,
+		Visibility: string(created.Visibility),
+		Pinned:     created.Pinned,
+	}, nil
 }
 
-// ListMemos lists memos with an optional filter.
+// ListMemos lists memos. Filter is currently unused for direct store access.
 func (c *Client) ListMemos(filter string, pageSize int) ([]MemoResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/memos?pageSize=%d", c.BaseURL, pageSize)
-	if filter != "" {
-		url += "&filter=" + filter
-	}
+	ctx := context.Background()
 
-	req, err := http.NewRequest("GET", url, nil)
+	limit := pageSize
+	memos, err := c.store.ListMemos(ctx, &memosstore.FindMemo{
+		CreatorID: &c.creatorID,
+		Limit:     &limit,
+	})
 	if err != nil {
-		return nil, err
-	}
-	c.setHeaders(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("memos list: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("memos list: status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("list memos: %w", err)
 	}
 
-	var result ListMemosResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	var result []MemoResponse
+	for _, m := range memos {
+		result = append(result, MemoResponse{
+			Name:       fmt.Sprintf("memos/%s", m.UID),
+			UID:        m.UID,
+			Content:    m.Content,
+			Visibility: string(m.Visibility),
+			Pinned:     m.Pinned,
+		})
 	}
-	return result.Memos, nil
+	return result, nil
 }
 
-// DeleteMemo deletes a memo by its resource name.
-func (c *Client) DeleteMemo(name string) error {
-	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/v1/"+name, nil)
-	if err != nil {
-		return err
-	}
-	c.setHeaders(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("memos delete: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("memos delete: status %d: %s", resp.StatusCode, string(respBody))
-	}
-	return nil
+// DeleteMemo deletes a memo by ID.
+func (c *Client) DeleteMemo(id int32) error {
+	ctx := context.Background()
+	return c.store.DeleteMemo(ctx, &memosstore.DeleteMemo{ID: id})
 }
 
-// Ping checks if the Memos server is reachable.
-func (c *Client) Ping() error {
-	req, err := http.NewRequest("GET", c.BaseURL+"/api/v1/workspace/profile", nil)
+// EnsureAdminUser ensures a Memos admin user exists and returns their ID.
+func EnsureAdminUser(store *memosstore.Store, username string) (int32, error) {
+	ctx := context.Background()
+
+	// Check if user exists
+	user, err := store.GetUser(ctx, &memosstore.FindUser{Username: &username})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	c.setHeaders(req)
+	if user != nil {
+		return user.ID, nil
+	}
 
-	resp, err := c.HTTPClient.Do(req)
+	// Create the admin user
+	hash, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+	passwordHash := string(hash)
 	if err != nil {
-		return fmt.Errorf("memos ping: %w", err)
+		return 0, err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("memos ping: status %d", resp.StatusCode)
+	newUser, err := store.CreateUser(ctx, &memosstore.User{
+		Username:     username,
+		Role:         memosstore.RoleAdmin,
+		Email:        "",
+		Nickname:     "TutorOS Admin",
+		PasswordHash: passwordHash,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("create admin user: %w", err)
 	}
-	return nil
-}
-
-func (c *Client) setHeaders(req *http.Request) {
-	req.Header.Set("Content-Type", "application/json")
-	if c.APIToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.APIToken)
-	}
+	return newUser.ID, nil
 }

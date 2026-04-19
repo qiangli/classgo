@@ -1,6 +1,4 @@
 {
   "app_name": "LERN",
-  "data_dir": "./data",
-  "memos_url": "",
-  "memos_api_token": ""
+  "data_dir": "./data"
 }
