@@ -11,6 +11,9 @@ func OpenDB(path string) (*sql.DB, error) {
 }
 
 func MigrateDB(db *sql.DB) error {
+	// Migrate old column names if they exist
+	migrateColumns(db)
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS attendance (
 		id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +98,20 @@ func MigrateDB(db *sql.DB) error {
 	`
 	_, err := db.Exec(schema)
 	return err
+}
+
+// migrateColumns renames sign_in_time/sign_out_time to check_in_time/check_out_time
+// in existing databases. Safe to call on databases that already have the new names.
+func migrateColumns(db *sql.DB) {
+	// Check if old column names exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('attendance') WHERE name = 'sign_in_time'").Scan(&count)
+	if err != nil || count == 0 {
+		return
+	}
+	db.Exec("ALTER TABLE attendance RENAME COLUMN sign_in_time TO check_in_time")
+	db.Exec("ALTER TABLE attendance RENAME COLUMN sign_out_time TO check_out_time")
+	db.Exec("DROP INDEX IF EXISTS idx_attendance_date")
 }
 
 // DropIndexTables drops all spreadsheet-derived index tables for a full rebuild.
