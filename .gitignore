@@ -9,3 +9,7 @@ config.json
 
 memos/web/node_modules/
 memos/server/router/frontend/dist/
+data/memos/
+data/csv/
+data/tutoros.xlsx
+data/*.db
