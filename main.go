@@ -108,6 +108,9 @@ func main() {
 	mux.HandleFunc("/api/attendees", handlers.NoCache(app.HandleAttendees))
 	mux.HandleFunc("/admin/export", handlers.NoCache(app.HandleExport))
 	mux.HandleFunc("/admin/export/xlsx", handlers.NoCache(app.HandleExportXLSX))
+	mux.HandleFunc("/api/v1/schedule/today", handlers.NoCache(app.HandleScheduleToday))
+	mux.HandleFunc("/api/v1/schedule/week", handlers.NoCache(app.HandleScheduleWeek))
+	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.HandleScheduleConflicts))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	ipURL := fmt.Sprintf("http://%s:8080", handlers.GetLocalIP())
@@ -130,11 +133,22 @@ func main() {
 		Handler: mux,
 	}
 
+	// Start file watcher for live reimport
+	watcher, err := datastore.NewWatcher(cfg.DataDir, db, nil)
+	if err != nil {
+		log.Printf("Warning: file watcher not started: %v", err)
+	} else {
+		watcher.Start()
+	}
+
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
 		log.Println("Shutting down...")
+		if watcher != nil {
+			watcher.Stop()
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		server.Shutdown(ctx)
