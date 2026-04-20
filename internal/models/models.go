@@ -51,6 +51,7 @@ type Student struct {
 	Active          bool   `json:"active"`
 	Deleted         bool   `json:"deleted"`
 	RequirePIN      bool   `json:"require_pin"`
+	PersonalPIN     string `json:"personal_pin,omitempty"`
 }
 
 type Parent struct {
@@ -137,19 +138,20 @@ type CheckInPageData struct {
 }
 
 type TrackerItem struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	Notes      string `json:"notes"`
-	StartDate  string `json:"start_date"`
-	EndDate    string `json:"end_date"`
-	Priority   string `json:"priority"`
-	Recurrence string `json:"recurrence"`
-	Category   string `json:"category"`
-	CreatedBy  string `json:"created_by"`
-	Active     bool   `json:"active"`
-	Deleted    bool   `json:"deleted"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	Notes           string `json:"notes"`
+	StartDate       string `json:"start_date"`
+	EndDate         string `json:"end_date"`
+	Priority        string `json:"priority"`
+	Recurrence      string `json:"recurrence"`
+	Category        string `json:"category"`
+	CreatedBy       string `json:"created_by"`
+	RequiresSignoff bool   `json:"requires_signoff"`
+	Active          bool   `json:"active"`
+	Deleted         bool   `json:"deleted"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 type StudentTrackerItem struct {

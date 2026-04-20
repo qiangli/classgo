@@ -47,8 +47,10 @@ func MigrateDB(db *sql.DB) error {
 		active           INTEGER NOT NULL DEFAULT 1,
 		deleted          INTEGER NOT NULL DEFAULT 0,
 		row_hash         TEXT,
-		pin_hash         TEXT,
-		require_pin      INTEGER NOT NULL DEFAULT 0
+		pin_hash           TEXT,
+		require_pin        INTEGER NOT NULL DEFAULT 0,
+		personal_pin       TEXT,
+		pin_generated_date TEXT
 	);
 
 	CREATE TABLE IF NOT EXISTS parents (
@@ -120,19 +122,20 @@ func MigrateDB(db *sql.DB) error {
 	);
 
 	CREATE TABLE IF NOT EXISTS tracker_items (
-		id         INTEGER PRIMARY KEY AUTOINCREMENT,
-		name       TEXT NOT NULL,
-		notes      TEXT,
-		start_date TEXT,
-		end_date   TEXT,
-		priority   TEXT NOT NULL DEFAULT 'medium',
-		recurrence TEXT NOT NULL DEFAULT 'daily',
-		category   TEXT,
-		created_by TEXT NOT NULL DEFAULT 'admin',
-		active     INTEGER NOT NULL DEFAULT 1,
-		deleted    INTEGER NOT NULL DEFAULT 0,
-		created_at DATETIME DEFAULT (datetime('now','localtime')),
-		updated_at DATETIME DEFAULT (datetime('now','localtime'))
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		name            TEXT NOT NULL,
+		notes           TEXT,
+		start_date      TEXT,
+		end_date        TEXT,
+		priority        TEXT NOT NULL DEFAULT 'medium',
+		recurrence      TEXT NOT NULL DEFAULT 'daily',
+		category        TEXT,
+		created_by      TEXT NOT NULL DEFAULT 'admin',
+		requires_signoff INTEGER NOT NULL DEFAULT 1,
+		active          INTEGER NOT NULL DEFAULT 1,
+		deleted         INTEGER NOT NULL DEFAULT 0,
+		created_at      DATETIME DEFAULT (datetime('now','localtime')),
+		updated_at      DATETIME DEFAULT (datetime('now','localtime'))
 	);
 
 	CREATE TABLE IF NOT EXISTS student_tracker_items (
@@ -272,9 +275,14 @@ func addMissingColumns(db *sql.DB) {
 		// Parent additional contact fields
 		"ALTER TABLE parents ADD COLUMN email2 TEXT",
 		"ALTER TABLE parents ADD COLUMN phone2 TEXT",
+		// Requires sign-off on global tracker items
+		"ALTER TABLE tracker_items ADD COLUMN requires_signoff INTEGER NOT NULL DEFAULT 1",
 		// Rename due_date -> end_date
 		"ALTER TABLE tracker_items RENAME COLUMN due_date TO end_date",
 		"ALTER TABLE student_tracker_items RENAME COLUMN due_date TO end_date",
+		// Admin-controlled personal PIN (plaintext, auto-rotated daily)
+		"ALTER TABLE students ADD COLUMN personal_pin TEXT",
+		"ALTER TABLE students ADD COLUMN pin_generated_date TEXT",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors

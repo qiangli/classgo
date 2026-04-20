@@ -76,11 +76,7 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate PIN based on mode
-	needsSetup, pinErr := a.ValidatePIN(req.StudentID, req.PIN)
-	if needsSetup {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "needs_pin_setup": true, "student_id": req.StudentID})
-		return
-	}
+	_, pinErr := a.ValidatePIN(req.StudentID, req.PIN)
 	if pinErr != "" {
 		if strings.Contains(pinErr, "required") {
 			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "needs_pin": true, "student_id": req.StudentID, "error": pinErr})

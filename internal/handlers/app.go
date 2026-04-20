@@ -537,16 +537,16 @@ func (a *App) ValidatePIN(studentID, pin string) (bool, string) {
 		mode = "off"
 	}
 
-	// Per-student override: if this student requires PIN, enforce personal PIN
-	if studentID != "" && mode != "per-student" && database.StudentRequiresPIN(a.DB, studentID) {
-		hash, err := database.GetStudentPinHash(a.DB, studentID)
-		if err != nil || hash == "" {
-			return true, "" // needs setup
+	// Per-student override: if this student requires PIN, enforce admin-controlled personal PIN
+	if studentID != "" && database.StudentRequiresPIN(a.DB, studentID) {
+		expected, err := database.EnsureDailyStudentPin(a.DB, studentID)
+		if err != nil || expected == "" {
+			return false, "PIN system error"
 		}
 		if pin == "" {
 			return false, "PIN is required"
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pin)); err != nil {
+		if pin != expected {
 			return false, "Invalid PIN"
 		}
 		return false, ""
@@ -567,62 +567,18 @@ func (a *App) ValidatePIN(studentID, pin string) (bool, string) {
 		}
 		return false, ""
 	case "per-student":
-		if studentID == "" {
-			return false, "Student ID is required for PIN verification"
-		}
-		hash, err := database.GetStudentPinHash(a.DB, studentID)
-		if err != nil || hash == "" {
-			// No PIN set yet — needs setup
-			return true, ""
-		}
-		if pin == "" {
-			return false, "PIN is required"
-		}
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pin)); err != nil {
-			return false, "Invalid PIN"
-		}
+		// Legacy: treat as "off" — per-student is now handled by the override above
 		return false, ""
 	}
 	return false, ""
 }
 
-// HandleStudentPINSetup allows a student to create their personal PIN.
+// HandleStudentPINSetup is disabled — PINs are now admin-controlled.
 func (a *App) HandleStudentPINSetup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var req struct {
-		StudentID string `json:"student_id"`
-		PIN       string `json:"pin"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
-		return
-	}
-	if req.StudentID == "" || len(req.PIN) < 4 || len(req.PIN) > 6 {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Student ID and 4-6 digit PIN required"})
-		return
-	}
-	// Only allow setup if no PIN exists yet
-	existing, _ := database.GetStudentPinHash(a.DB, req.StudentID)
-	if existing != "" {
-		writeJSON(w, http.StatusConflict, map[string]any{"ok": false, "error": "PIN already set. Ask admin to reset."})
-		return
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.PIN), bcrypt.MinCost)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to hash PIN"})
-		return
-	}
-	if err := database.SetStudentPinHash(a.DB, req.StudentID, string(hash)); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to save PIN"})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "PINs are managed by the admin. Please ask the admin for your PIN."})
 }
 
-// HandleStudentPINReset allows admin to reset a student's PIN.
+// HandleStudentPINReset regenerates the personal PIN for a flagged student and returns it.
 func (a *App) HandleStudentPINReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -635,11 +591,12 @@ func (a *App) HandleStudentPINReset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
 		return
 	}
-	if err := database.ResetStudentPin(a.DB, req.StudentID); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to reset PIN"})
+	pin, err := database.GenerateStudentPin(a.DB, req.StudentID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to regenerate PIN"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin": pin})
 }
 
 // HandlePINModeChange changes the PIN mode and saves to config.json.
@@ -656,15 +613,21 @@ func (a *App) HandlePINModeChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.PinMode {
-	case "off", "center", "per-student":
+	case "off", "center":
 		a.PinMode = req.PinMode
 		// Sync requirePIN for backward compatibility
 		a.SetRequirePIN(req.PinMode == "center")
 		// Save to config.json
 		a.saveConfig()
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin_mode": req.PinMode})
+	case "per-student":
+		// Legacy: treat as "off"
+		a.PinMode = "off"
+		a.SetRequirePIN(false)
+		a.saveConfig()
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin_mode": "off"})
 	default:
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid pin_mode. Use: off, center, per-student"})
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid pin_mode. Use: off, center"})
 	}
 }
 
@@ -700,6 +663,16 @@ func (a *App) HandleStudentRequirePIN(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := database.SetStudentRequirePIN(a.DB, req.StudentID, req.RequirePIN); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Database error"})
+		return
+	}
+	// Auto-generate PIN when flagging a student
+	if req.RequirePIN {
+		pin, err := database.EnsureDailyStudentPin(a.DB, req.StudentID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to generate PIN"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pin": pin})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

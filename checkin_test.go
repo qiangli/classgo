@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/http/httptest"
@@ -256,49 +257,51 @@ func TestPinCenter_CheckoutWithPin(t *testing.T) {
 	}
 }
 
-// ==================== GROUP 3: PIN MODE = PER-STUDENT ====================
+// ==================== GROUP 3: ADMIN-CONTROLLED PER-STUDENT PIN ====================
 
 func TestPinPerStudent_FirstCheckinNoHash(t *testing.T) {
 	app, cleanup := setupTestWithData(t)
 	defer cleanup()
-	app.PinMode = "per-student"
+	app.PinMode = "off"
 
+	// Flag student — system auto-generates PIN
+	database.SetStudentRequirePIN(app.DB, "S001", true)
+
+	// Check in without PIN — should be told PIN is required
 	w := checkin(app.HandleCheckIn, `{"student_name":"Alice Wang","student_id":"S001","device_type":"mobile"}`)
 	r := resp(t, w)
-	if r["needs_pin_setup"] != true {
-		t.Fatalf("expected needs_pin_setup=true for student without PIN hash, got: %v", r)
-	}
-	if r["student_id"] != "S001" {
-		t.Errorf("expected student_id=S001, got: %v", r["student_id"])
+	if r["needs_pin"] != true {
+		t.Fatalf("expected needs_pin=true for flagged student without PIN, got: %v", r)
 	}
 }
 
 func TestPinPerStudent_SetupAndCheckin(t *testing.T) {
 	app, cleanup := setupTestWithData(t)
 	defer cleanup()
-	app.PinMode = "per-student"
+	app.PinMode = "off"
 
-	// Setup PIN
-	w := apiPost(app.HandleStudentPINSetup, "/api/student/pin/setup", `{"student_id":"S001","pin":"2468"}`)
-	r := resp(t, w)
-	if r["ok"] != true {
-		t.Fatalf("PIN setup failed: %v", r)
+	// Flag student and get admin-generated PIN
+	database.SetStudentRequirePIN(app.DB, "S001", true)
+	pin, err := database.EnsureDailyStudentPin(app.DB, "S001")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// Check in with the new PIN
-	w = checkin(app.HandleCheckIn, `{"student_name":"Alice Wang","student_id":"S001","pin":"2468","device_type":"mobile"}`)
-	r = resp(t, w)
+	// Check in with admin-generated PIN
+	w := checkin(app.HandleCheckIn, fmt.Sprintf(`{"student_name":"Alice Wang","student_id":"S001","pin":"%s","device_type":"mobile"}`, pin))
+	r := resp(t, w)
 	if r["ok"] != true {
-		t.Fatalf("check-in with personal PIN failed: %v", r)
+		t.Fatalf("check-in with admin-generated PIN failed: %v", r)
 	}
 }
 
 func TestPinPerStudent_WrongPin(t *testing.T) {
 	app, cleanup := setupTestWithData(t)
 	defer cleanup()
-	app.PinMode = "per-student"
+	app.PinMode = "off"
 
-	apiPost(app.HandleStudentPINSetup, "/api/student/pin/setup", `{"student_id":"S001","pin":"2468"}`)
+	database.SetStudentRequirePIN(app.DB, "S001", true)
+	database.EnsureDailyStudentPin(app.DB, "S001")
 
 	w := checkin(app.HandleCheckIn, `{"student_name":"Alice Wang","student_id":"S001","pin":"0000","device_type":"mobile"}`)
 	if w.Code != http.StatusUnauthorized {
@@ -309,29 +312,40 @@ func TestPinPerStudent_WrongPin(t *testing.T) {
 func TestPinPerStudent_AdminResetPin(t *testing.T) {
 	app, cleanup := setupTestWithData(t)
 	defer cleanup()
-	app.PinMode = "per-student"
+	app.PinMode = "off"
 
-	// Setup PIN
-	apiPost(app.HandleStudentPINSetup, "/api/student/pin/setup", `{"student_id":"S002","pin":"1357"}`)
+	// Flag student and get PIN
+	database.SetStudentRequirePIN(app.DB, "S002", true)
+	oldPin, _ := database.EnsureDailyStudentPin(app.DB, "S002")
 
-	// Verify it works
-	w := checkin(app.HandleCheckIn, `{"student_name":"Bob Wang","student_id":"S002","pin":"1357","device_type":"kiosk"}`)
+	// Verify old PIN works
+	w := checkin(app.HandleCheckIn, fmt.Sprintf(`{"student_name":"Bob Wang","student_id":"S002","pin":"%s","device_type":"kiosk"}`, oldPin))
 	r := resp(t, w)
 	if r["ok"] != true {
 		t.Fatalf("pre-reset check-in failed: %v", r)
 	}
 
-	// Check out so we can test check-in again
-	checkout(app.HandleCheckOut, `{"student_name":"Bob Wang","student_id":"S002","pin":"1357"}`)
+	// Check out
+	checkout(app.HandleCheckOut, fmt.Sprintf(`{"student_name":"Bob Wang","student_id":"S002","pin":"%s"}`, oldPin))
 
-	// Admin resets PIN
+	// Admin regenerates PIN
 	apiPost(app.HandleStudentPINReset, "/api/v1/student/pin/reset", `{"student_id":"S002"}`)
 
-	// Now check-in should require setup again
-	w = checkin(app.HandleCheckIn, `{"student_name":"Bob Wang","student_id":"S002","device_type":"kiosk"}`)
+	// Old PIN should no longer work
+	w = checkin(app.HandleCheckIn, fmt.Sprintf(`{"student_name":"Bob Wang","student_id":"S002","pin":"%s","device_type":"kiosk"}`, oldPin))
+	if w.Code != http.StatusUnauthorized {
+		r = resp(t, w)
+		if r["ok"] == true {
+			t.Fatalf("old PIN should not work after admin reset")
+		}
+	}
+
+	// New PIN should work
+	newPin, _, _ := database.GetStudentPin(app.DB, "S002")
+	w = checkin(app.HandleCheckIn, fmt.Sprintf(`{"student_name":"Bob Wang","student_id":"S002","pin":"%s","device_type":"kiosk"}`, newPin))
 	r = resp(t, w)
-	if r["needs_pin_setup"] != true {
-		t.Fatalf("expected needs_pin_setup after admin reset, got: %v", r)
+	if r["ok"] != true {
+		t.Fatalf("new PIN after reset should work, got: %v", r)
 	}
 }
 
@@ -342,14 +356,14 @@ func TestPinOverride_FlaggedStudentNeedsPin(t *testing.T) {
 	defer cleanup()
 	app.PinMode = "off" // Global mode is off
 
-	// Flag S006 (Frank) as requiring PIN
+	// Flag S006 (Frank) as requiring PIN — auto-generates a PIN
 	database.SetStudentRequirePIN(app.DB, "S006", true)
 
-	// Frank should get needs_pin_setup (no PIN hash yet)
+	// Frank should be told PIN is required (no PIN provided)
 	w := checkin(app.HandleCheckIn, `{"student_name":"Frank Miller","student_id":"S006","device_type":"mobile"}`)
 	r := resp(t, w)
-	if r["needs_pin_setup"] != true {
-		t.Fatalf("flagged student should need PIN setup, got: %v", r)
+	if r["needs_pin"] != true {
+		t.Fatalf("flagged student should need PIN, got: %v", r)
 	}
 }
 
@@ -359,10 +373,14 @@ func TestPinOverride_FlaggedStudentWithPin(t *testing.T) {
 	app.PinMode = "off"
 
 	database.SetStudentRequirePIN(app.DB, "S006", true)
-	apiPost(app.HandleStudentPINSetup, "/api/student/pin/setup", `{"student_id":"S006","pin":"7777"}`)
+	// Get the admin-generated PIN
+	pin, err := database.EnsureDailyStudentPin(app.DB, "S006")
+	if err != nil || pin == "" {
+		t.Fatal("expected PIN to be generated for flagged student")
+	}
 
-	// Frank checks in with his PIN — should work
-	w := checkin(app.HandleCheckIn, `{"student_name":"Frank Miller","student_id":"S006","pin":"7777","device_type":"mobile"}`)
+	// Frank checks in with the admin-generated PIN — should work
+	w := checkin(app.HandleCheckIn, fmt.Sprintf(`{"student_name":"Frank Miller","student_id":"S006","pin":"%s","device_type":"mobile"}`, pin))
 	r := resp(t, w)
 	if r["ok"] != true {
 		t.Fatalf("flagged student with correct PIN should succeed, got: %v", r)

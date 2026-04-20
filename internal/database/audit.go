@@ -2,6 +2,9 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
+	"math/rand"
+	"time"
 
 	"classgo/internal/models"
 )
@@ -127,7 +130,7 @@ func DismissAuditFlag(db *sql.DB, id int) error {
 	return err
 }
 
-// GetStudentPinHash returns the pin_hash for a student.
+// GetStudentPinHash returns the pin_hash for a student (legacy, unused for flagged students).
 func GetStudentPinHash(db *sql.DB, studentID string) (string, error) {
 	var hash sql.NullString
 	err := db.QueryRow("SELECT pin_hash FROM students WHERE id = ?", studentID).Scan(&hash)
@@ -137,15 +140,50 @@ func GetStudentPinHash(db *sql.DB, studentID string) (string, error) {
 	return hash.String, nil
 }
 
-// SetStudentPinHash sets the pin_hash for a student.
+// SetStudentPinHash sets the pin_hash for a student (legacy).
 func SetStudentPinHash(db *sql.DB, studentID, hash string) error {
 	_, err := db.Exec("UPDATE students SET pin_hash = ? WHERE id = ?", hash, studentID)
 	return err
 }
 
-// ResetStudentPin clears the pin_hash for a student (forces re-setup).
+// GenerateStudentPin generates a random 4-digit PIN for a student, stores it with today's date, and returns it.
+func GenerateStudentPin(db *sql.DB, studentID string) (string, error) {
+	pin := fmt.Sprintf("%04d", rand.Intn(10000))
+	today := time.Now().Format("2006-01-02")
+	_, err := db.Exec("UPDATE students SET personal_pin = ?, pin_generated_date = ? WHERE id = ?", pin, today, studentID)
+	if err != nil {
+		return "", err
+	}
+	return pin, nil
+}
+
+// EnsureDailyStudentPin returns the current PIN for a student, regenerating if the date has changed.
+func EnsureDailyStudentPin(db *sql.DB, studentID string) (string, error) {
+	var pin, genDate sql.NullString
+	err := db.QueryRow("SELECT personal_pin, pin_generated_date FROM students WHERE id = ?", studentID).Scan(&pin, &genDate)
+	if err != nil {
+		return "", err
+	}
+	today := time.Now().Format("2006-01-02")
+	if pin.String == "" || genDate.String != today {
+		return GenerateStudentPin(db, studentID)
+	}
+	return pin.String, nil
+}
+
+// GetStudentPin returns the current personal_pin and pin_generated_date for a student.
+func GetStudentPin(db *sql.DB, studentID string) (string, string, error) {
+	var pin, genDate sql.NullString
+	err := db.QueryRow("SELECT personal_pin, pin_generated_date FROM students WHERE id = ?", studentID).Scan(&pin, &genDate)
+	if err != nil {
+		return "", "", err
+	}
+	return pin.String, genDate.String, nil
+}
+
+// ResetStudentPin regenerates the personal PIN for a student.
 func ResetStudentPin(db *sql.DB, studentID string) error {
-	_, err := db.Exec("UPDATE students SET pin_hash = NULL WHERE id = ?", studentID)
+	_, err := GenerateStudentPin(db, studentID)
 	return err
 }
 

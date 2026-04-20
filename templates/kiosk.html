@@ -170,7 +170,7 @@
         // Fetch settings
         fetch('/api/settings').then(r => r.json()).then(s => {
             kioskPinMode = s.pin_mode || 'off';
-            kioskPinRequired = s.require_pin || kioskPinMode === 'center' || kioskPinMode === 'per-student';
+            kioskPinRequired = s.require_pin || kioskPinMode === 'center';
         }).catch(() => {});
 
         nameInput.addEventListener('input', () => {

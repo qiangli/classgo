@@ -272,7 +272,7 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 	q := `SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
 	      COALESCE(dob,''), COALESCE(birthplace,''), COALESCE(years_in_us,''), COALESCE(first_language,''),
 	      COALESCE(previous_schools,''), COALESCE(courses_outside,''), COALESCE(profile_status,''),
-	      active, deleted, COALESCE(require_pin, 0) FROM students`
+	      active, deleted, COALESCE(require_pin, 0), COALESCE(personal_pin, '') FROM students`
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -287,9 +287,10 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 		var s models.Student
 		var active, deleted, requirePIN int
 		var grade, school, parentID, email, phone, address, notes sql.NullString
+		var personalPIN string
 		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes,
 			&s.DOB, &s.Birthplace, &s.YearsInUS, &s.FirstLanguage, &s.PreviousSchools, &s.CoursesOutside, &s.ProfileStatus,
-			&active, &deleted, &requirePIN); err != nil {
+			&active, &deleted, &requirePIN, &personalPIN); err != nil {
 			return nil, err
 		}
 		s.Grade = grade.String
@@ -302,6 +303,9 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 		s.Active = active == 1
 		s.Deleted = deleted == 1
 		s.RequirePIN = requirePIN == 1
+		if s.RequirePIN {
+			s.PersonalPIN = personalPIN
+		}
 		result = append(result, s)
 	}
 	return result, rows.Err()

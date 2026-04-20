@@ -461,17 +461,16 @@
                     <div class="flex gap-3">
                         <button onclick="setPinMode('off')" id="pin-mode-off" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Off</button>
                         <button onclick="setPinMode('center')" id="pin-mode-center" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Center-wide PIN</button>
-                        <button onclick="setPinMode('per-student')" id="pin-mode-per-student" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Per-student PIN</button>
                     </div>
                     <p class="text-xs text-gray-400 mt-2">
-                        <strong>Off</strong>: No PIN required. <strong>Center</strong>: One daily PIN for all. <strong>Per-student</strong>: Each student has their own PIN.
+                        <strong>Off</strong>: No PIN required. <strong>Center</strong>: One daily PIN for all. Use per-student override below for flagged students.
                     </p>
                 </div>
 
                 <!-- Per-Student PIN Override -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-4">
                     <h2 class="text-lg font-semibold text-gray-700 mb-3">Per-Student PIN Override</h2>
-                    <p class="text-sm text-gray-400 mb-3">Require personal PIN for specific students, even when global PIN mode is Off or Center-wide.</p>
+                    <p class="text-sm text-gray-400 mb-3">Flagged students must get their PIN from admin to check in/out. PIN auto-rotates daily.</p>
                     <div class="flex items-center gap-3 mb-3">
                         <div class="flex-1 max-w-md relative">
                             <input type="text" id="pin-override-search" placeholder="Search student by name or ID..."
@@ -1091,14 +1090,16 @@
         }
 
         async function resetStudentPinFromAudit(studentId) {
-            if (!confirm('Reset PIN for this student? They will need to create a new one.')) return;
+            if (!confirm('Regenerate PIN for this student?')) return;
             try {
-                await fetch('/api/v1/student/pin/reset', {
+                const resp = await fetch('/api/v1/student/pin/reset', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ student_id: studentId })
                 });
-                alert('PIN reset. Student will be prompted to create a new PIN.');
+                const data = await resp.json();
+                if (data.pin) alert('New PIN: ' + data.pin);
+                loadPinOverrideList();
             } catch(e) { alert('Failed'); }
         }
 
@@ -1120,9 +1121,10 @@
                         <div>
                             <span class="font-medium text-gray-800">${esc(s.first_name + ' ' + s.last_name)}</span>
                             <span class="text-sm text-gray-400 ml-2">${esc(s.id)}</span>
+                            <span class="ml-3 px-2 py-0.5 bg-indigo-100 text-indigo-700 font-mono font-bold rounded text-sm">${esc(s.personal_pin || '—')}</span>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="resetStudentPinFromAudit('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800">Reset PIN</button>
+                            <button onclick="resetStudentPinFromAudit('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800">Regenerate PIN</button>
                             <button onclick="togglePinOverride('${s.id}', '', false)" class="text-xs text-red-500 hover:text-red-700">Remove</button>
                         </div>
                     </div>
@@ -1595,7 +1597,7 @@
                     <tbody>${responses.map(r => `
                         <tr class="border-b dark:border-gray-600">
                             <td class="py-1.5 text-gray-700 dark:text-gray-300">${esc(r.item_name)}</td>
-                            <td class="py-1.5"><span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium ${r.item_type === 'global' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}">${r.item_type}</span></td>
+                            <td class="py-1.5"><span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium ${r.item_type === 'global' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}">${r.item_type === 'global' ? 'Global' : 'Personal'}</span></td>
                             <td class="py-1.5"><span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium ${r.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}">${r.status === 'done' ? 'Done' : 'Not Done'}</span></td>
                             <td class="py-1.5 text-gray-500 dark:text-gray-400">${r.responded_at || ''}</td>
                         </tr>

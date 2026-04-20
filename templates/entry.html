@@ -31,19 +31,6 @@
 </head>
 <body class="bg-gradient-to-b from-indigo-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center p-4">
 
-    <!-- PIN Setup Modal -->
-    <div id="pin-setup-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs mx-4 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 text-center mb-2">Create Your PIN</h3>
-            <p class="text-sm text-gray-500 text-center mb-4">Choose a 4-digit PIN for check-in</p>
-            <input type="password" id="pin-setup-1" maxlength="6" inputmode="numeric" pattern="[0-9]*"
-                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-3 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="PIN">
-            <input type="password" id="pin-setup-2" maxlength="6" inputmode="numeric" pattern="[0-9]*"
-                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-4 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Confirm PIN">
-            <button onclick="submitPINSetup()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Set PIN</button>
-            <p id="pin-setup-error" class="hidden text-red-500 text-sm text-center mt-2"></p>
-        </div>
-    </div>
 
     <!-- Success Overlay -->
     <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50 transition-opacity duration-300">
@@ -307,12 +294,7 @@
         fetch('/api/settings').then(r => r.json()).then(s => {
             pinMode = s.pin_mode || 'off';
             pinRequired = s.require_pin || pinMode === 'center';
-            if (pinMode === 'off') {
-                document.getElementById('pin-field').classList.add('hidden');
-            } else if (pinMode === 'per-student') {
-                document.querySelector('#pin-field label').textContent = 'Your PIN';
-                document.getElementById('pin').placeholder = 'Your personal PIN';
-            } else if (!pinRequired) {
+            if (!pinRequired) {
                 document.getElementById('pin-field').classList.add('hidden');
             }
         }).catch(() => {});
@@ -657,16 +639,12 @@
 
                 const data = await res.json();
 
-                if (data.needs_pin_setup) {
-                    pendingPINSetupStudentId = data.student_id;
-                    document.getElementById('pin-setup-modal').classList.remove('hidden');
-                    document.getElementById('pin-setup-1').focus();
-                } else if (data.needs_pin) {
+                if (data.needs_pin) {
                     document.getElementById('pin-field').classList.remove('hidden');
                     document.querySelector('#pin-field label').textContent = 'Your PIN';
-                    document.getElementById('pin').placeholder = 'Enter your personal PIN';
+                    document.getElementById('pin').placeholder = 'Ask admin for your PIN';
                     document.getElementById('pin').focus();
-                    showCheckinMessage('PIN required for this student', false);
+                    showCheckinMessage('PIN required — ask the admin for your PIN', false);
                 } else if (data.ok) {
                     const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
                     showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
@@ -691,40 +669,6 @@
             checkinSubmitBtn.textContent = 'Check In';
         });
 
-        // PIN setup
-        let pendingPINSetupStudentId = '';
-
-        async function submitPINSetup() {
-            const pin1 = document.getElementById('pin-setup-1').value;
-            const pin2 = document.getElementById('pin-setup-2').value;
-            const errEl = document.getElementById('pin-setup-error');
-            errEl.classList.add('hidden');
-
-            if (pin1.length < 4) { errEl.textContent = 'PIN must be at least 4 digits'; errEl.classList.remove('hidden'); return; }
-            if (pin1 !== pin2) { errEl.textContent = 'PINs do not match'; errEl.classList.remove('hidden'); return; }
-
-            try {
-                const res = await fetch('/api/student/pin/setup', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ student_id: pendingPINSetupStudentId, pin: pin1 })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    document.getElementById('pin-setup-modal').classList.add('hidden');
-                    document.getElementById('pin-setup-1').value = '';
-                    document.getElementById('pin-setup-2').value = '';
-                    pinInput.value = pin1;
-                    checkinForm.dispatchEvent(new Event('submit'));
-                } else {
-                    errEl.textContent = data.error || 'Failed to set PIN';
-                    errEl.classList.remove('hidden');
-                }
-            } catch(e) {
-                errEl.textContent = 'Connection error';
-                errEl.classList.remove('hidden');
-            }
-        }
 
         // ==================== SIGN-UP ====================
         async function doSignup() {
