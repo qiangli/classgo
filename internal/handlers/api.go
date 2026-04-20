@@ -268,6 +268,9 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 		Action:       "checkout",
 	})
 
+	if req.StudentID != "" {
+		a.InvalidateProgressCache(req.StudentID)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Goodbye, %s!", req.StudentName)})
 }
 

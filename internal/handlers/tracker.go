@@ -116,6 +116,7 @@ func (a *App) HandleTrackerRespond(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.InvalidateProgressCache(req.StudentID)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Goodbye, " + req.StudentName + "!"})
 }
 
@@ -355,6 +356,9 @@ func (a *App) HandleTrackerComplete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return
 	}
+	if sid, err := database.GetStudentIDForItem(a.DB, req.ID); err == nil {
+		a.InvalidateProgressCache(sid)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -434,6 +438,9 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return
 	}
+	for _, sid := range studentIDs {
+		a.InvalidateProgressCache(sid)
+	}
 	// Notify via Memos for each student
 	if a.MemosSyncer != nil {
 		go func() {
@@ -493,6 +500,100 @@ func (a *App) HandleTrackerProgress(w http.ResponseWriter, r *http.Request) {
 		stats = []models.ProgressStats{}
 	}
 	writeJSON(w, http.StatusOK, stats)
+}
+
+// HandleAdminProgressSummary returns cached progress stats for all students (admin only).
+func (a *App) HandleAdminProgressSummary(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	refresh := r.URL.Query().Get("refresh") == "true"
+
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, 0, -7).Format("2006-01-02")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01-02")
+	}
+
+	// If refresh requested or date range changed, clear entire cache
+	a.progressMu.RLock()
+	rangeChanged := a.progressStart != startDate || a.progressEnd != endDate
+	cacheNil := a.progressCache == nil
+	a.progressMu.RUnlock()
+
+	if refresh || rangeChanged || cacheNil {
+		a.progressMu.Lock()
+		a.progressCache = nil
+		a.progressStart = startDate
+		a.progressEnd = endDate
+		a.progressMu.Unlock()
+	}
+
+	// Get all active student IDs
+	allIDs, err := database.GetAllActiveStudentIDs(a.DB)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+
+	// Find which students are missing from cache
+	a.progressMu.RLock()
+	var missingIDs []string
+	for _, id := range allIDs {
+		if _, ok := a.progressCache[id]; !ok {
+			missingIDs = append(missingIDs, id)
+		}
+	}
+	a.progressMu.RUnlock()
+
+	// Recompute missing entries
+	if len(missingIDs) > 0 {
+		stats, err := database.GetProgressStats(a.DB, missingIDs, startDate, endDate)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+			return
+		}
+		a.progressMu.Lock()
+		if a.progressCache == nil {
+			a.progressCache = make(map[string]models.ProgressStats)
+		}
+		// Store computed stats
+		for _, s := range stats {
+			a.progressCache[s.StudentID] = s
+		}
+		// Store zero-stats for students with no responses (so they aren't re-queried)
+		computed := make(map[string]bool)
+		for _, s := range stats {
+			computed[s.StudentID] = true
+		}
+		for _, id := range missingIDs {
+			if !computed[id] {
+				a.progressCache[id] = models.ProgressStats{StudentID: id}
+			}
+		}
+		a.progressMu.Unlock()
+	}
+
+	// Collect results
+	a.progressMu.RLock()
+	result := make([]models.ProgressStats, 0, len(allIDs))
+	for _, id := range allIDs {
+		if s, ok := a.progressCache[id]; ok {
+			result = append(result, s)
+		}
+	}
+	a.progressMu.RUnlock()
+
+	// Sort by student name
+	for i := 0; i < len(result); i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[i].StudentName > result[j].StudentName {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 // canAccessStudent checks if the session user has access to a student's data.

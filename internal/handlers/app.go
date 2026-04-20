@@ -41,6 +41,25 @@ type App struct {
 	pinDate    string
 	requirePIN bool
 	mu         sync.Mutex
+
+	progressMu    sync.RWMutex
+	progressCache map[string]models.ProgressStats // key: studentID
+	progressStart string                          // cached date range start
+	progressEnd   string                          // cached date range end
+}
+
+// InvalidateProgressCache removes a single student's cached progress stats.
+func (a *App) InvalidateProgressCache(studentID string) {
+	a.progressMu.Lock()
+	delete(a.progressCache, studentID)
+	a.progressMu.Unlock()
+}
+
+// ClearProgressCache resets the entire progress cache.
+func (a *App) ClearProgressCache() {
+	a.progressMu.Lock()
+	a.progressCache = nil
+	a.progressMu.Unlock()
 }
 
 // RequireAuth wraps a handler to require authentication (any role). Redirects to login.

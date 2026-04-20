@@ -421,6 +421,31 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	return stats, rows.Err()
 }
 
+// GetAllActiveStudentIDs returns all active student IDs from the students table.
+func GetAllActiveStudentIDs(db *sql.DB) ([]string, error) {
+	rows, err := db.Query("SELECT id FROM students WHERE deleted = 0 ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// GetStudentIDForItem returns the student_id for a student_tracker_items row.
+func GetStudentIDForItem(db *sql.DB, itemID int) (string, error) {
+	var studentID string
+	err := db.QueryRow("SELECT student_id FROM student_tracker_items WHERE id = ?", itemID).Scan(&studentID)
+	return studentID, err
+}
+
 // BulkCreateStudentItems creates the same tracker item for multiple students.
 func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.StudentTrackerItem) error {
 	tx, err := db.Begin()
