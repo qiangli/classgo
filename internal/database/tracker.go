@@ -188,6 +188,30 @@ func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
 	return err
 }
 
+// PendingSignoffItems returns due items that require signoff and haven't been responded to today.
+// Used by checkout to block until the student signs off on required tasks.
+func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error) {
+	today := time.Now().Format("2006-01-02")
+	allDue, err := GetDueItems(db, studentID, today)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter: only adhoc items with requires_signoff=true
+	var pending []models.DueItem
+	for _, it := range allDue {
+		if it.ItemType == "adhoc" {
+			// Check requires_signoff flag
+			var reqSignoff bool
+			db.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
+			if reqSignoff {
+				pending = append(pending, it)
+			}
+		}
+	}
+	return pending, nil
+}
+
 // GetDueItems returns items due today for a student, respecting dates and recurrence.
 // Recurrence logic:
 //   - daily: due every day, check if responded today
@@ -526,4 +550,159 @@ func nullStr(s string) any {
 		return nil
 	}
 	return s
+}
+
+// GetGlobalTrackerItems returns all active, non-deleted global tracker items.
+func GetGlobalTrackerItems(db *sql.DB) ([]models.TrackerItem, error) {
+	rows, err := db.Query(`SELECT ` + trackerItemCols + ` FROM tracker_items WHERE active = 1 AND deleted = 0 ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []models.TrackerItem
+	for rows.Next() {
+		it, err := scanTrackerItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, rows.Err()
+}
+
+// GetLatestTrackerValues returns the latest tracker response notes per global item for a student.
+func GetLatestTrackerValues(db *sql.DB, studentID string) (map[int]string, error) {
+	rows, err := db.Query(`SELECT item_id, notes FROM tracker_responses
+		WHERE student_id = ? AND item_type = 'global'
+		AND id IN (SELECT MAX(id) FROM tracker_responses
+		           WHERE student_id = ? AND item_type = 'global' GROUP BY item_id)`,
+		studentID, studentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[int]string)
+	for rows.Next() {
+		var id int
+		var notes string
+		if err := rows.Scan(&id, &notes); err != nil {
+			return nil, err
+		}
+		result[id] = notes
+	}
+	return result, rows.Err()
+}
+
+// SaveProfileTrackerValues saves tracker values from the profile form as tracker_response rows.
+func SaveProfileTrackerValues(db *sql.DB, studentID, studentName string, values map[int]string) error {
+	if len(values) == 0 {
+		return nil
+	}
+	// Build item name lookup
+	items, err := GetGlobalTrackerItems(db)
+	if err != nil {
+		return err
+	}
+	nameMap := make(map[int]string)
+	for _, it := range items {
+		nameMap[it.ID] = it.Name
+	}
+
+	today := time.Now().Format("2006-01-02")
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for itemID, notes := range values {
+		if notes == "" {
+			continue
+		}
+		itemName := nameMap[itemID]
+		if itemName == "" {
+			continue
+		}
+		_, err := tx.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, notes, response_date)
+			VALUES (?, ?, 'global', ?, ?, 'done', ?, ?)`,
+			studentID, studentName, itemID, itemName, notes, today)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// AutoAssignProfileTasks creates student_tracker_items for global tracker items that the student
+// has not yet responded to and does not already have assigned. Grade-aware filtering is applied.
+func AutoAssignProfileTasks(db *sql.DB, studentID, grade string) error {
+	items, err := GetGlobalTrackerItems(db)
+	if err != nil {
+		return err
+	}
+
+	// Get existing responses
+	existingValues, err := GetLatestTrackerValues(db, studentID)
+	if err != nil {
+		return err
+	}
+
+	// Get existing student_tracker_items by name
+	existingItems := make(map[string]bool)
+	rows, err := db.Query(`SELECT name FROM student_tracker_items WHERE student_id = ? AND deleted = 0`, studentID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		existingItems[name] = true
+	}
+
+	gradeNum := parseGradeNum(grade)
+
+	for _, it := range items {
+		// Skip if already has a value or assignment
+		if existingValues[it.ID] != "" || existingItems[it.Name] {
+			continue
+		}
+		// Grade-aware filtering
+		if !shouldAssignForGrade(it.Name, it.Category, gradeNum) {
+			continue
+		}
+		db.Exec(`INSERT INTO student_tracker_items (student_id, name, priority, recurrence, category, created_by, owner_type, requires_signoff, active)
+			VALUES (?, ?, ?, 'none', ?, 'system', 'admin', 0, 1)`,
+			studentID, it.Name, it.Priority, it.Category)
+	}
+	return nil
+}
+
+func parseGradeNum(grade string) int {
+	n := 0
+	for _, c := range grade {
+		if c >= '0' && c <= '9' {
+			n = n*10 + int(c-'0')
+		}
+	}
+	return n
+}
+
+func shouldAssignForGrade(name, category string, grade int) bool {
+	if grade == 0 {
+		return true // unknown grade, assign all
+	}
+	switch {
+	case strings.Contains(name, "PSAT 8/9"):
+		return grade <= 9
+	case strings.Contains(name, "PSAT 10"):
+		return grade >= 10
+	case strings.Contains(name, "PSAT 11"), strings.Contains(name, "NMSQT"):
+		return grade >= 11
+	case category == "SAT":
+		return grade >= 10
+	case category == "AP":
+		return grade >= 9
+	}
+	return true
 }

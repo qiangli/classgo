@@ -55,11 +55,11 @@ func importParents(db *sql.DB, parents []models.Parent) error {
 	ids := make(map[string]bool)
 	for _, p := range parents {
 		ids[p.ID] = true
-		hash := rowHash(p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes, fmt.Sprint(p.Deleted))
+		hash := rowHash(p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Email2, p.Phone2, p.Address, p.Notes, fmt.Sprint(p.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, address, notes, deleted, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes, boolToInt(p.Deleted), hash,
+			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, email2, phone2, address, notes, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Email2, p.Phone2, p.Address, p.Notes, boolToInt(p.Deleted), hash,
 		)
 		if err != nil {
 			return err
@@ -81,11 +81,17 @@ func importStudents(db *sql.DB, students []models.Student) error {
 	ids := make(map[string]bool)
 	for _, s := range students {
 		ids[s.ID] = true
-		hash := rowHash(s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, fmt.Sprint(s.Active), fmt.Sprint(s.Deleted))
+		hash := rowHash(s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+			fmt.Sprint(s.Active), fmt.Sprint(s.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes, active, deleted, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolToInt(s.Active), boolToInt(s.Deleted), hash,
+			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
+			 dob, birthplace, years_in_us, first_language, previous_schools, courses_outside,
+			 active, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+			boolToInt(s.Active), boolToInt(s.Deleted), hash,
 		)
 		if err != nil {
 			return err

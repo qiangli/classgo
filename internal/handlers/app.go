@@ -130,10 +130,12 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		EntityID string `json:"entity_id"` // entity ID (e.g., "S001") for user login
-		Username string `json:"username"`  // system username for admin login
-		Password string `json:"password"`
-		Action   string `json:"action"` // "login", "setup" (first-time password), "admin"
+		EntityID  string `json:"entity_id"` // entity ID (e.g., "S001") for user login
+		Username  string `json:"username"`  // system username for admin login
+		Password  string `json:"password"`
+		Action    string `json:"action"`     // "login", "setup", "signup", "admin", "check"
+		FirstName string `json:"first_name"` // for signup
+		LastName  string `json:"last_name"`  // for signup
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
@@ -193,7 +195,7 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 		token := a.Sessions.Create(username, "user", userType, req.EntityID)
 		auth.SetSessionCookie(w, token)
 		log.Printf("User setup + login: %s (%s, %s)", name, username, userType)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/profile"})
 
 	case "login", "":
 		// Regular user login via Memos credentials
@@ -217,6 +219,47 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 		auth.SetSessionCookie(w, token)
 		log.Printf("User login: %s (%s, %s)", user.Nickname, username, userType)
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
+
+	case "signup":
+		// Signup by name: match student by first+last name, create account
+		if req.FirstName == "" || req.LastName == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "First name and last name are required"})
+			return
+		}
+		if len(req.Password) < 4 {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Password must be at least 4 characters"})
+			return
+		}
+		// Find student by name
+		entityID := a.findEntityByName(req.FirstName, req.LastName)
+		if entityID == "" {
+			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "No student found with that name. Please check with your administrator."})
+			return
+		}
+		// Check if already has an account
+		username := strings.ToLower(entityID)
+		ctx := context.Background()
+		existingUser, _ := a.MemosStore.GetUser(ctx, &memosstore.FindUser{Username: &username})
+		if existingUser != nil && existingUser.PasswordHash != "" {
+			writeJSON(w, http.StatusConflict, map[string]any{"ok": false, "error": "Account already exists. Please use Log In instead."})
+			return
+		}
+		// Create account
+		name := req.FirstName + " " + req.LastName
+		email := ""
+		if n, e := a.lookupEntity(entityID); n != "" {
+			name = n
+			email = e
+		}
+		if _, err := memos.EnsureUser(a.MemosStore, username, name, email, req.Password); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to create account"})
+			return
+		}
+		userType := a.detectUserType(entityID)
+		token := a.Sessions.Create(username, "user", userType, entityID)
+		auth.SetSessionCookie(w, token)
+		log.Printf("User signup: %s (%s, %s)", name, username, userType)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/profile"})
 
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Unknown action"})
@@ -286,6 +329,21 @@ func (a *App) lookupEntity(entityID string) (name, email string) {
 		}
 	}
 	return "", ""
+}
+
+// findEntityByName searches students, parents, teachers by first+last name and returns the entity ID.
+func (a *App) findEntityByName(firstName, lastName string) string {
+	for _, tbl := range []string{"students", "parents", "teachers"} {
+		var id string
+		err := a.DB.QueryRow(
+			fmt.Sprintf("SELECT id FROM %s WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?) AND deleted = 0", tbl),
+			firstName, lastName,
+		).Scan(&id)
+		if err == nil {
+			return id
+		}
+	}
+	return ""
 }
 
 // detectUserType determines whether an entity ID belongs to a student, parent, or teacher.

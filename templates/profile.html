@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.AppName}} - Student Profile</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('admin-theme') || 'system';
+            const isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <style>
+        .dark body { color: #e5e7eb; }
+        .dark input, .dark select, .dark textarea {
+            background-color: #1f2937; color: #e5e7eb; border-color: #4b5563;
+        }
+        .dark input::placeholder, .dark textarea::placeholder { color: #6b7280; }
+        .dark .border-gray-200, .dark .border-gray-300 { border-color: #374151; }
+        .dark .text-gray-700 { color: #d1d5db; }
+        .dark .text-gray-500, .dark .text-gray-600 { color: #9ca3af; }
+        .section-card { transition: all 0.2s ease; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+
+    <!-- Top bar -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14 flex items-center justify-between px-5 sticky top-0 z-20 no-print">
+        <div class="flex items-center gap-3">
+            <a href="/admin#data" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Back to Admin">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <span class="text-lg font-semibold text-gray-800 dark:text-gray-200" id="page-title">Student Profile</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="status-badge" class="hidden text-xs px-2 py-1 rounded-full font-medium"></span>
+            <button onclick="window.print()" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg" title="Print">Print</button>
+            <button onclick="finalizeProfile()" id="finalize-btn" class="hidden text-sm text-white bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg font-medium">Finalize</button>
+            <button onclick="saveProfile()" id="save-btn" class="text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto py-6 px-4">
+        <!-- Status message -->
+        <div id="status-msg" class="hidden mb-4 px-4 py-2 rounded-lg text-sm"></div>
+
+        <!-- Personal Information -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">Personal Information</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Student ID</label>
+                    <input type="text" id="s-id" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Date</label>
+                    <input type="text" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 cursor-not-allowed" id="profile-date">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">First Name <span class="text-red-400">*</span></label>
+                    <input type="text" id="s-first_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Last Name <span class="text-red-400">*</span></label>
+                    <input type="text" id="s-last_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Date of Birth</label>
+                    <input type="date" id="s-dob" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Where were you born?</label>
+                    <input type="text" id="s-birthplace" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="City, Country">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Years lived in the US</label>
+                    <input type="text" id="s-years_in_us" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., 5">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">First language learned</label>
+                    <input type="text" id="s-first_language" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., English, Mandarin">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Student Email</label>
+                    <input type="email" id="s-email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Cell Phone</label>
+                    <input type="tel" id="s-phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Home Address</label>
+                    <input type="text" id="s-address" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- Parent/Guardian Information -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">Parent / Guardian Information</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent ID</label>
+                    <input type="text" id="p-id" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 cursor-not-allowed">
+                </div>
+                <div></div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent First Name</label>
+                    <input type="text" id="p-first_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent Last Name</label>
+                    <input type="text" id="p-last_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent Email</label>
+                    <input type="email" id="p-email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent Phone</label>
+                    <input type="tel" id="p-phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent Email (2nd)</label>
+                    <input type="email" id="p-email2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Second parent/guardian">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Parent Phone (2nd)</label>
+                    <input type="tel" id="p-phone2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Second parent/guardian">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Parent Address</label>
+                    <input type="text" id="p-address" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- High School Education -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">High School Education</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Current High School</label>
+                    <input type="text" id="s-school" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Current Grade Level</label>
+                    <input type="text" id="s-grade" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., 9, 10, 11, 12">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Previous High Schools</label>
+                    <input type="text" id="s-previous_schools" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Semicolon-separated, e.g., Lincoln Middle; Jefferson High">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Courses Taken Outside High School</label>
+                    <textarea id="s-courses_outside" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., Stanford Online, BYU, community colleges"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">Notes</h2>
+            </div>
+            <div class="px-5 py-4">
+                <textarea id="s-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Additional notes about this student"></textarea>
+            </div>
+        </div>
+
+        <!-- Tracker Items section (read-only summary) -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">Tracked Items</h2>
+                <span class="text-xs text-gray-400">Manage via Admin &gt; Tracker</span>
+            </div>
+            <div class="px-5 py-4" id="tracker-section">
+                <p class="text-sm text-gray-400">Loading tracker items...</p>
+            </div>
+        </div>
+
+        <!-- Bottom save -->
+        <div class="flex justify-end gap-3 mb-8 no-print">
+            <a href="/admin#data" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg">Cancel</a>
+            <button onclick="saveProfile()" class="px-6 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium">Save Profile</button>
+        </div>
+    </main>
+
+    <script>
+        const studentID = '{{.StudentID}}';
+        let profileData = null;
+
+        document.getElementById('profile-date').value = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        async function loadProfile() {
+            try {
+                const res = await fetch('/api/v1/student/profile?id=' + encodeURIComponent(studentID));
+                const data = await res.json();
+                if (!data.ok) { showStatus('Student not found', 'error'); return; }
+                profileData = data;
+
+                // Populate student fields
+                const s = data.student;
+                document.getElementById('page-title').textContent = 'Profile: ' + s.first_name + ' ' + s.last_name;
+                const sFields = ['id','first_name','last_name','grade','school','email','phone','address','notes',
+                    'dob','birthplace','years_in_us','first_language','previous_schools','courses_outside'];
+                sFields.forEach(f => {
+                    const el = document.getElementById('s-' + f);
+                    if (el) {
+                        if (el.tagName === 'TEXTAREA') el.value = s[f] || '';
+                        else el.value = s[f] || '';
+                    }
+                });
+
+                // Populate parent fields
+                const p = data.parent;
+                if (p) {
+                    ['id','first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                        const el = document.getElementById('p-' + f);
+                        if (el) el.value = p[f] || '';
+                    });
+                } else {
+                    document.getElementById('p-id').value = s.parent_id || '(none)';
+                }
+
+                // Show status badge and finalize button
+                const badge = document.getElementById('status-badge');
+                const finalizeBtn = document.getElementById('finalize-btn');
+                if (s.profile_status === 'draft') {
+                    badge.textContent = 'Draft';
+                    badge.className = 'text-xs px-2 py-1 rounded-full font-medium bg-amber-100 text-amber-700';
+                    finalizeBtn.classList.remove('hidden');
+                } else if (s.profile_status === 'final') {
+                    badge.textContent = 'Finalized';
+                    badge.className = 'text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700';
+                }
+
+                // Load tracker items
+                loadTrackerItems();
+            } catch(e) {
+                showStatus('Failed to load profile: ' + e.message, 'error');
+            }
+        }
+
+        async function loadTrackerItems() {
+            try {
+                const res = await fetch('/api/dashboard/all-tasks?student_id=' + encodeURIComponent(studentID));
+                const data = await res.json();
+                const section = document.getElementById('tracker-section');
+
+                const allItems = [];
+                // Global items
+                if (data.global_items) data.global_items.forEach(i => allItems.push({name: i.name, category: i.category, priority: i.priority, type: 'Global', recurrence: i.recurrence}));
+                // Student items
+                if (data.student_items) data.student_items.forEach(i => allItems.push({name: i.name, category: i.category, priority: i.priority, type: 'Personal', recurrence: i.recurrence, completed: i.completed}));
+
+                if (!allItems.length) {
+                    section.innerHTML = '<p class="text-sm text-gray-400">No tracker items assigned.</p>';
+                    return;
+                }
+
+                // Group by category
+                const groups = {};
+                allItems.forEach(i => {
+                    const cat = i.category || 'General';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(i);
+                });
+
+                let html = '';
+                Object.keys(groups).sort().forEach(cat => {
+                    html += `<div class="mb-3">
+                        <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">${esc(cat)}</h3>
+                        <div class="space-y-1">`;
+                    groups[cat].forEach(i => {
+                        const priColor = i.priority === 'high' ? 'text-red-500' : i.priority === 'low' ? 'text-gray-400' : 'text-amber-500';
+                        const typeTag = i.type === 'Global' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300';
+                        const completedTag = i.completed ? '<span class="text-xs text-green-500 ml-1">Done</span>' : '';
+                        html += `<div class="flex items-center gap-2 text-sm py-1">
+                            <span class="${priColor} text-xs w-4 text-center">${i.priority === 'high' ? 'H' : i.priority === 'low' ? 'L' : 'M'}</span>
+                            <span class="text-gray-700 dark:text-gray-300">${esc(i.name)}</span>${completedTag}
+                            <span class="text-[10px] px-1.5 py-0.5 rounded ${typeTag}">${i.type}</span>
+                            <span class="text-xs text-gray-400">${i.recurrence !== 'none' ? i.recurrence : ''}</span>
+                        </div>`;
+                    });
+                    html += '</div></div>';
+                });
+                section.innerHTML = html;
+            } catch(e) {
+                document.getElementById('tracker-section').innerHTML = '<p class="text-sm text-red-400">Failed to load tracker items.</p>';
+            }
+        }
+
+        function collectFormData() {
+            const student = {};
+            ['id','first_name','last_name','grade','school','email','phone','address',
+             'dob','birthplace','years_in_us','first_language','previous_schools'].forEach(f => {
+                student[f] = document.getElementById('s-' + f).value;
+            });
+            student.courses_outside = document.getElementById('s-courses_outside').value;
+            student.notes = document.getElementById('s-notes').value;
+            if (profileData && profileData.student) student.parent_id = profileData.student.parent_id || '';
+
+            const parent = {};
+            ['id','first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                parent[f] = document.getElementById('p-' + f).value;
+            });
+            return { student, parent };
+        }
+
+        async function saveProfile() { return doSave(false); }
+        async function finalizeProfile() {
+            if (!confirm('Finalize this profile? This marks it as reviewed and approved.')) return;
+            return doSave(true);
+        }
+
+        async function doSave(finalize) {
+            const { student, parent } = collectFormData();
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('/api/v1/student/profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student, parent, finalize })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showStatus(finalize ? 'Profile finalized.' : 'Profile saved.', 'success');
+                    loadProfile(); // refresh badges
+                } else {
+                    showStatus(data.error || 'Save failed.', 'error');
+                }
+            } catch(e) {
+                showStatus('Save failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('status-msg');
+            el.textContent = msg;
+            el.className = type === 'success'
+                ? 'mb-4 px-4 py-2 rounded-lg text-sm bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                : 'mb-4 px-4 py-2 rounded-lg text-sm bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
+            el.classList.remove('hidden');
+            if (type === 'success') setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        loadProfile();
+    </script>
+</body>
+</html>

@@ -53,6 +53,9 @@
         <div class="text-center mb-8">
             <img src="/static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
             <p class="text-gray-400 mt-2">Check in to class</p>
+            <a href="#" onclick="toggleSignup(event)" class="inline-block mt-1 text-xs text-indigo-400 hover:text-indigo-600">Sign Up</a>
+            <span class="text-gray-300 text-xs mx-1">|</span>
+            <a href="/login" class="inline-block mt-1 text-xs text-indigo-400 hover:text-indigo-600">Log In</a>
             <a href="#" id="add-home-link" onclick="toggleHomeScreen(event)"
                 class="inline-flex items-center gap-1 mt-2 text-xs text-indigo-400 hover:text-indigo-600 no-underline">
                 <span id="home-arrow" class="inline-block text-base transition-transform duration-200">&#9656;</span>
@@ -77,6 +80,28 @@
                     </ol>
                 </div>
             </div>
+        </div>
+
+        <!-- Signup Form (hidden by default) -->
+        <div id="signup-card" class="hidden bg-white rounded-2xl shadow-lg p-6 mb-4">
+            <h3 class="text-lg font-semibold text-gray-800 text-center mb-4">Create Account</h3>
+            <div id="signup-msg" class="hidden mb-3 p-3 rounded-lg text-sm text-center"></div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+                    <input type="text" id="signup-last" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Last Name" autocomplete="family-name">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">First Name</label>
+                    <input type="text" id="signup-first" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="First Name" autocomplete="given-name">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Password (4+ characters)</label>
+                    <input type="password" id="signup-password" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Password" autocomplete="new-password">
+                </div>
+                <button onclick="doSignup()" id="signup-submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Sign Up</button>
+            </div>
+            <button onclick="toggleSignup(event)" class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition">Cancel</button>
         </div>
 
         <!-- Confirmation Card (shown after sign-in) -->
@@ -274,6 +299,55 @@
             const arrow = document.getElementById('home-arrow');
             info.classList.toggle('hidden');
             arrow.style.transform = info.classList.contains('hidden') ? '' : 'rotate(90deg)';
+        }
+
+        function toggleSignup(e) {
+            if (e) e.preventDefault();
+            const card = document.getElementById('signup-card');
+            card.classList.toggle('hidden');
+            if (!card.classList.contains('hidden')) {
+                document.getElementById('signup-last').focus();
+            }
+        }
+
+        async function doSignup() {
+            const last = document.getElementById('signup-last').value.trim();
+            const first = document.getElementById('signup-first').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const msg = document.getElementById('signup-msg');
+
+            if (!last || !first) { showSignupMsg('Last name and first name are required.', 'error'); return; }
+            if (password.length < 4) { showSignupMsg('Password must be at least 4 characters.', 'error'); return; }
+
+            const btn = document.getElementById('signup-submit');
+            btn.disabled = true; btn.textContent = 'Creating...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'signup', first_name: first, last_name: last, password })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    window.location.href = data.redirect || '/profile';
+                } else {
+                    showSignupMsg(data.error || 'Signup failed.', 'error');
+                }
+            } catch(e) {
+                showSignupMsg('Signup failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Sign Up';
+            }
+        }
+
+        function showSignupMsg(text, type) {
+            const el = document.getElementById('signup-msg');
+            el.textContent = text;
+            el.className = type === 'error'
+                ? 'mb-3 p-3 rounded-lg text-sm text-center bg-red-50 text-red-600'
+                : 'mb-3 p-3 rounded-lg text-sm text-center bg-green-50 text-green-600';
+            el.classList.remove('hidden');
         }
 
         // Restore saved data

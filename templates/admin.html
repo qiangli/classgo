@@ -1319,8 +1319,8 @@
         const dataTabs = ['students', 'parents', 'teachers', 'rooms', 'schedules'];
         const refFields = { parent_id: 'parents', teacher_id: 'teachers', room_id: 'rooms', student_ids: 'students' };
         const dataColumns = {
-            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
-            parents:   [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'notes',label:'Notes'}],
+            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'dob',label:'DOB'},{key:'birthplace',label:'Birthplace'},{key:'years_in_us',label:'Years in US'},{key:'first_language',label:'First Language'},{key:'previous_schools',label:'Previous Schools'},{key:'courses_outside',label:'Courses Outside HS'},{key:'profile_status',label:'Profile'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
+            parents:   [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'email2',label:'Email 2'},{key:'phone2',label:'Phone 2'},{key:'address',label:'Address'},{key:'notes',label:'Notes'}],
             teachers:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'subjects',label:'Subjects'},{key:'active',label:'Active'}],
             rooms:     [{key:'id',label:'ID'},{key:'name',label:'Name'},{key:'capacity',label:'Capacity'},{key:'notes',label:'Notes'}],
             schedules: [{key:'id',label:'ID'},{key:'day_of_week',label:'Day'},{key:'start_time',label:'Start'},{key:'end_time',label:'End'},{key:'teacher_id',label:'Teacher',ref:'teachers'},{key:'room_id',label:'Room',ref:'rooms'},{key:'subject',label:'Subject'},{key:'student_ids',label:'Students',ref:'students'},{key:'effective_from',label:'From'},{key:'effective_until',label:'Until'}]
@@ -1339,6 +1339,7 @@
             if (val == null) return '';
             if (key === 'active') return val ? 'Yes' : 'No';
             if (key === 'deleted') return val ? 'Yes' : 'No';
+            if (key === 'profile_status') return val === 'final' ? 'Final' : val === 'draft' ? 'Draft' : '';
             const ref = refFields[key];
             if (ref && Array.isArray(val)) return val.map(v => resolveRef(v, ref)).join('; ');
             if (ref && typeof val === 'string' && val) return resolveRef(val, ref);
@@ -1399,6 +1400,7 @@
                     }).join('') +
                     `<td class="py-2 px-3 whitespace-nowrap no-print">
                         <button onclick='openEditModal(${JSON.stringify(row).replace(/'/g,"&#39;")})' class="text-indigo-600 hover:text-indigo-800 text-sm mr-1" title="Edit">Edit</button>
+                        ${!isDeleted && currentDataTab === 'students' ? `<a href="/admin/profile?id=${encodeURIComponent(row.id)}" class="text-teal-600 hover:text-teal-800 text-sm mr-1" title="Student Profile">Profile</a>` : ''}
                         ${!isDeleted && ['students','parents','teachers'].includes(currentDataTab) ? `<button onclick="openPasswordModal('${row.id}','${(row.first_name||'').replace(/'/g,"\\'")} ${(row.last_name||'').replace(/'/g,"\\'")}')" class="text-amber-600 hover:text-amber-800 text-sm mr-1" title="Reset Password">Pwd</button>` : ''}
                         ${!isDeleted ? `<button onclick="deleteRecord('${row.id}')" class="text-red-500 hover:text-red-700 text-sm" title="Delete">Del</button>` : ''}
                     </td></tr>`;

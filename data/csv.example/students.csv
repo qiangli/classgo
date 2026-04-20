@@ -1,13 +1,13 @@
-id,first_name,last_name,grade,school,parent_id,email,phone,address,notes,active
-S001,Alice,Wang,6,Lincoln Middle,P001,,,,,yes
-S002,Bob,Wang,8,Washington High,P001,,,,,yes
-S003,Carlos,Garcia,7,Lincoln Middle,P002,,,,,yes
-S004,Diana,Chen,5,Lincoln Elementary,P003,,,,,yes
-S005,Emma,Taylor,6,Lincoln Middle,P004,,,,,yes
-S006,Frank,Miller,7,Washington High,P005,,,,,yes
-S007,Grace,Lee,9,Washington High,P006,grace@example.com,,,,yes
-S008,Henry,Kim,4,Lincoln Elementary,P007,,,555-3333,,yes
-S009,Ivy,Patel,8,Lincoln Middle,P008,,,,,yes
-S010,Jack,Brown,6,Lincoln Middle,P004,,,,,yes
-S011,Karen,Davis,10,Washington High,P005,,,,,no
-S012,Leo,Martinez,5,Lincoln Elementary,P006,,,,,no
+id,first_name,last_name,grade,school,parent_id,email,phone,address,notes,dob,birthplace,years_in_us,first_language,previous_schools,courses_outside,active
+S001,Alice,Wang,6,Lincoln Middle,P001,,,,,,China,6,Mandarin,,,yes
+S002,Bob,Wang,8,Washington High,P001,,,,,,USA,8,English,Lincoln Middle,,yes
+S003,Carlos,Garcia,7,Lincoln Middle,P002,,,,,,Mexico,5,Spanish,,,yes
+S004,Diana,Chen,5,Lincoln Elementary,P003,,,,,,USA,5,English,,,yes
+S005,Emma,Taylor,6,Lincoln Middle,P004,,,,,,USA,6,English,,,yes
+S006,Frank,Miller,7,Washington High,P005,,,,,,USA,7,English,Lincoln Middle,,yes
+S007,Grace,Lee,9,Washington High,P006,grace@example.com,,,,,Korea,4,Korean,Lincoln Middle,Stanford Online,yes
+S008,Henry,Kim,4,Lincoln Elementary,P007,,555-3333,,,,USA,4,English,,,yes
+S009,Ivy,Patel,8,Lincoln Middle,P008,,,,,,India,3,Hindi,,,yes
+S010,Jack,Brown,6,Lincoln Middle,P004,,,,,,USA,6,English,,,yes
+S011,Karen,Davis,10,Washington High,P005,,,,,,USA,10,English,Lincoln Middle;Jefferson High,BYU Online,no
+S012,Leo,Martinez,5,Lincoln Elementary,P006,,,,,,USA,5,Spanish,,,no

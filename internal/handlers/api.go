@@ -219,6 +219,20 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Block checkout if student has pending signoff tasks
+	if req.StudentID != "" {
+		pending, _ := database.PendingSignoffItems(a.DB, req.StudentID)
+		if len(pending) > 0 {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"ok":            false,
+				"pending_tasks": true,
+				"items":         pending,
+				"error":         "Please complete required tasks before checking out",
+			})
+			return
+		}
+	}
+
 	result, err := a.DB.Exec(
 		"UPDATE attendance SET check_out_time = datetime('now','localtime') WHERE student_name = ? AND date(check_in_time) = date('now','localtime') AND check_out_time IS NULL",
 		req.StudentName,
@@ -476,11 +490,14 @@ func (a *App) saveEntity(entityType string, data map[string]any) error {
 			return fmt.Errorf("first_name and last_name are required")
 		}
 		_, err := a.DB.Exec(
-			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes, active, deleted)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
+			 dob, birthplace, years_in_us, first_language, previous_schools, courses_outside, active, deleted)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, fn, ln, getString(data, "grade"), getString(data, "school"),
 			getString(data, "parent_id"), getString(data, "email"), getString(data, "phone"),
 			getString(data, "address"), getString(data, "notes"),
+			getString(data, "dob"), getString(data, "birthplace"), getString(data, "years_in_us"),
+			getString(data, "first_language"), getString(data, "previous_schools"), getString(data, "courses_outside"),
 			boolToInt(getBool(data, "active", true)), boolToInt(getBool(data, "deleted", false)),
 		)
 		return err
@@ -492,9 +509,10 @@ func (a *App) saveEntity(entityType string, data map[string]any) error {
 			return fmt.Errorf("first_name and last_name are required")
 		}
 		_, err := a.DB.Exec(
-			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, address, notes, deleted)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT OR REPLACE INTO parents (id, first_name, last_name, email, phone, email2, phone2, address, notes, deleted)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, fn, ln, getString(data, "email"), getString(data, "phone"),
+			getString(data, "email2"), getString(data, "phone2"),
 			getString(data, "address"), getString(data, "notes"),
 			boolToInt(getBool(data, "deleted", false)),
 		)

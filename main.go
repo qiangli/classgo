@@ -222,10 +222,15 @@ func main() {
 	mux.HandleFunc("/api/dashboard/bulk-assign", handlers.NoCache(app.RequireAuth(app.HandleTrackerBulkAssign)))
 	mux.HandleFunc("/api/dashboard/assign-library-item", handlers.NoCache(app.RequireAuth(app.HandleAssignLibraryItem)))
 
+	// User profile — require any authenticated user
+	mux.HandleFunc("/profile", handlers.NoCache(app.RequireAuth(app.HandleUserProfilePage)))
+	mux.HandleFunc("/api/v1/user/profile", handlers.NoCache(app.RequireAuth(app.HandleUserProfile)))
+
 	// Admin pages — require admin role (redirect to login)
 	mux.HandleFunc("/admin", handlers.NoCache(app.RequireAdmin(app.HandleAdmin)))
 	mux.HandleFunc("/schedule", handlers.NoCache(app.RequireAdmin(app.HandleSchedulePage)))
 	mux.HandleFunc("/admin/directory", handlers.NoCache(app.RequireAdmin(app.HandleDirectory)))
+	mux.HandleFunc("/admin/profile", handlers.NoCache(app.RequireAdmin(app.HandleProfilePage)))
 	mux.HandleFunc("/admin/export", handlers.NoCache(app.RequireAdmin(app.HandleExport)))
 	mux.HandleFunc("/admin/export/xlsx", handlers.NoCache(app.RequireAdmin(app.HandleExportXLSX)))
 	mux.HandleFunc("/admin/export/csv", handlers.NoCache(app.RequireAdmin(app.HandleExportCSV)))
@@ -253,6 +258,7 @@ func main() {
 	mux.HandleFunc("/api/v1/audit/flags", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditFlags)))
 	mux.HandleFunc("/api/v1/audit/devices", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditDevices)))
 	mux.HandleFunc("/api/v1/audit/dismiss", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditDismiss)))
+	mux.HandleFunc("/api/v1/student/profile", handlers.NoCache(app.RequireAdminAPI(app.HandleStudentProfile)))
 
 	// Memos — require any authenticated user (redirect to login)
 	mux.Handle("/memos/", handlers.NoCache(app.RequireAuth(func(w http.ResponseWriter, r *http.Request) {

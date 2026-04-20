@@ -27,21 +27,28 @@ func MigrateDB(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date(check_in_time));
 
 	CREATE TABLE IF NOT EXISTS students (
-		id          TEXT PRIMARY KEY,
-		first_name  TEXT NOT NULL,
-		last_name   TEXT NOT NULL,
-		grade       TEXT,
-		school      TEXT,
-		parent_id   TEXT,
-		email       TEXT,
-		phone       TEXT,
-		address     TEXT,
-		notes       TEXT,
-		active      INTEGER NOT NULL DEFAULT 1,
-		deleted     INTEGER NOT NULL DEFAULT 0,
-		row_hash    TEXT,
-		pin_hash    TEXT,
-		require_pin INTEGER NOT NULL DEFAULT 0
+		id               TEXT PRIMARY KEY,
+		first_name       TEXT NOT NULL,
+		last_name        TEXT NOT NULL,
+		grade            TEXT,
+		school           TEXT,
+		parent_id        TEXT,
+		email            TEXT,
+		phone            TEXT,
+		address          TEXT,
+		notes            TEXT,
+		dob              TEXT,
+		birthplace       TEXT,
+		years_in_us      TEXT,
+		first_language   TEXT,
+		previous_schools TEXT,
+		courses_outside  TEXT,
+		profile_status   TEXT NOT NULL DEFAULT '',
+		active           INTEGER NOT NULL DEFAULT 1,
+		deleted          INTEGER NOT NULL DEFAULT 0,
+		row_hash         TEXT,
+		pin_hash         TEXT,
+		require_pin      INTEGER NOT NULL DEFAULT 0
 	);
 
 	CREATE TABLE IF NOT EXISTS parents (
@@ -50,6 +57,8 @@ func MigrateDB(db *sql.DB) error {
 		last_name  TEXT NOT NULL,
 		email      TEXT,
 		phone      TEXT,
+		email2     TEXT,
+		phone2     TEXT,
 		address    TEXT,
 		notes      TEXT,
 		deleted    INTEGER NOT NULL DEFAULT 0,
@@ -244,6 +253,17 @@ func addMissingColumns(db *sql.DB) {
 		// Per-student PIN
 		"ALTER TABLE students ADD COLUMN pin_hash TEXT",
 		"ALTER TABLE students ADD COLUMN require_pin INTEGER NOT NULL DEFAULT 0",
+		// Student profile fields
+		"ALTER TABLE students ADD COLUMN profile_status TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE students ADD COLUMN dob TEXT",
+		"ALTER TABLE students ADD COLUMN birthplace TEXT",
+		"ALTER TABLE students ADD COLUMN years_in_us TEXT",
+		"ALTER TABLE students ADD COLUMN first_language TEXT",
+		"ALTER TABLE students ADD COLUMN previous_schools TEXT",
+		"ALTER TABLE students ADD COLUMN courses_outside TEXT",
+		// Parent additional contact fields
+		"ALTER TABLE parents ADD COLUMN email2 TEXT",
+		"ALTER TABLE parents ADD COLUMN phone2 TEXT",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors

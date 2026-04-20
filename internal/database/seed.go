@@ -16,20 +16,51 @@ func SeedSampleData(db *sql.DB) {
 	}
 
 	globalItems := []struct {
-		name, priority, recurrence, category, startDate, dueDate string
+		name, priority, recurrence, category, notes string
 	}{
-		{"Daily Warmup Exercises", "medium", "daily", "General", "2026-01-06", ""},
-		{"SAT Vocabulary Quiz", "high", "weekly", "SAT Prep", "2026-01-06", ""},
-		{"Reading Comprehension Log", "medium", "daily", "Reading", "2026-01-06", ""},
-		{"Math Problem Set", "high", "daily", "Math", "2026-01-06", ""},
-		{"Monthly Progress Review", "low", "monthly", "General", "2026-01-06", ""},
+		// GPA tracking
+		{"Weighted GPA Update", "high", "monthly", "GPA", "Record current weighted GPA"},
+		{"Unweighted GPA Update", "high", "monthly", "GPA", "Record current unweighted GPA"},
+
+		// PSAT
+		{"PSAT 8/9 Score", "medium", "none", "PSAT", "Record English, Math, Total scores"},
+		{"PSAT 10 Score", "medium", "none", "PSAT", "Record English, Math, Total scores"},
+		{"PSAT 11 (NMSQT) Score", "high", "none", "PSAT", "Record English, Math, Total scores"},
+
+		// SAT
+		{"SAT Score (1st Attempt)", "high", "none", "SAT", "Record Month/Year, English, Math, Total"},
+		{"SAT Score (2nd Attempt)", "medium", "none", "SAT", "Record Month/Year, English, Math, Total"},
+
+		// AP
+		{"AP Exam Score", "high", "none", "AP", "Record subject and score (1-5)"},
+		{"AP Course (In-Progress)", "medium", "none", "AP", "Record current AP courses"},
+
+		// Math Competition
+		{"AMC/AIME Score", "medium", "none", "Math Competition", "Record grade level and score"},
+
+		// Extracurricular
+		{"Talents & Instruments", "low", "monthly", "Extracurricular", "Update instruments, art, etc."},
+		{"Club Activities", "low", "monthly", "Extracurricular", "E.g., National Honor Society"},
+		{"Sports", "low", "monthly", "Extracurricular", "E.g., Tennis Captain, JV"},
+		{"Leadership Roles", "low", "monthly", "Extracurricular", "E.g., ASB, Student Council"},
+		{"Volunteer Work", "low", "monthly", "Extracurricular", "E.g., Tutoring, Library, Retirement Home"},
+
+		// College Prep
+		{"Awards & Honors", "medium", "monthly", "College Prep", "Academic or non-academic awards"},
+		{"Internship Update", "medium", "none", "College Prep", "Record internship details"},
+		{"Summer Experience", "medium", "none", "College Prep", "Camps, courses, volunteering, travel"},
+		{"College Major Interest", "low", "none", "College Prep", "Potential majors and career plans"},
+
+		// Personal
+		{"Hobbies & Interests", "low", "none", "Personal", "Update hobbies and interests"},
+		{"Favorite Subjects", "low", "none", "Personal", "Current favorite subjects"},
 	}
 
 	for _, it := range globalItems {
 		db.Exec(
-			`INSERT INTO tracker_items (name, priority, recurrence, category, start_date, due_date, created_by, active)
-			 VALUES (?, ?, ?, ?, ?, NULLIF(?,''), 'admin', 1)`,
-			it.name, it.priority, it.recurrence, it.category, it.startDate, it.dueDate,
+			`INSERT INTO tracker_items (name, notes, priority, recurrence, category, created_by, active)
+			 VALUES (?, ?, ?, ?, ?, 'admin', 1)`,
+			it.name, it.notes, it.priority, it.recurrence, it.category,
 		)
 	}
 

@@ -1,9 +1,9 @@
-id,first_name,last_name,email,phone,address,notes
-P001,Wei,Wang,wei@example.com,555-1234,,
-P002,Maria,Garcia,maria@example.com,555-5678,,Prefers text messages
-P003,David,Chen,david@example.com,555-9012,,
-P004,Lisa,Taylor,lisa@example.com,555-3456,,
-P005,Robert,Miller,robert@example.com,555-7890,,Emergency: 555-7891
-P006,Jennifer,Lee,jennifer@example.com,555-2345,,
-P007,Soo,Kim,soo@example.com,555-6789,,Prefers email
-P008,Priya,Patel,priya@example.com,555-4567,,
+id,first_name,last_name,email,phone,email2,phone2,address,notes
+P001,Wei,Wang,wei@example.com,555-1234,li.wang@example.com,555-1235,,
+P002,Maria,Garcia,maria@example.com,555-5678,,,,Prefers text messages
+P003,David,Chen,david@example.com,555-9012,mei.chen@example.com,555-9013,,
+P004,Lisa,Taylor,lisa@example.com,555-3456,,,,
+P005,Robert,Miller,robert@example.com,555-7890,sarah.miller@example.com,555-7891,,Emergency: 555-7891
+P006,Jennifer,Lee,jennifer@example.com,555-2345,,,,
+P007,Soo,Kim,soo@example.com,555-6789,,,,Prefers email
+P008,Priya,Patel,priya@example.com,555-4567,,,,

@@ -31,19 +31,26 @@ type CheckinAudit struct {
 }
 
 type Student struct {
-	ID         string `json:"id"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	Grade      string `json:"grade"`
-	School     string `json:"school"`
-	ParentID   string `json:"parent_id"`
-	Email      string `json:"email"`
-	Phone      string `json:"phone"`
-	Address    string `json:"address"`
-	Notes      string `json:"notes"`
-	Active     bool   `json:"active"`
-	Deleted    bool   `json:"deleted"`
-	RequirePIN bool   `json:"require_pin"`
+	ID              string `json:"id"`
+	FirstName       string `json:"first_name"`
+	LastName        string `json:"last_name"`
+	Grade           string `json:"grade"`
+	School          string `json:"school"`
+	ParentID        string `json:"parent_id"`
+	Email           string `json:"email"`
+	Phone           string `json:"phone"`
+	Address         string `json:"address"`
+	Notes           string `json:"notes"`
+	DOB             string `json:"dob"`
+	Birthplace      string `json:"birthplace"`
+	YearsInUS       string `json:"years_in_us"`
+	FirstLanguage   string `json:"first_language"`
+	PreviousSchools string `json:"previous_schools"`
+	CoursesOutside  string `json:"courses_outside"`
+	ProfileStatus   string `json:"profile_status"`
+	Active          bool   `json:"active"`
+	Deleted         bool   `json:"deleted"`
+	RequirePIN      bool   `json:"require_pin"`
 }
 
 type Parent struct {
@@ -52,6 +59,8 @@ type Parent struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
+	Email2    string `json:"email2"`
+	Phone2    string `json:"phone2"`
 	Address   string `json:"address"`
 	Notes     string `json:"notes"`
 	Deleted   bool   `json:"deleted"`

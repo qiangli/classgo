@@ -43,15 +43,17 @@ func ExportCSVDir(dir string, data *EntityData) error {
 
 	writers := map[string]func(*csv.Writer){
 		"students.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"})
+			w.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
+				"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside", "active"})
 			for _, s := range data.Students {
-				w.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)})
+				w.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+					s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside, boolStr(s.Active)})
 			}
 		},
 		"parents.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "address", "notes"})
+			w.Write([]string{"id", "first_name", "last_name", "email", "phone", "email2", "phone2", "address", "notes"})
 			for _, p := range data.Parents {
-				w.Write([]string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes})
+				w.Write([]string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Email2, p.Phone2, p.Address, p.Notes})
 			}
 		},
 		"teachers.csv": func(w *csv.Writer) {
@@ -97,14 +99,16 @@ func boolStr(b bool) string {
 func writeStudentSheet(f *excelize.File, students []models.Student) {
 	sheet := "Students"
 	f.NewSheet(sheet)
-	headers := []string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"}
+	headers := []string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
+		"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside", "active"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, s := range students {
 		row := r + 2
-		vals := []string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)}
+		vals := []string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside, boolStr(s.Active)}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -115,14 +119,14 @@ func writeStudentSheet(f *excelize.File, students []models.Student) {
 func writeParentSheet(f *excelize.File, parents []models.Parent) {
 	sheet := "Parents"
 	f.NewSheet(sheet)
-	headers := []string{"id", "first_name", "last_name", "email", "phone", "address", "notes"}
+	headers := []string{"id", "first_name", "last_name", "email", "phone", "email2", "phone2", "address", "notes"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, p := range parents {
 		row := r + 2
-		vals := []string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Address, p.Notes}
+		vals := []string{p.ID, p.FirstName, p.LastName, p.Email, p.Phone, p.Email2, p.Phone2, p.Address, p.Notes}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -265,7 +269,10 @@ func readFromDB(db *sql.DB, includeDeleted bool) (*EntityData, error) {
 }
 
 func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
-	q := "SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes, active, deleted, COALESCE(require_pin, 0) FROM students"
+	q := `SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
+	      COALESCE(dob,''), COALESCE(birthplace,''), COALESCE(years_in_us,''), COALESCE(first_language,''),
+	      COALESCE(previous_schools,''), COALESCE(courses_outside,''), COALESCE(profile_status,''),
+	      active, deleted, COALESCE(require_pin, 0) FROM students`
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -280,7 +287,9 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 		var s models.Student
 		var active, deleted, requirePIN int
 		var grade, school, parentID, email, phone, address, notes sql.NullString
-		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes, &active, &deleted, &requirePIN); err != nil {
+		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes,
+			&s.DOB, &s.Birthplace, &s.YearsInUS, &s.FirstLanguage, &s.PreviousSchools, &s.CoursesOutside, &s.ProfileStatus,
+			&active, &deleted, &requirePIN); err != nil {
 			return nil, err
 		}
 		s.Grade = grade.String
@@ -299,7 +308,7 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 }
 
 func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
-	q := "SELECT id, first_name, last_name, email, phone, address, notes, deleted FROM parents"
+	q := "SELECT id, first_name, last_name, email, phone, COALESCE(email2,''), COALESCE(phone2,''), address, notes, deleted FROM parents"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -314,7 +323,7 @@ func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
 		var p models.Parent
 		var email, phone, address, notes sql.NullString
 		var deleted int
-		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &address, &notes, &deleted); err != nil {
+		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &p.Email2, &p.Phone2, &address, &notes, &deleted); err != nil {
 			return nil, err
 		}
 		p.Email = email.String
