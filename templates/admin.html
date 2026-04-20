@@ -69,32 +69,32 @@
         <div class="mb-4"></div>
 
         <div class="flex flex-col gap-1 w-full flex-1">
-            <a href="#checkin" onclick="navigate('checkin')" id="nav-checkin" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Check In/Out">
+            <a href="#checkin" onclick="navigate('checkin'); return false" id="nav-checkin" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Check In/Out">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Check In</span>
             </a>
-            <a href="#attendance" onclick="navigate('attendance')" id="nav-attendance" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Attendance">
+            <a href="#attendance" onclick="navigate('attendance'); return false" id="nav-attendance" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Attendance">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Attendance</span>
             </a>
-            <a href="#schedule" onclick="navigate('schedule')" id="nav-schedule" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Schedule">
+            <a href="#schedule" onclick="navigate('schedule'); return false" id="nav-schedule" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Schedule">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Schedule</span>
             </a>
 
-            <a href="#progress" onclick="navigate('progress')" id="nav-progress" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Progress">
+            <a href="#progress" onclick="navigate('progress'); return false" id="nav-progress" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Progress">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Progress</span>
             </a>
 
-            <a href="#audit" onclick="navigate('audit')" id="nav-audit" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Audit">
+            <a href="#audit" onclick="navigate('audit'); return false" id="nav-audit" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Audit">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Audit</span>
             </a>
 
             <div class="border-t border-indigo-500 mx-3 my-2"></div>
 
-            <a href="#data" onclick="navigate('data')" id="nav-data" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Data">
+            <a href="#data" onclick="navigate('data'); return false" id="nav-data" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Data">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Data</span>
             </a>
@@ -641,13 +641,26 @@
             if (section === 'schedule' && !scheduleLoaded) loadSchedule();
             if (section === 'progress') loadTrackerItems();
             if (section === 'audit') loadAuditData();
-            if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().then(() => loadDataSection()); } else { loadDataSection(); } }
+            if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
 
             history.replaceState(null, '', '#' + section);
         }
 
         const hash = location.hash.replace('#', '');
         navigate(sections.includes(hash) ? hash : 'checkin');
+
+        // Re-navigate on hash change (e.g., browser back/forward)
+        window.addEventListener('hashchange', () => {
+            const h = location.hash.replace('#', '');
+            if (sections.includes(h) && h !== currentSection) navigate(h);
+        });
+        // Handle bfcache page restoration
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                const h = location.hash.replace('#', '');
+                navigate(sections.includes(h) ? h : currentSection);
+            }
+        });
 
         // ==================== CHECK-IN / PIN ====================
         let requirePIN = {{.RequirePIN}};
