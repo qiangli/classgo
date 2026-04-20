@@ -11,13 +11,13 @@ import (
 
 const trackerItemCols = `id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(end_date,''),
 	priority, recurrence, COALESCE(category,''), COALESCE(created_by,'admin'),
-	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
+	requires_signoff, active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
 
 func scanTrackerItem(s interface{ Scan(...any) error }) (models.TrackerItem, error) {
 	var it models.TrackerItem
 	err := s.Scan(&it.ID, &it.Name, &it.Notes, &it.StartDate, &it.EndDate,
 		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy,
-		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
+		&it.RequiresSignoff, &it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
 	return it, err
 }
 
@@ -71,18 +71,18 @@ func SaveTrackerItem(db *sql.DB, item models.TrackerItem) (int64, error) {
 	if item.ID > 0 {
 		_, err := db.Exec(
 			`UPDATE tracker_items SET name=?, notes=?, start_date=?, end_date=?,
-			 priority=?, recurrence=?, category=?, active=?,
+			 priority=?, recurrence=?, category=?, requires_signoff=?, active=?,
 			 updated_at=datetime('now','localtime') WHERE id=?`,
 			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.Active, item.ID,
+			item.Priority, item.Recurrence, nullStr(item.Category), item.RequiresSignoff, item.Active, item.ID,
 		)
 		return int64(item.ID), err
 	}
 	result, err := db.Exec(
-		`INSERT INTO tracker_items (name, notes, start_date, end_date, priority, recurrence, category, created_by, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO tracker_items (name, notes, start_date, end_date, priority, recurrence, category, created_by, requires_signoff, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.Active,
+		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.RequiresSignoff, item.Active,
 	)
 	if err != nil {
 		return 0, err
@@ -171,22 +171,64 @@ func DeleteStudentTrackerItem(db *sql.DB, id int) error {
 	return err
 }
 
-// CompleteStudentTrackerItem marks a one-time task as completed.
+// CompleteStudentTrackerItem marks a one-time task as completed and records a
+// tracker_response so the completion counts toward progress stats.
 func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
-	_, err := db.Exec(
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(
 		"UPDATE student_tracker_items SET completed = 1, completed_at = datetime('now','localtime'), completed_by = ? WHERE id = ?",
 		completedBy, id,
-	)
-	return err
+	); err != nil {
+		return err
+	}
+
+	// Look up item details to create a tracker_response row
+	var studentID, itemName string
+	if err := tx.QueryRow("SELECT student_id, name FROM student_tracker_items WHERE id = ?", id).Scan(&studentID, &itemName); err != nil {
+		return err
+	}
+	var studentName string
+	tx.QueryRow("SELECT COALESCE(first_name,'')||' '||COALESCE(last_name,'') FROM students WHERE id = ?", studentID).Scan(&studentName)
+
+	if _, err := tx.Exec(
+		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, attendance_id) VALUES (?, ?, 'adhoc', ?, ?, 'done', 0)",
+		studentID, strings.TrimSpace(studentName), id, itemName,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
-// UncompleteStudentTrackerItem marks a completed task as not completed.
+// UncompleteStudentTrackerItem marks a completed task as not completed and
+// removes the dashboard-created tracker_response.
 func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
-	_, err := db.Exec(
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(
 		"UPDATE student_tracker_items SET completed = 0, completed_at = NULL, completed_by = NULL WHERE id = ?",
 		id,
-	)
-	return err
+	); err != nil {
+		return err
+	}
+	// Only remove dashboard-created responses (attendance_id=0), not checkout responses
+	if _, err := tx.Exec(
+		"DELETE FROM tracker_responses WHERE item_type = 'adhoc' AND item_id = ? AND status = 'done' AND attendance_id = 0",
+		id,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // PendingSignoffItems returns due items that require signoff and haven't been responded to today.
@@ -198,16 +240,18 @@ func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error)
 		return nil, err
 	}
 
-	// Filter: only adhoc items with requires_signoff=true
+	// Filter: only items with requires_signoff=true (both global and personal)
 	var pending []models.DueItem
 	for _, it := range allDue {
-		if it.ItemType == "adhoc" {
-			// Check requires_signoff flag
-			var reqSignoff bool
+		var reqSignoff bool
+		switch it.ItemType {
+		case "adhoc":
 			db.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
-			if reqSignoff {
-				pending = append(pending, it)
-			}
+		case "global":
+			db.QueryRow("SELECT requires_signoff FROM tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
+		}
+		if reqSignoff {
+			pending = append(pending, it)
 		}
 	}
 	return pending, nil
@@ -465,7 +509,7 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	// 1. Get all active global items
 	globalRows, err := db.Query(`
 		SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
-		FROM tracker_items WHERE active = 1 AND deleted = 0`)
+		FROM tracker_items WHERE active = 1 AND deleted = 0 AND requires_signoff = 1`)
 	if err != nil {
 		return nil, err
 	}
@@ -515,12 +559,18 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	}
 	doneArgs = append(doneArgs, startDate, endDate)
 	doneRows, err := db.Query(`
-		SELECT student_id, COALESCE(student_name,''),
-			SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_count
-		FROM tracker_responses
-		WHERE student_id IN (`+placeholders+`)
-		AND response_date >= ? AND response_date <= ?
-		GROUP BY student_id`,
+		SELECT tr.student_id, COALESCE(tr.student_name,''),
+			SUM(CASE WHEN tr.status = 'done' THEN 1 ELSE 0 END) as done_count
+		FROM tracker_responses tr
+		LEFT JOIN tracker_items ti ON tr.item_type = 'global' AND tr.item_id = ti.id
+		LEFT JOIN student_tracker_items sti ON tr.item_type = 'adhoc' AND tr.item_id = sti.id
+		WHERE tr.student_id IN (`+placeholders+`)
+		AND tr.response_date >= ? AND tr.response_date <= ?
+		AND (
+			(tr.item_type = 'global' AND COALESCE(ti.requires_signoff, 1) = 1)
+			OR (tr.item_type = 'adhoc' AND COALESCE(sti.requires_signoff, 1) = 1)
+		)
+		GROUP BY tr.student_id`,
 		doneArgs...,
 	)
 	if err != nil {
@@ -550,7 +600,7 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		stiRows, err := db.Query(`
 			SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
 			FROM student_tracker_items
-			WHERE student_id = ? AND active = 1 AND deleted = 0 AND completed = 0`, sid)
+			WHERE student_id = ? AND active = 1 AND deleted = 0 AND completed = 0 AND requires_signoff = 1`, sid)
 		if err != nil {
 			return nil, err
 		}

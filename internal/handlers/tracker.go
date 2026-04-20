@@ -136,10 +136,19 @@ func (a *App) HandleTrackerItems(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, items)
 
 	case http.MethodPost:
-		var item models.TrackerItem
-		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		var req struct {
+			models.TrackerItem
+			RequiresSignoff *bool `json:"requires_signoff"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
 			return
+		}
+		item := req.TrackerItem
+		if req.RequiresSignoff != nil {
+			item.RequiresSignoff = *req.RequiresSignoff
+		} else {
+			item.RequiresSignoff = true // default for new items
 		}
 		if item.Name == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Name is required"})
@@ -250,6 +259,9 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 		}
 		if item.Recurrence == "" {
 			item.Recurrence = "none"
+		}
+		if item.ID == 0 {
+			item.Active = true // default for new items
 		}
 		// Enforce ownership: check session
 		sess := a.GetSession(r)
@@ -369,15 +381,16 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		StudentIDs []string `json:"student_ids"`
-		ScheduleID string   `json:"schedule_id"`
-		Name       string   `json:"name"`
-		Notes      string   `json:"notes"`
-		StartDate  string   `json:"start_date"`
-		EndDate    string   `json:"end_date"`
-		Priority   string   `json:"priority"`
-		Recurrence string   `json:"recurrence"`
-		Category   string   `json:"category"`
+		StudentIDs      []string `json:"student_ids"`
+		ScheduleID      string   `json:"schedule_id"`
+		Name            string   `json:"name"`
+		Notes           string   `json:"notes"`
+		StartDate       string   `json:"start_date"`
+		EndDate         string   `json:"end_date"`
+		Priority        string   `json:"priority"`
+		Recurrence      string   `json:"recurrence"`
+		Category        string   `json:"category"`
+		RequiresSignoff *bool    `json:"requires_signoff"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
@@ -415,17 +428,22 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	requiresSignoff := true
+	if req.RequiresSignoff != nil {
+		requiresSignoff = *req.RequiresSignoff
+	}
 	item := models.StudentTrackerItem{
-		Name:       req.Name,
-		Notes:      req.Notes,
-		StartDate:  req.StartDate,
-		EndDate:    req.EndDate,
-		Priority:   req.Priority,
-		Recurrence: req.Recurrence,
-		Category:   req.Category,
-		CreatedBy:  createdBy,
-		OwnerType:  ownerType,
-		Active:     true,
+		Name:            req.Name,
+		Notes:           req.Notes,
+		StartDate:       req.StartDate,
+		EndDate:         req.EndDate,
+		Priority:        req.Priority,
+		Recurrence:      req.Recurrence,
+		Category:        req.Category,
+		CreatedBy:       createdBy,
+		OwnerType:       ownerType,
+		RequiresSignoff: requiresSignoff,
+		Active:          true,
 	}
 	if item.Priority == "" {
 		item.Priority = "medium"

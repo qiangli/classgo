@@ -58,8 +58,8 @@ func SeedSampleData(db *sql.DB) {
 
 	for _, it := range globalItems {
 		db.Exec(
-			`INSERT INTO tracker_items (name, notes, priority, recurrence, category, created_by, active)
-			 VALUES (?, ?, ?, ?, ?, 'admin', 1)`,
+			`INSERT INTO tracker_items (name, notes, priority, recurrence, category, created_by, requires_signoff, active)
+			 VALUES (?, ?, ?, ?, ?, 'admin', 0, 1)`,
 			it.name, it.notes, it.priority, it.recurrence, it.category,
 		)
 	}

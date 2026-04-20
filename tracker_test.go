@@ -83,7 +83,7 @@ func TestGlobalTrackerItem_CRUD(t *testing.T) {
 
 	// Create a global item
 	id, err := database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Daily Math Quiz", Priority: "high", Recurrence: "daily", Category: "Math", Active: true,
+		Name: "Daily Math Quiz", Priority: "high", Recurrence: "daily", Category: "Math", RequiresSignoff: true, Active: true,
 	})
 	if err != nil {
 		t.Fatalf("SaveTrackerItem: %v", err)
@@ -578,7 +578,7 @@ func TestDueItems_RecurrenceFiltering(t *testing.T) {
 
 	// Create a global daily item
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Daily Warmup", Priority: "medium", Recurrence: "daily", Active: true,
+		Name: "Daily Warmup", Priority: "medium", Recurrence: "daily", RequiresSignoff: true, Active: true,
 	})
 	// Create a one-time student item
 	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
@@ -612,11 +612,11 @@ func TestAllTasksForStudent(t *testing.T) {
 
 	// Create a global item
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Global Task", Priority: "medium", Recurrence: "daily", Active: true,
+		Name: "Global Task", Priority: "medium", Recurrence: "daily", RequiresSignoff: true, Active: true,
 	})
 	// Create a student-specific item
 	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
-		StudentID: "S001", Name: "Student Task", Priority: "low", Recurrence: "none", Active: true,
+		StudentID: "S001", Name: "Student Task", Priority: "low", Recurrence: "none", RequiresSignoff: true, Active: true,
 	})
 
 	req := reqWithSession("GET", "/api/dashboard/all-tasks?student_id=S001", "", app, "user", "student", "S001")
@@ -708,7 +708,7 @@ func TestProgress_ExpectedBased_DailyItem(t *testing.T) {
 	// Create a daily global item active for a known 5-day range
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Daily Check", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-04-13", EndDate: "2026-04-17", Active: true,
+		StartDate: "2026-04-13", EndDate: "2026-04-17", RequiresSignoff: true, Active: true,
 	})
 
 	// Student S001 responds "done" on 3 of the 5 days
@@ -746,7 +746,7 @@ func TestProgress_ExpectedBased_WeeklyItem(t *testing.T) {
 	// Create a weekly item spanning 2 weeks (Mon Apr 13 - Sun Apr 26 = 2 ISO weeks)
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Weekly Review", Priority: "medium", Recurrence: "weekly",
-		StartDate: "2026-04-13", EndDate: "2026-04-26", Active: true,
+		StartDate: "2026-04-13", EndDate: "2026-04-26", RequiresSignoff: true, Active: true,
 	})
 
 	// Student responds in week 1 only
@@ -779,7 +779,7 @@ func TestProgress_ExpectedBased_MonthlyItem(t *testing.T) {
 	// Monthly item spanning 2 months
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Monthly Report", Priority: "low", Recurrence: "monthly",
-		StartDate: "2026-03-15", EndDate: "2026-04-30", Active: true,
+		StartDate: "2026-03-15", EndDate: "2026-04-30", RequiresSignoff: true, Active: true,
 	})
 
 	// Student responds in both months
@@ -811,7 +811,7 @@ func TestProgress_ExpectedBased_OneTimeItem(t *testing.T) {
 	// One-time item with a date window
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Submit Application", Priority: "high", Recurrence: "none",
-		StartDate: "2026-04-10", EndDate: "2026-04-20", Active: true,
+		StartDate: "2026-04-10", EndDate: "2026-04-20", RequiresSignoff: true, Active: true,
 	})
 
 	// Student does NOT respond — should have 0/1 completion
@@ -840,7 +840,7 @@ func TestProgress_NoDateConstraints(t *testing.T) {
 
 	// Daily item with no start/end dates — always active
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Open-ended Daily", Priority: "medium", Recurrence: "daily", Active: true,
+		Name: "Open-ended Daily", Priority: "medium", Recurrence: "daily", RequiresSignoff: true, Active: true,
 	})
 
 	// Query a 3-day range
@@ -864,7 +864,7 @@ func TestProgress_StartDateOnly(t *testing.T) {
 	// Daily item starting Apr 19, querying Apr 18-20 — only active on 19 and 20
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Late Start", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-04-19", Active: true,
+		StartDate: "2026-04-19", RequiresSignoff: true, Active: true,
 	})
 
 	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
@@ -884,7 +884,7 @@ func TestProgress_EndDateOnly(t *testing.T) {
 	// Daily item ending Apr 19, querying Apr 18-20 — active on 18 and 19
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Early End", Priority: "medium", Recurrence: "daily",
-		EndDate: "2026-04-19", Active: true,
+		EndDate: "2026-04-19", RequiresSignoff: true, Active: true,
 	})
 
 	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
@@ -904,12 +904,12 @@ func TestProgress_StudentSpecificItems(t *testing.T) {
 	// Global daily item
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Global Task", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+		StartDate: "2026-04-18", EndDate: "2026-04-20", RequiresSignoff: true, Active: true,
 	})
 	// Student-specific daily item for S001 only
 	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
 		StudentID: "S001", Name: "Personal Task", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+		StartDate: "2026-04-18", EndDate: "2026-04-20", RequiresSignoff: true, Active: true,
 	})
 
 	// S001 should have 6 expected (3 global + 3 student)
@@ -940,7 +940,7 @@ func TestProgress_MultipleStudents(t *testing.T) {
 	// One global daily item, 2-day range
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Daily", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-04-18", EndDate: "2026-04-19", Active: true,
+		StartDate: "2026-04-18", EndDate: "2026-04-19", RequiresSignoff: true, Active: true,
 	})
 
 	// S001 does 2/2, S002 does 1/2
@@ -981,7 +981,7 @@ func TestProgress_DoneCappedAtExpected(t *testing.T) {
 	// One-time item
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "One Shot", Priority: "medium", Recurrence: "none",
-		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+		StartDate: "2026-04-18", EndDate: "2026-04-20", RequiresSignoff: true, Active: true,
 	})
 
 	// Student responds done multiple times (shouldn't exceed 100%)
@@ -1012,11 +1012,11 @@ func TestProgress_InactiveItemsExcluded(t *testing.T) {
 
 	// Active item
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Active Task", Priority: "medium", Recurrence: "daily", Active: true,
+		Name: "Active Task", Priority: "medium", Recurrence: "daily", RequiresSignoff: true, Active: true,
 	})
 	// Inactive item — should not count toward expected
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
-		Name: "Inactive Task", Priority: "medium", Recurrence: "daily", Active: false,
+		Name: "Inactive Task", Priority: "medium", Recurrence: "daily", RequiresSignoff: true, Active: false,
 	})
 
 	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
@@ -1036,7 +1036,7 @@ func TestProgress_OutsideDateWindow(t *testing.T) {
 	// Item with start/end outside the query range
 	database.SaveTrackerItem(app.DB, models.TrackerItem{
 		Name: "Past Item", Priority: "medium", Recurrence: "daily",
-		StartDate: "2026-03-01", EndDate: "2026-03-10", Active: true,
+		StartDate: "2026-03-01", EndDate: "2026-03-10", RequiresSignoff: true, Active: true,
 	})
 
 	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
@@ -1143,6 +1143,207 @@ func TestProgress_API_EndDateField(t *testing.T) {
 	// Verify no due_date key exists
 	if _, ok := items[0]["due_date"]; ok {
 		t.Error("API should return end_date, not due_date")
+	}
+}
+
+// ==================== REQUIRES_SIGNOFF TESTS ====================
+
+func TestGlobalItem_RequiresSignoff_BlocksCheckout(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+	app.PinMode = "off"
+	app.SetRequirePIN(false)
+
+	// Create a global item with requires_signoff=true
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Must Sign Off", Priority: "high", Recurrence: "daily",
+		RequiresSignoff: true, Active: true,
+	})
+
+	// Check in student S001
+	app.DB.Exec(`INSERT INTO attendance (student_name, student_id, check_in_time) VALUES ('Alice', 'S001', datetime('now','localtime'))`)
+
+	// Attempt checkout — should be blocked
+	pending, _ := database.PendingSignoffItems(app.DB, "S001")
+	if len(pending) == 0 {
+		t.Fatal("expected global item with requires_signoff=true to block checkout")
+	}
+	if pending[0].ItemType != "global" {
+		t.Errorf("expected item_type=global, got %s", pending[0].ItemType)
+	}
+}
+
+func TestGlobalItem_NoSignoff_DoesNotBlockCheckout(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a global item with requires_signoff=false
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Informational", Priority: "medium", Recurrence: "daily",
+		RequiresSignoff: false, Active: true,
+	})
+
+	pending, _ := database.PendingSignoffItems(app.DB, "S001")
+	if len(pending) != 0 {
+		t.Errorf("expected no pending items for requires_signoff=false, got %d", len(pending))
+	}
+}
+
+func TestProgress_ExcludesNonSignoffItems(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create global item with requires_signoff=false — should NOT count
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Info Only", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-18", EndDate: "2026-04-20",
+		RequiresSignoff: false, Active: true,
+	})
+	// Create global item with requires_signoff=true — should count
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Required", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-18", EndDate: "2026-04-20",
+		RequiresSignoff: true, Active: true,
+	})
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	// Only the "Required" item should count: 3 days of daily
+	if s.TotalItems != 3 {
+		t.Errorf("expected 3 expected items (only signoff items), got %d", s.TotalItems)
+	}
+}
+
+func TestCompleteStudentItem_CreatesTrackerResponse(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a student-specific item
+	id, _ := database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
+		StudentID: "S001", Name: "Finish Essay", Priority: "high",
+		Recurrence: "none", RequiresSignoff: true, Active: true,
+	})
+
+	// Complete it
+	err := database.CompleteStudentTrackerItem(app.DB, int(id), "teacher1")
+	if err != nil {
+		t.Fatalf("CompleteStudentTrackerItem: %v", err)
+	}
+
+	// Verify tracker_responses row was created
+	var count int
+	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='adhoc' AND item_id=? AND status='done'`, id).Scan(&count)
+	if count != 1 {
+		t.Errorf("expected 1 tracker_response row after completion, got %d", count)
+	}
+}
+
+func TestUncompleteStudentItem_RemovesTrackerResponse(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	id, _ := database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
+		StudentID: "S001", Name: "Finish Essay", Priority: "high",
+		Recurrence: "none", RequiresSignoff: true, Active: true,
+	})
+
+	// Complete then uncomplete
+	database.CompleteStudentTrackerItem(app.DB, int(id), "teacher1")
+	err := database.UncompleteStudentTrackerItem(app.DB, int(id))
+	if err != nil {
+		t.Fatalf("UncompleteStudentTrackerItem: %v", err)
+	}
+
+	// Verify tracker_responses row was removed
+	var count int
+	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='adhoc' AND item_id=? AND status='done' AND attendance_id=0`, id).Scan(&count)
+	if count != 0 {
+		t.Errorf("expected 0 tracker_response rows after uncomplete, got %d", count)
+	}
+}
+
+func TestBulkAssign_RequiresSignoff(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Bulk assign with requires_signoff=false
+	req := reqWithSession("POST", "/api/dashboard/bulk-assign",
+		`{"student_ids":["S001","S002"],"name":"Optional Task","requires_signoff":false}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleTrackerBulkAssign, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("bulk assign failed: %v", resp)
+	}
+
+	// Verify items were created with requires_signoff=false
+	var reqSignoff int
+	app.DB.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE student_id='S001' AND name='Optional Task'").Scan(&reqSignoff)
+	if reqSignoff != 0 {
+		t.Errorf("expected requires_signoff=0, got %d", reqSignoff)
+	}
+
+	// Bulk assign without requires_signoff (should default to true)
+	req = reqWithSession("POST", "/api/dashboard/bulk-assign",
+		`{"student_ids":["S001"],"name":"Required Task"}`,
+		app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerBulkAssign, req)
+	resp = mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("bulk assign failed: %v", resp)
+	}
+
+	app.DB.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE student_id='S001' AND name='Required Task'").Scan(&reqSignoff)
+	if reqSignoff != 1 {
+		t.Errorf("expected requires_signoff=1 (default), got %d", reqSignoff)
+	}
+}
+
+func TestGlobalItem_RequiresSignoff_RoundTrip(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create with requires_signoff=false via API
+	req := reqWithSession("POST", "/api/v1/tracker/items",
+		`{"name":"Info Item","priority":"low","recurrence":"daily","requires_signoff":false}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleTrackerItems, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("create failed: %v", resp)
+	}
+
+	// Read back and verify
+	req = reqWithSession("GET", "/api/v1/tracker/items", "", app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerItems, req)
+	items := mustDecodeArray(t, w)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0]["requires_signoff"] != false {
+		t.Errorf("expected requires_signoff=false, got %v", items[0]["requires_signoff"])
+	}
+
+	// Create with requires_signoff=true
+	req = reqWithSession("POST", "/api/v1/tracker/items",
+		`{"name":"Required Item","priority":"high","recurrence":"daily","requires_signoff":true}`,
+		app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerItems, req)
+
+	req = reqWithSession("GET", "/api/v1/tracker/items", "", app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerItems, req)
+	items = mustDecodeArray(t, w)
+	found := false
+	for _, it := range items {
+		if it["name"] == "Required Item" && it["requires_signoff"] == true {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected to find Required Item with requires_signoff=true")
 	}
 }
 

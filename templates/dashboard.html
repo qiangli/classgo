@@ -71,47 +71,47 @@
 
         <div class="flex flex-col gap-1 w-full flex-1">
             <!-- Tasks (all roles) -->
-            <a href="#tasks" onclick="navigate('tasks')" id="nav-tasks" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Tasks">
+            <div onclick="navigate('tasks')" id="nav-tasks" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Tasks">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Tasks</span>
-            </a>
+            </div>
 
             <!-- My Items (all roles) -->
-            <a href="#my-items" onclick="navigate('my-items')" id="nav-my-items" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Items">
+            <div onclick="navigate('my-items')" id="nav-my-items" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Items">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">My Items</span>
-            </a>
+            </div>
 
             {{if eq .UserType "teacher"}}
             <!-- Classes (teacher only) -->
-            <a href="#classes" onclick="navigate('classes')" id="nav-classes" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Classes">
+            <div onclick="navigate('classes')" id="nav-classes" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Classes">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Classes</span>
-            </a>
+            </div>
             <!-- Students (teacher only) -->
-            <a href="#students" onclick="navigate('students')" id="nav-students" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Students">
+            <div onclick="navigate('students')" id="nav-students" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Students">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Students</span>
-            </a>
+            </div>
             {{end}}
 
             <!-- Progress (all roles) -->
-            <a href="#progress" onclick="navigate('progress')" id="nav-progress" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Progress">
+            <div onclick="navigate('progress')" id="nav-progress" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Progress">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Progress</span>
-            </a>
+            </div>
             <!-- Profile (all roles) -->
-            <a href="#profile" onclick="navigate('profile')" id="nav-profile" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Profile">
+            <div onclick="navigate('profile')" id="nav-profile" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Profile">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Profile</span>
-            </a>
+            </div>
         </div>
 
         <div class="flex flex-col gap-1 w-full mt-auto">
-            <a href="#memos" onclick="navigate('memos')" id="nav-memos" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-300 cursor-pointer rounded-r-lg" title="Memos">
+            <div onclick="navigate('memos')" id="nav-memos" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-300 cursor-pointer rounded-r-lg" title="Memos">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Memos</span>
-            </a>
+            </div>
         </div>
     </nav>
 
@@ -402,16 +402,28 @@
     {{if eq .UserType "teacher"}}
     <!-- Bulk Assign Modal -->
     <div id="bulk-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-4 border-b">
-                <h3 class="text-lg font-semibold text-gray-800">Assign to Class</h3>
+                <h3 class="text-lg font-semibold text-gray-800">Assign to Students</h3>
                 <button onclick="closeBulkModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <div class="px-6 py-4 space-y-3">
+                <!-- Student Selection -->
                 <div>
-                    <label class="block text-sm text-gray-600 mb-1">Class</label>
-                    <select id="bulk-class" class="w-full px-3 py-2 border rounded-lg text-sm outline-none"></select>
+                    <label class="block text-sm text-gray-600 mb-1">Class (quick-fill)</label>
+                    <select id="bulk-class" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                        <option value="">-- Select a class --</option>
+                    </select>
                 </div>
+                <div class="relative">
+                    <label class="block text-sm text-gray-600 mb-1">Add Students</label>
+                    <input type="text" id="bulk-student-search" placeholder="Search by name or ID..."
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none" autocomplete="off">
+                    <div id="bulk-student-results" class="hidden absolute bg-white dark:bg-gray-700 border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20 w-full"></div>
+                </div>
+                <div id="bulk-selected-students" class="flex flex-wrap gap-1.5 min-h-[2rem]"></div>
+                <hr class="border-gray-200">
+                <!-- Task Fields -->
                 <div>
                     <label class="block text-sm text-gray-600 mb-1">Task Name <span class="text-red-400">*</span></label>
                     <input type="text" id="bulk-name" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
@@ -422,9 +434,15 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
+                        <label class="block text-sm text-gray-600 mb-1">Start Date</label>
+                        <input type="date" id="bulk-start-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                    </div>
+                    <div>
                         <label class="block text-sm text-gray-600 mb-1">End Date</label>
                         <input type="date" id="bulk-end-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
                     </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm text-gray-600 mb-1">Priority</label>
                         <select id="bulk-priority" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
@@ -432,6 +450,27 @@
                             <option value="medium" selected>Medium</option>
                             <option value="high">High</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Recurrence</label>
+                        <select id="bulk-recurrence" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                            <option value="none" selected>One-time</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Category</label>
+                        <input type="text" id="bulk-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Homework">
+                    </div>
+                    <div class="flex items-end pb-1">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" id="bulk-requires-signoff" checked class="rounded">
+                            Requires sign-off
+                        </label>
                     </div>
                 </div>
             </div>
@@ -492,6 +531,7 @@
 
         function navigate(section) {
             currentSection = section;
+            history.replaceState(null, '', '#' + section);
             sections.forEach(s => {
                 const el = document.getElementById('section-' + s);
                 if (el) el.classList.toggle('hidden', s !== section);
@@ -871,14 +911,85 @@
         }
 
         // ==================== BULK ASSIGN ====================
+        let bulkSelectedStudents = {}; // {id: name}
+        let bulkSearchTimeout = null;
+
         function openBulkAssignModal() {
+            bulkSelectedStudents = {};
             const sel = document.getElementById('bulk-class');
-            sel.innerHTML = classData.map(c => `<option value="${c.id}">${c.day_of_week} ${c.start_time} - ${esc(c.subject || 'Class')}</option>`).join('');
+            sel.innerHTML = '<option value="">-- Select a class --</option>' +
+                classData.map(c => `<option value="${c.id}">${c.day_of_week} ${c.start_time} - ${esc(c.subject || 'Class')}</option>`).join('');
+            sel.onchange = function() {
+                if (!this.value) return;
+                const cls = classData.find(c => String(c.id) === this.value);
+                if (cls && cls.students) {
+                    for (const s of cls.students) {
+                        bulkSelectedStudents[s.id] = s.name;
+                    }
+                    renderBulkStudentChips();
+                }
+            };
+            document.getElementById('bulk-student-search').value = '';
             document.getElementById('bulk-name').value = '';
             document.getElementById('bulk-notes').value = '';
+            document.getElementById('bulk-start-date').value = '';
             document.getElementById('bulk-end-date').value = '';
             document.getElementById('bulk-priority').value = 'medium';
+            document.getElementById('bulk-recurrence').value = 'none';
+            document.getElementById('bulk-category').value = '';
+            document.getElementById('bulk-requires-signoff').checked = true;
+            renderBulkStudentChips();
             document.getElementById('bulk-modal').classList.remove('hidden');
+
+            // Setup student search
+            const searchInput = document.getElementById('bulk-student-search');
+            searchInput.oninput = function() {
+                const q = this.value.trim();
+                clearTimeout(bulkSearchTimeout);
+                if (!q || q.length < 2) { document.getElementById('bulk-student-results').classList.add('hidden'); return; }
+                bulkSearchTimeout = setTimeout(async () => {
+                    try {
+                        const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                        const students = await res.json();
+                        const div = document.getElementById('bulk-student-results');
+                        if (!students.length) { div.classList.add('hidden'); return; }
+                        div.innerHTML = students.map(s =>
+                            `<div class="px-4 py-2 hover:bg-indigo-50 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                                onclick="addBulkStudent('${esc(s.id)}', '${esc(s.first_name + ' ' + s.last_name)}')">
+                                ${esc(s.first_name + ' ' + s.last_name)} <span class="text-gray-400">${esc(s.id)}</span>
+                            </div>`
+                        ).join('');
+                        div.classList.remove('hidden');
+                    } catch(e) {}
+                }, 300);
+            };
+        }
+
+        function addBulkStudent(id, name) {
+            bulkSelectedStudents[id] = name;
+            renderBulkStudentChips();
+            document.getElementById('bulk-student-search').value = '';
+            document.getElementById('bulk-student-results').classList.add('hidden');
+        }
+
+        function removeBulkStudent(id) {
+            delete bulkSelectedStudents[id];
+            renderBulkStudentChips();
+        }
+
+        function renderBulkStudentChips() {
+            const container = document.getElementById('bulk-selected-students');
+            const ids = Object.keys(bulkSelectedStudents);
+            if (ids.length === 0) {
+                container.innerHTML = '<span class="text-xs text-gray-400 py-1">No students selected</span>';
+                return;
+            }
+            container.innerHTML = ids.map(id =>
+                `<span class="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs px-2 py-1 rounded-full">
+                    ${esc(bulkSelectedStudents[id])}
+                    <button onclick="removeBulkStudent('${esc(id)}')" class="text-indigo-400 hover:text-indigo-600">&times;</button>
+                </span>`
+            ).join('');
         }
 
         function closeBulkModal() { document.getElementById('bulk-modal').classList.add('hidden'); }
@@ -886,17 +997,24 @@
         async function submitBulkAssign() {
             const name = document.getElementById('bulk-name').value.trim();
             if (!name) { alert('Name is required'); return; }
+            const studentIDs = Object.keys(bulkSelectedStudents);
+            const scheduleID = document.getElementById('bulk-class').value;
+            if (studentIDs.length === 0 && !scheduleID) { alert('Select at least one student or a class'); return; }
             try {
                 await fetch('/api/dashboard/bulk-assign', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        schedule_id: document.getElementById('bulk-class').value,
+                        student_ids: studentIDs.length > 0 ? studentIDs : undefined,
+                        schedule_id: studentIDs.length > 0 ? undefined : scheduleID,
                         name: name,
                         notes: document.getElementById('bulk-notes').value.trim(),
+                        start_date: document.getElementById('bulk-start-date').value,
                         end_date: document.getElementById('bulk-end-date').value,
                         priority: document.getElementById('bulk-priority').value,
-                        recurrence: 'none'
+                        recurrence: document.getElementById('bulk-recurrence').value,
+                        category: document.getElementById('bulk-category').value.trim(),
+                        requires_signoff: document.getElementById('bulk-requires-signoff').checked
                     })
                 });
                 closeBulkModal();
