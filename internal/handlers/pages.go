@@ -27,7 +27,7 @@ func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 		ServerURLIP:   ipURL,
 		ServerURLMDNS: mdnsURL,
 	}
-	a.Tmpl.ExecuteTemplate(w, "mobile.html", data)
+	a.Tmpl.ExecuteTemplate(w, "entry.html", data)
 }
 
 func (a *App) HandleKiosk(w http.ResponseWriter, r *http.Request) {

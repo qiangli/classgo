@@ -150,19 +150,29 @@ func TestSignup_DuplicateAccount(t *testing.T) {
 	}
 }
 
-func TestSignup_StudentNotFound(t *testing.T) {
+func TestSignup_NewStudentAutoCreated(t *testing.T) {
 	app, cleanup := setupSignupTest(t)
 	defer cleanup()
 
+	// Signup with a name not in the system — should auto-create a new student
 	w := signupJSON(app, `{"action":"signup","first_name":"Nobody","last_name":"Here","password":"pass1234"}`)
 	resp := mustDecode(t, w)
 
-	if resp["ok"] == true {
-		t.Fatal("signup with unknown name should fail")
+	if resp["ok"] != true {
+		t.Fatalf("signup for new student should succeed: %v", resp)
 	}
-	errMsg, _ := resp["error"].(string)
-	if !strings.Contains(strings.ToLower(errMsg), "no student found") {
-		t.Errorf("expected 'no student found' error, got: %s", errMsg)
+	if resp["redirect"] != "/profile" {
+		t.Errorf("expected redirect to /profile, got %v", resp["redirect"])
+	}
+
+	// Verify student record was created in the database
+	var id, firstName, lastName string
+	err := app.DB.QueryRow("SELECT id, first_name, last_name FROM students WHERE LOWER(first_name) = 'nobody' AND LOWER(last_name) = 'here'").Scan(&id, &firstName, &lastName)
+	if err != nil {
+		t.Fatal("expected new student record to be created in DB")
+	}
+	if id == "" {
+		t.Error("expected auto-generated student ID")
 	}
 }
 

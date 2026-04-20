@@ -89,25 +89,9 @@ func (a *App) saveStudentProfile(w http.ResponseWriter, r *http.Request) {
 
 // ==================== USER PROFILE (new) ====================
 
-// HandleUserProfilePage serves the student/parent profile form page.
+// HandleUserProfilePage redirects to the unified dashboard profile section.
 func (a *App) HandleUserProfilePage(w http.ResponseWriter, r *http.Request) {
-	sess := a.GetSession(r)
-	if sess == nil {
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-	studentID := a.resolveStudentID(sess, r)
-	if studentID == "" {
-		http.Error(w, "No student profile available", http.StatusBadRequest)
-		return
-	}
-	data := struct {
-		AppName   string
-		UserType  string
-		EntityID  string
-		StudentID string
-	}{a.AppName, sess.UserType, sess.EntityID, studentID}
-	a.Tmpl.ExecuteTemplate(w, "user_profile.html", data)
+	http.Redirect(w, r, "/dashboard#profile", http.StatusFound)
 }
 
 // HandleUserProfile handles GET/POST for user-facing profile (RequireAuth).

@@ -7,11 +7,10 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <script>
-        // Apply saved theme before paint to prevent flash
-        (function() {
-            const saved = localStorage.getItem('admin-theme') || 'system';
-            const isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) document.documentElement.classList.add('dark');
+        (function(){
+            var t=localStorage.getItem('classgo-theme')||localStorage.getItem('admin-theme')||'system';
+            if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))
+                document.documentElement.classList.add('dark');
         })();
     </script>
     <style>
@@ -1580,36 +1579,7 @@
             if (!e.target.closest('#att-filter-search-wrap')) document.getElementById('att-filter-results').classList.add('hidden');
         });
 
-        // ==================== THEME ====================
-        const themeOrder = ['system', 'light', 'dark'];
-        const themeIcons = {
-            system: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>',
-            light: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>',
-            dark: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>'
-        };
-        const themeLabels = { system: 'System', light: 'Light', dark: 'Dark' };
-
-        function applyTheme(theme) {
-            const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            document.documentElement.classList.toggle('dark', isDark);
-            document.getElementById('theme-icon').innerHTML = themeIcons[theme];
-            document.getElementById('theme-label').textContent = themeLabels[theme];
-        }
-
-        function cycleTheme() {
-            const current = localStorage.getItem('admin-theme') || 'system';
-            const next = themeOrder[(themeOrder.indexOf(current) + 1) % themeOrder.length];
-            localStorage.setItem('admin-theme', next);
-            applyTheme(next);
-        }
-
-        // Listen for OS theme changes when in system mode
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-            if ((localStorage.getItem('admin-theme') || 'system') === 'system') applyTheme('system');
-        });
-
-        // Initialize theme UI
-        applyTheme(localStorage.getItem('admin-theme') || 'system');
     </script>
+    <script src="/static/js/theme.js"></script>
 </body>
 </html>

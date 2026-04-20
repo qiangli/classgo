@@ -98,7 +98,7 @@ func (a *App) RequireAdminAPI(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// HandleLogin serves the login page and processes login.
+// HandleLogin redirects to the unified entry page with mode=login.
 func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		token := auth.GetSessionToken(r)
@@ -112,10 +112,7 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		a.Tmpl.ExecuteTemplate(w, "login.html", map[string]any{
-			"AppName": a.AppName,
-			"Error":   r.URL.Query().Get("error"),
-		})
+		http.Redirect(w, r, "/?mode=login", http.StatusFound)
 		return
 	}
 
@@ -183,7 +180,7 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		name, email := a.lookupEntity(req.EntityID)
 		if name == "" {
-			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "User not found"})
+			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "User not found"})
 			return
 		}
 		username := strings.ToLower(req.EntityID)
@@ -221,7 +218,7 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
 
 	case "signup":
-		// Signup by name: match student by first+last name, create account
+		// Signup by name: find or create student, then create login account
 		if req.FirstName == "" || req.LastName == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "First name and last name are required"})
 			return
@@ -230,18 +227,21 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Password must be at least 4 characters"})
 			return
 		}
-		// Find student by name
+		// Find existing student by name, or create a new one
 		entityID := a.findEntityByName(req.FirstName, req.LastName)
 		if entityID == "" {
-			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "No student found with that name. Please check with your administrator."})
-			return
+			entityID = a.createStudent(req.FirstName, req.LastName)
+			if entityID == "" {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to create student record"})
+				return
+			}
 		}
-		// Check if already has an account
+		// Check if already has an account — means they should log in (or reset password via admin)
 		username := strings.ToLower(entityID)
 		ctx := context.Background()
 		existingUser, _ := a.MemosStore.GetUser(ctx, &memosstore.FindUser{Username: &username})
 		if existingUser != nil && existingUser.PasswordHash != "" {
-			writeJSON(w, http.StatusConflict, map[string]any{"ok": false, "error": "Account already exists. Please use Log In instead."})
+			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "Account already exists. If you forgot your password, please check with your administrator."})
 			return
 		}
 		// Create account
@@ -329,6 +329,29 @@ func (a *App) lookupEntity(entityID string) (name, email string) {
 		}
 	}
 	return "", ""
+}
+
+// createStudent inserts a new student with an auto-generated ID and returns the ID.
+func (a *App) createStudent(firstName, lastName string) string {
+	// Generate next student ID: find max numeric suffix and increment
+	var maxID string
+	a.DB.QueryRow("SELECT id FROM students WHERE id LIKE 'S%' ORDER BY CAST(SUBSTR(id, 2) AS INTEGER) DESC LIMIT 1").Scan(&maxID)
+	nextNum := 1
+	if maxID != "" {
+		fmt.Sscanf(maxID[1:], "%d", &nextNum)
+		nextNum++
+	}
+	newID := fmt.Sprintf("S%03d", nextNum)
+	_, err := a.DB.Exec(
+		"INSERT INTO students (id, first_name, last_name, active) VALUES (?, ?, ?, 1)",
+		newID, firstName, lastName,
+	)
+	if err != nil {
+		log.Printf("createStudent error: %v", err)
+		return ""
+	}
+	log.Printf("Created new student: %s %s (%s)", firstName, lastName, newID)
+	return newID
 }
 
 // findEntityByName searches students, parents, teachers by first+last name and returns the entity ID.

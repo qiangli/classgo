@@ -7,10 +7,10 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <script>
-        (function() {
-            const saved = localStorage.getItem('admin-theme') || 'system';
-            const isDark = saved === 'dark' || (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) document.documentElement.classList.add('dark');
+        (function(){
+            var t=localStorage.getItem('classgo-theme')||localStorage.getItem('admin-theme')||'system';
+            if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))
+                document.documentElement.classList.add('dark');
         })();
     </script>
     <style>

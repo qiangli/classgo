@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.AppName}}</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script>
+        (function(){
+            var t=localStorage.getItem('classgo-theme')||'system';
+            if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))
+                document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <script src="/static/js/fingerprint.js"></script>
+    <style>
+        .dark body { color: #e5e7eb; }
+        .dark input[type="text"], .dark input[type="password"], .dark input[type="search"],
+        .dark select, .dark textarea {
+            background-color: #1f2937; color: #e5e7eb; border-color: #4b5563;
+        }
+        .dark input::placeholder { color: #6b7280; }
+        .dark .border-gray-200, .dark .border-gray-300 { border-color: #374151; }
+        .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .tab-btn { transition: all 0.15s ease; }
+        .tab-btn.active { border-color: #6366f1; color: #4f46e5; }
+        .dark .tab-btn.active { color: #a5b4fc; border-color: #818cf8; }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-indigo-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen flex items-center justify-center p-4">
+
+    <!-- PIN Setup Modal -->
+    <div id="pin-setup-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 text-center mb-2">Create Your PIN</h3>
+            <p class="text-sm text-gray-500 text-center mb-4">Choose a 4-digit PIN for check-in</p>
+            <input type="password" id="pin-setup-1" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-3 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="PIN">
+            <input type="password" id="pin-setup-2" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                class="w-full px-4 py-3 border rounded-xl text-center text-2xl tracking-widest mb-4 outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Confirm PIN">
+            <button onclick="submitPINSetup()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Set PIN</button>
+            <p id="pin-setup-error" class="hidden text-red-500 text-sm text-center mt-2"></p>
+        </div>
+    </div>
+
+    <!-- Success Overlay -->
+    <div id="success-overlay" class="hidden fixed inset-0 bg-green-500 flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+        <div class="text-white text-8xl mb-4">&#10003;</div>
+        <p id="success-name" class="text-white text-4xl font-bold text-center px-4"></p>
+        <p id="success-status" class="text-green-100 text-xl mt-2">Checked in!</p>
+    </div>
+
+    <!-- Tracker Overlay (shown during checkout) -->
+    <div id="tracker-overlay" class="hidden fixed inset-0 bg-white dark:bg-gray-900 z-50 overflow-y-auto">
+        <div class="max-w-sm mx-auto p-4 pt-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Before you go...</h2>
+            <p class="text-sm text-gray-500 mb-1">
+                <span id="tracker-student-name" class="font-medium text-gray-700"></span>
+            </p>
+            <p class="text-sm text-gray-400 mb-4">Please respond to each item:</p>
+            <div id="tracker-items-list" class="space-y-3"></div>
+            <button id="tracker-submit-btn" disabled
+                class="w-full mt-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Complete Check Out
+            </button>
+            <button onclick="document.getElementById('tracker-overlay').classList.add('hidden')"
+                class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition">Cancel</button>
+        </div>
+    </div>
+
+    <div class="w-full max-w-sm">
+        <!-- Logo & Home Screen -->
+        <div class="text-center mb-6">
+            <img src="/static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
+            <a href="#" id="add-home-link" onclick="toggleHomeScreen(event)"
+                class="inline-flex items-center gap-1 mt-2 text-xs text-indigo-400 hover:text-indigo-600 no-underline">
+                <span id="home-arrow" class="inline-block text-base transition-transform duration-200">&#9656;</span>
+                Add to Home Screen
+            </a>
+            <div id="add-home-info" class="hidden mt-2 text-left bg-indigo-50 dark:bg-gray-700 rounded-xl p-3 text-xs text-gray-600 space-y-2">
+                <p class="font-semibold text-gray-700">For the best experience, add this page to your home screen:</p>
+                <div id="ios-instructions">
+                    <p class="font-medium text-gray-700">iPhone / iPad (Safari):</p>
+                    <ol class="list-decimal list-inside ml-1 space-y-0.5">
+                        <li>Tap the <strong>Share</strong> button <span class="text-base leading-none">&#9997;</span> (square with arrow)</li>
+                        <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                        <li>Tap <strong>Add</strong></li>
+                    </ol>
+                </div>
+                <div id="android-instructions">
+                    <p class="font-medium text-gray-700">Android (Chrome):</p>
+                    <ol class="list-decimal list-inside ml-1 space-y-0.5">
+                        <li>Tap the <strong>&#8942;</strong> menu (three dots, top right)</li>
+                        <li>Tap <strong>Add to Home screen</strong></li>
+                        <li>Tap <strong>Add</strong></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 dark:border-gray-600 mb-4">
+            <button onclick="switchTab('checkin')" id="tab-checkin" class="tab-btn flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent text-center">Check In</button>
+            <button onclick="switchTab('signup')" id="tab-signup" class="tab-btn flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent text-center">Sign Up</button>
+            <button onclick="switchTab('login')" id="tab-login" class="tab-btn flex-1 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent text-center">Log In</button>
+        </div>
+
+        <!-- ==================== CHECK-IN TAB ==================== -->
+        <div id="panel-checkin">
+            <!-- Confirmation Card (shown after check-in) -->
+            <div id="confirmed-card" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-4">
+                <div class="text-center">
+                    <div id="confirmed-icon" class="text-green-500 text-6xl mb-3">&#10003;</div>
+                    <p id="confirmed-name" class="text-2xl font-bold text-gray-800"></p>
+                    <p id="confirmed-status" class="text-green-600 mt-1">Checked in!</p>
+                </div>
+                <button id="checkout-btn" onclick="doCheckOut()"
+                    class="w-full mt-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition">
+                    Check Out
+                </button>
+                <button id="twistie-btn" onclick="toggleForm()"
+                    class="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition flex items-center justify-center gap-1">
+                    <span id="twistie-arrow" class="inline-block transition-transform duration-200">&#9656;</span>
+                    Check in again
+                </button>
+            </div>
+
+            <!-- Check-in Form Card -->
+            <div id="checkin-card" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                <div id="checkin-message" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
+                <form id="checkin-form" class="space-y-4">
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Your Name</label>
+                        <input type="text" id="student-name" required autocomplete="off"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            placeholder="Search by name or ID">
+                        <input type="hidden" id="student-id" value="">
+                        <ul id="search-results" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto"></ul>
+                    </div>
+                    <div id="pin-field">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">PIN</label>
+                        <input type="text" id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-center text-2xl tracking-widest"
+                            placeholder="----">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="remember-me" checked class="w-4 h-4 text-indigo-600 rounded">
+                        <label for="remember-me" class="text-sm text-gray-500">Remember me</label>
+                    </div>
+                    <button type="submit" id="checkin-submit-btn"
+                        class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">
+                        Check In
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== SIGN-UP TAB ==================== -->
+        <div id="panel-signup" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                <p class="text-gray-500 text-sm text-center mb-4">Create an account to get started</p>
+                <div id="signup-msg" class="hidden mb-3 p-3 rounded-lg text-sm text-center"></div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+                        <input type="text" id="signup-last" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Last Name" autocomplete="family-name">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">First Name</label>
+                        <input type="text" id="signup-first" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="First Name" autocomplete="given-name">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Password (4+ characters)</label>
+                        <input type="password" id="signup-password" class="w-full px-4 py-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Password" autocomplete="new-password">
+                    </div>
+                    <button onclick="doSignup()" id="signup-submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Sign Up</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== LOG-IN TAB ==================== -->
+        <div id="panel-login" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                <!-- User Login -->
+                <div id="user-login">
+                    <p class="text-gray-500 text-sm text-center mb-4">Sign in to continue</p>
+                    <div class="mb-4 relative">
+                        <label class="block text-sm text-gray-600 mb-1" id="login-search-label">Find your account</label>
+                        <input type="text" id="user-search" autocomplete="off" placeholder="Name, ID, email, or phone..."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
+                        <ul id="user-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"></ul>
+                    </div>
+                    <div id="selected-user" class="hidden mb-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg px-4 py-3 flex items-center justify-between">
+                        <div>
+                            <p id="sel-name" class="font-medium text-gray-800 text-sm"></p>
+                            <p id="sel-detail" class="text-xs text-gray-500"></p>
+                        </div>
+                        <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+                    </div>
+                    <div id="password-section" class="hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm text-gray-600 mb-1" id="pwd-label">Password</label>
+                            <input type="password" id="user-password" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
+                                placeholder="Enter your password"
+                                onkeydown="if(event.key==='Enter') submitUserLogin()">
+                        </div>
+                        <div id="confirm-section" class="hidden mb-4">
+                            <label class="block text-sm text-gray-600 mb-1">Confirm Password</label>
+                            <input type="password" id="user-password-confirm"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
+                                placeholder="Confirm your password"
+                                onkeydown="if(event.key==='Enter') submitUserLogin()">
+                        </div>
+                        <div id="login-error" class="hidden bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-2 mb-4"></div>
+                        <button onclick="submitUserLogin()" id="login-btn"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition text-sm">
+                            Sign In
+                        </button>
+                    </div>
+                    <div class="mt-6 pt-4 border-t dark:border-gray-600 text-center">
+                        <button onclick="showAdminLogin()" class="text-xs text-gray-400 hover:text-gray-600 transition">Admin Login</button>
+                    </div>
+                </div>
+
+                <!-- Admin Login -->
+                <div id="admin-login" class="hidden">
+                    <p class="text-gray-500 text-sm text-center mb-4">Admin Login (System Account)</p>
+                    <div class="mb-4">
+                        <label class="block text-sm text-gray-600 mb-1">System Username</label>
+                        <input type="text" id="admin-username" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
+                            placeholder="OS username">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm text-gray-600 mb-1">System Password</label>
+                        <input type="password" id="admin-password" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
+                            placeholder="OS password"
+                            onkeydown="if(event.key==='Enter') submitAdminLogin()">
+                    </div>
+                    <div id="admin-error" class="hidden bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-2 mb-4"></div>
+                    <button onclick="submitAdminLogin()"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition text-sm">
+                        Sign In as Admin
+                    </button>
+                    <div class="mt-4 text-center">
+                        <button onclick="showUserLogin()" class="text-xs text-gray-400 hover:text-gray-600 transition">Back to User Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== TAB SWITCHING ====================
+        const tabs = ['checkin', 'signup', 'login'];
+
+        function switchTab(tab) {
+            tabs.forEach(t => {
+                document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+            });
+        }
+
+        // Default tab from URL param or 'checkin'
+        const urlMode = new URLSearchParams(location.search).get('mode');
+        switchTab(tabs.includes(urlMode) ? urlMode : 'checkin');
+
+        // ==================== CHECK-IN ====================
+        const checkinForm = document.getElementById('checkin-form');
+        const studentNameInput = document.getElementById('student-name');
+        const studentIdInput = document.getElementById('student-id');
+        const searchResults = document.getElementById('search-results');
+        const pinInput = document.getElementById('pin');
+        const rememberMe = document.getElementById('remember-me');
+        const checkinMessageEl = document.getElementById('checkin-message');
+        const checkinSubmitBtn = document.getElementById('checkin-submit-btn');
+        const checkinCard = document.getElementById('checkin-card');
+        const confirmedCard = document.getElementById('confirmed-card');
+        const twistieArrow = document.getElementById('twistie-arrow');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        let formExpanded = false;
+        let pinRequired = true;
+        let pinMode = 'off';
+        let deviceFingerprint = '';
+        let deviceId = '';
+
+        // Initialize device identity
+        (async function initDevice() {
+            deviceId = localStorage.getItem('classgo_device_id');
+            if (!deviceId) {
+                deviceId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+                localStorage.setItem('classgo_device_id', deviceId);
+            }
+            try {
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                deviceFingerprint = result.visitorId;
+            } catch(e) { console.warn('FingerprintJS failed:', e); }
+        })();
+
+        // Fetch settings to check PIN mode
+        fetch('/api/settings').then(r => r.json()).then(s => {
+            pinMode = s.pin_mode || 'off';
+            pinRequired = s.require_pin || pinMode === 'center';
+            if (pinMode === 'off') {
+                document.getElementById('pin-field').classList.add('hidden');
+            } else if (pinMode === 'per-student') {
+                document.querySelector('#pin-field label').textContent = 'Your PIN';
+                document.getElementById('pin').placeholder = 'Your personal PIN';
+            } else if (!pinRequired) {
+                document.getElementById('pin-field').classList.add('hidden');
+            }
+        }).catch(() => {});
+
+        let searchTimeout = null;
+        let highlightIndex = -1;
+
+        // Typeahead search
+        studentNameInput.addEventListener('input', () => {
+            studentIdInput.value = '';
+            const q = studentNameInput.value.trim();
+            if (q.length < 1) { searchResults.classList.add('hidden'); return; }
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => fetchStudents(q), 300);
+        });
+
+        studentNameInput.addEventListener('keydown', (e) => {
+            const items = searchResults.querySelectorAll('li');
+            if (!items.length || searchResults.classList.contains('hidden')) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightIndex = Math.min(highlightIndex + 1, items.length - 1);
+                updateHighlight(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightIndex = Math.max(highlightIndex - 1, 0);
+                updateHighlight(items);
+            } else if (e.key === 'Enter' && highlightIndex >= 0) {
+                e.preventDefault();
+                items[highlightIndex].click();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#student-name') && !e.target.closest('#search-results')) {
+                searchResults.classList.add('hidden');
+            }
+            if (!e.target.closest('.relative')) {
+                const rl = document.getElementById('user-results');
+                if (rl) rl.classList.add('hidden');
+            }
+        });
+
+        async function fetchStudents(q) {
+            try {
+                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const students = await res.json();
+                highlightIndex = -1;
+                if (!students.length) { searchResults.classList.add('hidden'); return; }
+                searchResults.innerHTML = students.map((s, i) =>
+                    `<li data-id="${s.id}" data-name="${s.first_name} ${s.last_name}"
+                         class="px-4 py-3 cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-600 border-b last:border-0 text-sm">
+                        <span class="font-medium text-gray-800">${s.first_name} ${s.last_name}</span>
+                        <span class="text-gray-400 ml-1">(${s.id})</span>
+                        ${s.grade ? `<span class="text-gray-400 text-xs ml-1">Grade ${s.grade}</span>` : ''}
+                    </li>`
+                ).join('');
+                searchResults.querySelectorAll('li').forEach(li => {
+                    li.addEventListener('click', () => selectStudent(li));
+                });
+                searchResults.classList.remove('hidden');
+            } catch (err) {
+                searchResults.classList.add('hidden');
+            }
+        }
+
+        function selectStudent(li) {
+            studentNameInput.value = li.dataset.name;
+            studentIdInput.value = li.dataset.id;
+            searchResults.classList.add('hidden');
+            pinInput.focus();
+        }
+
+        function updateHighlight(items) {
+            items.forEach((li, i) => {
+                li.classList.toggle('bg-indigo-50', i === highlightIndex);
+                li.classList.toggle('dark:bg-gray-600', i === highlightIndex);
+            });
+        }
+
+        // Add to Home Screen
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        if (isIOS) document.getElementById('android-instructions').classList.add('hidden');
+        if (isAndroid) document.getElementById('ios-instructions').classList.add('hidden');
+        if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+            document.getElementById('add-home-link').classList.add('hidden');
+        }
+
+        function toggleHomeScreen(e) {
+            e.preventDefault();
+            const info = document.getElementById('add-home-info');
+            const arrow = document.getElementById('home-arrow');
+            info.classList.toggle('hidden');
+            arrow.style.transform = info.classList.contains('hidden') ? '' : 'rotate(90deg)';
+        }
+
+        // Restore saved data
+        const saved = localStorage.getItem('classgo_student');
+        if (saved) {
+            const data = JSON.parse(saved);
+            studentNameInput.value = data.name || '';
+            studentIdInput.value = data.id || '';
+            rememberMe.checked = true;
+            if (data.name) checkStatus(data.name);
+        }
+
+        async function checkStatus(name) {
+            try {
+                const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
+                const data = await res.json();
+                if (data.checked_in) showConfirmation(name, true, data.checked_out);
+            } catch (err) {}
+        }
+
+        function showConfirmation(name, alreadyCheckedIn, signedOut) {
+            document.getElementById('confirmed-name').textContent = name;
+            if (signedOut) {
+                document.getElementById('confirmed-icon').innerHTML = '&#128075;';
+                document.getElementById('confirmed-status').textContent = 'Checked out!';
+                document.getElementById('confirmed-status').className = 'text-gray-500 mt-1';
+                checkoutBtn.classList.add('hidden');
+            } else {
+                document.getElementById('confirmed-icon').innerHTML = '&#10003;';
+                document.getElementById('confirmed-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
+                document.getElementById('confirmed-status').className = 'text-green-600 mt-1';
+                checkoutBtn.classList.remove('hidden');
+            }
+            confirmedCard.classList.remove('hidden');
+            checkinCard.classList.add('hidden');
+            formExpanded = false;
+            twistieArrow.style.transform = '';
+        }
+
+        function toggleForm() {
+            formExpanded = !formExpanded;
+            if (formExpanded) {
+                checkinCard.classList.remove('hidden');
+                twistieArrow.style.transform = 'rotate(90deg)';
+            } else {
+                checkinCard.classList.add('hidden');
+                twistieArrow.style.transform = '';
+            }
+        }
+
+        function showCheckinMessage(text, success) {
+            checkinMessageEl.textContent = text;
+            checkinMessageEl.className = `mb-4 p-3 rounded-lg text-sm text-center ${success ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`;
+            checkinMessageEl.classList.remove('hidden');
+        }
+
+        function showSuccess(name, alreadyCheckedIn) {
+            const overlay = document.getElementById('success-overlay');
+            document.getElementById('success-name').textContent = name;
+            document.getElementById('success-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                showConfirmation(name, alreadyCheckedIn, false);
+            }, 3000);
+        }
+
+        let trackerPin = '';
+
+        async function doCheckOut() {
+            const name = document.getElementById('confirmed-name').textContent;
+            const sid = studentIdInput.value;
+
+            if (pinRequired) {
+                trackerPin = prompt('Enter PIN to check out:');
+                if (!trackerPin) return;
+            } else {
+                trackerPin = '';
+            }
+
+            try {
+                const params = new URLSearchParams();
+                if (sid) params.set('student_id', sid);
+                params.set('student_name', name);
+                const dueRes = await fetch('/api/tracker/due?' + params);
+                const dueItems = await dueRes.json();
+                if (dueItems && dueItems.length > 0) {
+                    showTrackerScreen(name, sid, dueItems);
+                    return;
+                }
+            } catch(e) {}
+
+            await performCheckout(name, sid);
+        }
+
+        async function performCheckout(name, sid) {
+            try {
+                const checkoutPayload = { student_name: name, pin: trackerPin, fingerprint: deviceFingerprint, device_id: deviceId };
+                if (sid) checkoutPayload.student_id = sid;
+                const res = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(checkoutPayload)
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showConfirmation(name, false, true);
+                } else {
+                    alert(data.error || 'Check out failed');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        // Tracker screen for checkout
+        let trackerResponses = {};
+
+        function showTrackerScreen(name, sid, items) {
+            trackerResponses = {};
+            const overlay = document.getElementById('tracker-overlay');
+            const container = document.getElementById('tracker-items-list');
+            document.getElementById('tracker-student-name').textContent = name;
+
+            const pColors = { high: 'border-l-4 border-l-red-400', medium: 'border-l-4 border-l-amber-400', low: '' };
+            container.innerHTML = items.map(it => `
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 ${pColors[it.priority] || ''}" data-item-type="${it.item_type}" data-item-id="${it.item_id}" data-item-name="${escAttr(it.name)}">
+                    <div class="flex items-center gap-2 mb-2">
+                        <p class="text-sm font-medium text-gray-700 flex-1">${escHtml(it.name)}</p>
+                        ${it.priority === 'high' ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">HIGH</span>' : ''}
+                        ${it.category ? `<span class="text-[10px] text-gray-400">${escHtml(it.category)}</span>` : ''}
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="setTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'done')"
+                            class="tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-300 text-green-700 hover:bg-green-100 transition">Done</button>
+                        <button onclick="setTrackerResponse(this, '${it.item_type}', ${it.item_id}, 'not_done')"
+                            class="tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-gray-300 text-gray-500 hover:bg-gray-100 transition">Not Done</button>
+                    </div>
+                    <input type="text" class="tracker-notes hidden mt-2 w-full px-3 py-1.5 border rounded-lg text-sm text-gray-600 outline-none focus:ring-2 focus:ring-indigo-300"
+                        placeholder="Why not done? (optional)" data-notes-key="${it.item_type}:${it.item_id}">
+                </div>
+            `).join('');
+
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.onclick = () => submitTrackerAndCheckout(name, sid, items);
+            overlay.classList.remove('hidden');
+        }
+
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function setTrackerResponse(btn, itemType, itemId, status) {
+            const key = itemType + ':' + itemId;
+            trackerResponses[key] = { item_type: itemType, item_id: itemId, status };
+
+            const row = btn.closest('[data-item-type]');
+            const buttons = row.querySelectorAll('.tracker-btn');
+            buttons.forEach(b => {
+                b.className = b.className.replace(/bg-green-500|bg-red-400|text-white/g, '');
+                b.classList.remove('bg-green-500', 'bg-red-400', 'text-white');
+                if (b.textContent.trim() === 'Done') {
+                    b.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-300 text-green-700 hover:bg-green-100 transition';
+                } else {
+                    b.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-gray-300 text-gray-500 hover:bg-gray-100 transition';
+                }
+            });
+
+            if (status === 'done') {
+                btn.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-green-500 bg-green-500 text-white transition';
+            } else {
+                btn.className = 'tracker-btn flex-1 py-2 text-sm rounded-lg border-2 border-red-400 bg-red-400 text-white transition';
+            }
+
+            const notesInput = row.querySelector('.tracker-notes');
+            if (notesInput) {
+                notesInput.classList.toggle('hidden', status === 'done');
+                if (status === 'done') notesInput.value = '';
+            }
+
+            const totalItems = document.getElementById('tracker-items-list').children.length;
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = Object.keys(trackerResponses).length < totalItems;
+        }
+
+        async function submitTrackerAndCheckout(name, sid, items) {
+            const submitBtn = document.getElementById('tracker-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Checking out...';
+
+            const responses = items.map(it => {
+                const key = it.item_type + ':' + it.item_id;
+                const resp = trackerResponses[key];
+                const notesEl = document.querySelector(`[data-notes-key="${key}"]`);
+                return {
+                    item_type: it.item_type,
+                    item_id: it.item_id,
+                    item_name: it.name,
+                    status: resp ? resp.status : 'not_done',
+                    notes: notesEl ? notesEl.value.trim() : ''
+                };
+            });
+
+            try {
+                const payload = { student_name: name, pin: trackerPin, responses, fingerprint: deviceFingerprint, device_id: deviceId };
+                if (sid) payload.student_id = sid;
+                const res = await fetch('/api/tracker/respond', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                document.getElementById('tracker-overlay').classList.add('hidden');
+                if (data.ok) {
+                    showConfirmation(name, false, true);
+                } else {
+                    alert(data.error || 'Check out failed');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Complete Check Out';
+        }
+
+        checkinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            checkinSubmitBtn.disabled = true;
+            checkinSubmitBtn.textContent = 'Checking in...';
+            checkinMessageEl.classList.add('hidden');
+
+            try {
+                const payload = {
+                    student_name: studentNameInput.value.trim(),
+                    pin: pinInput.value.trim(),
+                    device_type: 'mobile',
+                    fingerprint: deviceFingerprint,
+                    device_id: deviceId
+                };
+                if (studentIdInput.value) payload.student_id = studentIdInput.value;
+
+                const res = await fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.needs_pin_setup) {
+                    pendingPINSetupStudentId = data.student_id;
+                    document.getElementById('pin-setup-modal').classList.remove('hidden');
+                    document.getElementById('pin-setup-1').focus();
+                } else if (data.needs_pin) {
+                    document.getElementById('pin-field').classList.remove('hidden');
+                    document.querySelector('#pin-field label').textContent = 'Your PIN';
+                    document.getElementById('pin').placeholder = 'Enter your personal PIN';
+                    document.getElementById('pin').focus();
+                    showCheckinMessage('PIN required for this student', false);
+                } else if (data.ok) {
+                    const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
+                    showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
+                    pinInput.value = '';
+
+                    if (rememberMe.checked) {
+                        localStorage.setItem('classgo_student', JSON.stringify({
+                            name: studentNameInput.value.trim(),
+                            id: studentIdInput.value || ''
+                        }));
+                    } else {
+                        localStorage.removeItem('classgo_student');
+                    }
+                } else {
+                    showCheckinMessage(data.error || 'Check in failed', false);
+                }
+            } catch (err) {
+                showCheckinMessage('Connection error. Are you on the right network?', false);
+            }
+
+            checkinSubmitBtn.disabled = false;
+            checkinSubmitBtn.textContent = 'Check In';
+        });
+
+        // PIN setup
+        let pendingPINSetupStudentId = '';
+
+        async function submitPINSetup() {
+            const pin1 = document.getElementById('pin-setup-1').value;
+            const pin2 = document.getElementById('pin-setup-2').value;
+            const errEl = document.getElementById('pin-setup-error');
+            errEl.classList.add('hidden');
+
+            if (pin1.length < 4) { errEl.textContent = 'PIN must be at least 4 digits'; errEl.classList.remove('hidden'); return; }
+            if (pin1 !== pin2) { errEl.textContent = 'PINs do not match'; errEl.classList.remove('hidden'); return; }
+
+            try {
+                const res = await fetch('/api/student/pin/setup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student_id: pendingPINSetupStudentId, pin: pin1 })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    document.getElementById('pin-setup-modal').classList.add('hidden');
+                    document.getElementById('pin-setup-1').value = '';
+                    document.getElementById('pin-setup-2').value = '';
+                    pinInput.value = pin1;
+                    checkinForm.dispatchEvent(new Event('submit'));
+                } else {
+                    errEl.textContent = data.error || 'Failed to set PIN';
+                    errEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errEl.textContent = 'Connection error';
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        // ==================== SIGN-UP ====================
+        async function doSignup() {
+            const last = document.getElementById('signup-last').value.trim();
+            const first = document.getElementById('signup-first').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const msg = document.getElementById('signup-msg');
+
+            if (!last || !first) { showSignupMsg('Last name and first name are required.', 'error'); return; }
+            if (password.length < 4) { showSignupMsg('Password must be at least 4 characters.', 'error'); return; }
+
+            const btn = document.getElementById('signup-submit');
+            btn.disabled = true; btn.textContent = 'Creating...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'signup', first_name: first, last_name: last, password })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    window.location.href = data.redirect || '/dashboard';
+                } else {
+                    showSignupMsg(data.error || 'Signup failed.', 'error');
+                }
+            } catch(e) {
+                showSignupMsg('Signup failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Sign Up';
+            }
+        }
+
+        function showSignupMsg(text, type) {
+            const el = document.getElementById('signup-msg');
+            el.textContent = text;
+            el.className = type === 'error'
+                ? 'mb-3 p-3 rounded-lg text-sm text-center bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                : 'mb-3 p-3 rounded-lg text-sm text-center bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400';
+            el.classList.remove('hidden');
+        }
+
+        // ==================== LOG-IN ====================
+        let selectedEntity = null;
+        let isFirstTime = false;
+        let loginSearchTimeout = null;
+
+        const loginSearchInput = document.getElementById('user-search');
+        const loginResultsList = document.getElementById('user-results');
+
+        loginSearchInput.addEventListener('input', function() {
+            clearTimeout(loginSearchTimeout);
+            const q = this.value.trim();
+            if (q.length < 2) { loginResultsList.classList.add('hidden'); return; }
+            loginSearchTimeout = setTimeout(() => doLoginSearch(q), 200);
+        });
+
+        async function doLoginSearch(q) {
+            try {
+                const res = await fetch('/api/users/search?q=' + encodeURIComponent(q));
+                const results = await res.json();
+                if (!results.length) { loginResultsList.classList.add('hidden'); return; }
+                loginResultsList.innerHTML = results.map(r =>
+                    `<li data-id="${r.id}" data-type="${r.type}" data-name="${r.first_name} ${r.last_name}" data-email="${r.email}" data-phone="${r.phone}"
+                         class="px-4 py-2.5 cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-600 border-b last:border-0 text-sm">
+                        <span class="font-medium text-gray-800">${r.first_name} ${r.last_name}</span>
+                        <span class="text-gray-400 ml-1">(${r.id})</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded-full ml-1 ${r.type==='Student'?'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400':r.type==='Parent'?'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400':'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'}">${r.type}</span>
+                        ${r.email ? `<span class="text-gray-400 text-xs block mt-0.5">${r.email}</span>` : ''}
+                    </li>`
+                ).join('');
+                loginResultsList.querySelectorAll('li').forEach(li => {
+                    li.addEventListener('click', () => selectUser(li));
+                });
+                loginResultsList.classList.remove('hidden');
+            } catch(e) { loginResultsList.classList.add('hidden'); }
+        }
+
+        function selectUser(li) {
+            selectedEntity = {
+                id: li.dataset.id,
+                type: li.dataset.type,
+                name: li.dataset.name,
+                email: li.dataset.email,
+                phone: li.dataset.phone
+            };
+            loginResultsList.classList.add('hidden');
+            loginSearchInput.classList.add('hidden');
+            document.getElementById('login-search-label').classList.add('hidden');
+
+            document.getElementById('sel-name').textContent = selectedEntity.name;
+            document.getElementById('sel-detail').textContent = `${selectedEntity.type} - ${selectedEntity.id}` + (selectedEntity.email ? ` - ${selectedEntity.email}` : '');
+            document.getElementById('selected-user').classList.remove('hidden');
+
+            checkFirstTime(selectedEntity.id);
+        }
+
+        async function checkFirstTime(entityId) {
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'check', entity_id: entityId })
+                });
+                const result = await res.json();
+                isFirstTime = !result.has_password;
+                document.getElementById('password-section').classList.remove('hidden');
+                if (isFirstTime) {
+                    document.getElementById('pwd-label').textContent = 'Create a Password (first time)';
+                    document.getElementById('user-password').placeholder = 'Choose a password (min 4 chars)';
+                    document.getElementById('confirm-section').classList.remove('hidden');
+                    document.getElementById('login-btn').textContent = 'Create Account & Sign In';
+                } else {
+                    document.getElementById('pwd-label').textContent = 'Password';
+                    document.getElementById('user-password').placeholder = 'Enter your password';
+                    document.getElementById('confirm-section').classList.add('hidden');
+                    document.getElementById('login-btn').textContent = 'Sign In';
+                }
+                document.getElementById('user-password').focus();
+            } catch(e) {
+                document.getElementById('password-section').classList.remove('hidden');
+            }
+        }
+
+        function clearSelection() {
+            selectedEntity = null;
+            isFirstTime = false;
+            loginSearchInput.value = '';
+            loginSearchInput.classList.remove('hidden');
+            document.getElementById('login-search-label').classList.remove('hidden');
+            document.getElementById('selected-user').classList.add('hidden');
+            document.getElementById('password-section').classList.add('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('user-password').value = '';
+            document.getElementById('user-password-confirm').value = '';
+            loginSearchInput.focus();
+        }
+
+        async function submitUserLogin() {
+            if (!selectedEntity) return;
+            const password = document.getElementById('user-password').value;
+            const errorEl = document.getElementById('login-error');
+
+            if (password.length < 4) {
+                errorEl.textContent = 'Password must be at least 4 characters';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (isFirstTime) {
+                const confirm = document.getElementById('user-password-confirm').value;
+                if (password !== confirm) {
+                    errorEl.textContent = 'Passwords do not match';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+            }
+
+            errorEl.classList.add('hidden');
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: isFirstTime ? 'setup' : 'login',
+                        entity_id: selectedEntity.id,
+                        password: password
+                    })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    window.location.href = result.redirect || '/dashboard';
+                } else {
+                    errorEl.textContent = result.error || 'Login failed';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errorEl.textContent = 'Login failed';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        // ==================== ADMIN LOGIN ====================
+        function showAdminLogin() {
+            document.getElementById('user-login').classList.add('hidden');
+            document.getElementById('admin-login').classList.remove('hidden');
+            document.getElementById('admin-username').focus();
+        }
+
+        function showUserLogin() {
+            document.getElementById('admin-login').classList.add('hidden');
+            document.getElementById('user-login').classList.remove('hidden');
+            loginSearchInput.focus();
+        }
+
+        async function submitAdminLogin() {
+            const username = document.getElementById('admin-username').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-error');
+
+            if (!username || !password) {
+                errorEl.textContent = 'Username and password required';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            errorEl.classList.add('hidden');
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'admin', username, password })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    window.location.href = result.redirect || '/admin';
+                } else {
+                    errorEl.textContent = result.error || 'Login failed';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errorEl.textContent = 'Login failed';
+                errorEl.classList.remove('hidden');
+            }
+        }
+    </script>
+    <script src="/static/js/theme.js"></script>
+</body>
+</html>
