@@ -374,7 +374,7 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		Name       string   `json:"name"`
 		Notes      string   `json:"notes"`
 		StartDate  string   `json:"start_date"`
-		DueDate    string   `json:"due_date"`
+		EndDate    string   `json:"end_date"`
 		Priority   string   `json:"priority"`
 		Recurrence string   `json:"recurrence"`
 		Category   string   `json:"category"`
@@ -419,7 +419,7 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		Name:       req.Name,
 		Notes:      req.Notes,
 		StartDate:  req.StartDate,
-		DueDate:    req.DueDate,
+		EndDate:    req.EndDate,
 		Priority:   req.Priority,
 		Recurrence: req.Recurrence,
 		Category:   req.Category,
@@ -666,7 +666,7 @@ func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
 		Name:            src.Name,
 		Notes:           src.Notes,
 		StartDate:       src.StartDate,
-		DueDate:         src.DueDate,
+		EndDate:         src.EndDate,
 		Priority:        src.Priority,
 		Recurrence:      src.Recurrence,
 		Category:        src.Category,

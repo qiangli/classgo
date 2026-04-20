@@ -141,7 +141,7 @@ type TrackerItem struct {
 	Name       string `json:"name"`
 	Notes      string `json:"notes"`
 	StartDate  string `json:"start_date"`
-	DueDate    string `json:"due_date"`
+	EndDate    string `json:"end_date"`
 	Priority   string `json:"priority"`
 	Recurrence string `json:"recurrence"`
 	Category   string `json:"category"`
@@ -158,7 +158,7 @@ type StudentTrackerItem struct {
 	Name            string `json:"name"`
 	Notes           string `json:"notes"`
 	StartDate       string `json:"start_date"`
-	DueDate         string `json:"due_date"`
+	EndDate         string `json:"end_date"`
 	Priority        string `json:"priority"`
 	Recurrence      string `json:"recurrence"`
 	Category        string `json:"category"`
@@ -194,7 +194,7 @@ type DueItem struct {
 	Name       string `json:"name"`
 	Priority   string `json:"priority"`
 	Category   string `json:"category"`
-	DueDate    string `json:"due_date"`
+	EndDate    string `json:"end_date"`
 	Recurrence string `json:"recurrence"`
 }
 

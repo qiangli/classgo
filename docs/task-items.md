@@ -60,11 +60,11 @@ Both global and assigned personal items appear in the student's due list (filter
 
 ### `tracker_items` (Global)
 
-Key columns: `name`, `notes`, `start_date`, `due_date`, `priority`, `recurrence` (default: daily), `category`, `created_by` (default: admin), `active`, `deleted`
+Key columns: `name`, `notes`, `start_date`, `end_date`, `priority`, `recurrence` (default: daily), `category`, `created_by` (default: admin), `active`, `deleted`
 
 ### `student_tracker_items` (Personal)
 
-Key columns: `student_id` (empty for library items), `name`, `notes`, `start_date`, `due_date`, `priority`, `recurrence` (default: none), `category`, `created_by`, `owner_type`, `requires_signoff` (default: true), `completed`, `completed_at`, `completed_by`, `active`, `deleted`
+Key columns: `student_id` (empty for library items), `name`, `notes`, `start_date`, `end_date`, `priority`, `recurrence` (default: none), `category`, `created_by`, `owner_type`, `requires_signoff` (default: true), `completed`, `completed_at`, `completed_by`, `active`, `deleted`
 
 ### `tracker_responses` (Completion Tracking)
 

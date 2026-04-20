@@ -124,7 +124,7 @@ func MigrateDB(db *sql.DB) error {
 		name       TEXT NOT NULL,
 		notes      TEXT,
 		start_date TEXT,
-		due_date   TEXT,
+		end_date   TEXT,
 		priority   TEXT NOT NULL DEFAULT 'medium',
 		recurrence TEXT NOT NULL DEFAULT 'daily',
 		category   TEXT,
@@ -141,7 +141,7 @@ func MigrateDB(db *sql.DB) error {
 		name         TEXT NOT NULL,
 		notes        TEXT,
 		start_date   TEXT,
-		due_date     TEXT,
+		end_date     TEXT,
 		priority     TEXT NOT NULL DEFAULT 'medium',
 		recurrence   TEXT NOT NULL DEFAULT 'none',
 		category     TEXT,
@@ -272,6 +272,9 @@ func addMissingColumns(db *sql.DB) {
 		// Parent additional contact fields
 		"ALTER TABLE parents ADD COLUMN email2 TEXT",
 		"ALTER TABLE parents ADD COLUMN phone2 TEXT",
+		// Rename due_date -> end_date
+		"ALTER TABLE tracker_items RENAME COLUMN due_date TO end_date",
+		"ALTER TABLE student_tracker_items RENAME COLUMN due_date TO end_date",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors

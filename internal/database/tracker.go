@@ -2,26 +2,27 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"classgo/internal/models"
 )
 
-const trackerItemCols = `id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(due_date,''),
+const trackerItemCols = `id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(end_date,''),
 	priority, recurrence, COALESCE(category,''), COALESCE(created_by,'admin'),
 	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
 
 func scanTrackerItem(s interface{ Scan(...any) error }) (models.TrackerItem, error) {
 	var it models.TrackerItem
-	err := s.Scan(&it.ID, &it.Name, &it.Notes, &it.StartDate, &it.DueDate,
+	err := s.Scan(&it.ID, &it.Name, &it.Notes, &it.StartDate, &it.EndDate,
 		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy,
 		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
 	return it, err
 }
 
 // StudentItemCols is the column list for student_tracker_items queries.
-const StudentItemCols = `id, student_id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(due_date,''),
+const StudentItemCols = `id, student_id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(end_date,''),
 	priority, recurrence, COALESCE(category,''), COALESCE(created_by,''), COALESCE(owner_type,'admin'),
 	completed, COALESCE(completed_at,''), COALESCE(completed_by,''), requires_signoff,
 	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
@@ -33,7 +34,7 @@ func ScanStudentItemRow(s interface{ Scan(...any) error }) (models.StudentTracke
 
 func scanStudentItem(s interface{ Scan(...any) error }) (models.StudentTrackerItem, error) {
 	var it models.StudentTrackerItem
-	err := s.Scan(&it.ID, &it.StudentID, &it.Name, &it.Notes, &it.StartDate, &it.DueDate,
+	err := s.Scan(&it.ID, &it.StudentID, &it.Name, &it.Notes, &it.StartDate, &it.EndDate,
 		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy, &it.OwnerType,
 		&it.Completed, &it.CompletedAt, &it.CompletedBy, &it.RequiresSignoff,
 		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
@@ -69,18 +70,18 @@ func ListTrackerItems(db *sql.DB, includeDeleted bool) ([]models.TrackerItem, er
 func SaveTrackerItem(db *sql.DB, item models.TrackerItem) (int64, error) {
 	if item.ID > 0 {
 		_, err := db.Exec(
-			`UPDATE tracker_items SET name=?, notes=?, start_date=?, due_date=?,
+			`UPDATE tracker_items SET name=?, notes=?, start_date=?, end_date=?,
 			 priority=?, recurrence=?, category=?, active=?,
 			 updated_at=datetime('now','localtime') WHERE id=?`,
-			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
+			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
 			item.Priority, item.Recurrence, nullStr(item.Category), item.Active, item.ID,
 		)
 		return int64(item.ID), err
 	}
 	result, err := db.Exec(
-		`INSERT INTO tracker_items (name, notes, start_date, due_date, priority, recurrence, category, created_by, active)
+		`INSERT INTO tracker_items (name, notes, start_date, end_date, priority, recurrence, category, created_by, active)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
+		item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
 		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.Active,
 	)
 	if err != nil {
@@ -98,7 +99,7 @@ func DeleteTrackerItem(db *sql.DB, id int) error {
 // ListStudentTrackerItems returns ad hoc tracker items for a specific student.
 func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrackerItem, error) {
 	rows, err := db.Query(
-		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, due_date, id",
+		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, end_date, id",
 		studentID,
 	)
 	if err != nil {
@@ -120,7 +121,7 @@ func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrac
 // ListStudentTrackerItemsByCreator returns items created by a specific user.
 func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.StudentTrackerItem, error) {
 	rows, err := db.Query(
-		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, due_date, id",
+		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, end_date, id",
 		createdBy,
 	)
 	if err != nil {
@@ -143,19 +144,19 @@ func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.St
 func SaveStudentTrackerItem(db *sql.DB, item models.StudentTrackerItem) (int64, error) {
 	if item.ID > 0 {
 		_, err := db.Exec(
-			`UPDATE student_tracker_items SET name=?, notes=?, start_date=?, due_date=?,
+			`UPDATE student_tracker_items SET name=?, notes=?, start_date=?, end_date=?,
 			 priority=?, recurrence=?, category=?, requires_signoff=?, active=?,
 			 updated_at=datetime('now','localtime') WHERE id=?`,
-			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
+			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
 			item.Priority, item.Recurrence, nullStr(item.Category), item.RequiresSignoff, item.Active, item.ID,
 		)
 		return int64(item.ID), err
 	}
 	result, err := db.Exec(
-		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, due_date,
+		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, end_date,
 		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.StudentID, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
+		item.StudentID, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
 		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active,
 	)
 	if err != nil {
@@ -217,7 +218,7 @@ func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error)
 //   - daily: due every day, check if responded today
 //   - weekly: due once per week, check if responded this week (Mon-Sun)
 //   - monthly: due once per month, check if responded this month
-//   - none (one-time): due until completed or past due_date
+//   - none (one-time): due until completed or past end_date
 func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, error) {
 	// Parse date for period calculations
 	t, err := time.ParseInLocation("2006-01-02", date, time.Local)
@@ -234,11 +235,11 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 
 	rows, err := db.Query(`
 		-- Global items (daily recurrence by default)
-		SELECT 'global' AS item_type, ti.id AS item_id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.due_date,''), ti.recurrence
+		SELECT 'global' AS item_type, ti.id AS item_id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence
 		FROM tracker_items ti
 		WHERE ti.active = 1 AND ti.deleted = 0
 		AND (ti.start_date IS NULL OR ti.start_date <= ?)
-		AND (ti.due_date IS NULL OR ti.due_date >= ?)
+		AND (ti.end_date IS NULL OR ti.end_date >= ?)
 		AND (
 			(ti.recurrence = 'daily' AND ti.id NOT IN (
 				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'global' AND tr.response_date = ?
@@ -255,11 +256,11 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 		)
 		UNION ALL
 		-- Student-specific items (one-time by default)
-		SELECT 'adhoc' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.due_date,''), sti.recurrence
+		SELECT 'adhoc' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
 		FROM student_tracker_items sti
 		WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0 AND sti.completed = 0
 		AND (sti.start_date IS NULL OR sti.start_date <= ?)
-		AND (sti.due_date IS NULL OR sti.due_date >= ?)
+		AND (sti.end_date IS NULL OR sti.end_date >= ?)
 		AND (
 			(sti.recurrence = 'daily' AND sti.id NOT IN (
 				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'adhoc' AND tr.response_date = ?
@@ -295,7 +296,7 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 	var items []models.DueItem
 	for rows.Next() {
 		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.DueDate, &it.Recurrence); err != nil {
+		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence); err != nil {
 			return nil, err
 		}
 		items = append(items, it)
@@ -377,48 +378,215 @@ func GetTrackerResponsesForDate(db *sql.DB, studentID, date string) ([]models.Tr
 	return responses, rows.Err()
 }
 
-// GetProgressStats returns completion statistics for students over a date range.
+// trackerItemDates holds date/recurrence info for expected-count calculation.
+type trackerItemDates struct {
+	StartDate  string
+	EndDate    string
+	Recurrence string
+}
+
+// isActiveOnDate returns true if an item with the given start/end dates is active on date d.
+func isActiveOnDate(it trackerItemDates, d time.Time) bool {
+	ds := d.Format("2006-01-02")
+	if it.StartDate != "" && it.StartDate > ds {
+		return false
+	}
+	if it.EndDate != "" && it.EndDate < ds {
+		return false
+	}
+	return true
+}
+
+// countExpectedForItem returns how many times an item is expected within the date range.
+func countExpectedForItem(it trackerItemDates, rangeStart, rangeEnd time.Time) int {
+	switch it.Recurrence {
+	case "daily":
+		count := 0
+		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
+			if isActiveOnDate(it, d) {
+				count++
+			}
+		}
+		return count
+	case "weekly":
+		count := 0
+		// Count one per ISO week the item is active in
+		seen := make(map[string]bool)
+		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
+			yr, wk := d.ISOWeek()
+			key := fmt.Sprintf("%d-%d", yr, wk)
+			if !seen[key] && isActiveOnDate(it, d) {
+				seen[key] = true
+				count++
+			}
+		}
+		return count
+	case "monthly":
+		count := 0
+		seen := make(map[string]bool)
+		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
+			key := d.Format("2006-01")
+			if !seen[key] && isActiveOnDate(it, d) {
+				seen[key] = true
+				count++
+			}
+		}
+		return count
+	case "none":
+		// One-time: expected once if the item's date window overlaps the range
+		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
+			if isActiveOnDate(it, d) {
+				return 1
+			}
+		}
+		return 0
+	default:
+		return 0
+	}
+}
+
+// GetProgressStats returns expected-based completion statistics for students over a date range.
+// Expected count is computed from all active tracker items' recurrence and date windows.
+// Done count is the actual "done" responses within the range.
 func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string) ([]models.ProgressStats, error) {
 	if len(studentIDs) == 0 {
 		return nil, nil
 	}
+
+	rangeStart, err := time.ParseInLocation("2006-01-02", startDate, time.Local)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date: %w", err)
+	}
+	rangeEnd, err := time.ParseInLocation("2006-01-02", endDate, time.Local)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date: %w", err)
+	}
+
+	// 1. Get all active global items
+	globalRows, err := db.Query(`
+		SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
+		FROM tracker_items WHERE active = 1 AND deleted = 0`)
+	if err != nil {
+		return nil, err
+	}
+	var globalItems []trackerItemDates
+	for globalRows.Next() {
+		var it trackerItemDates
+		if err := globalRows.Scan(&it.StartDate, &it.EndDate, &it.Recurrence); err != nil {
+			globalRows.Close()
+			return nil, err
+		}
+		globalItems = append(globalItems, it)
+	}
+	globalRows.Close()
+
+	// Pre-compute global expected count (same for all students)
+	globalExpected := 0
+	for _, it := range globalItems {
+		globalExpected += countExpectedForItem(it, rangeStart, rangeEnd)
+	}
+
+	// 2. For each student, get their student-specific items and done counts
 	placeholders := strings.Repeat("?,", len(studentIDs))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	args := make([]any, 0, len(studentIDs)+2)
-	for _, id := range studentIDs {
-		args = append(args, id)
+	// Query student names from responses (fallback) or students table
+	nameArgs := make([]any, len(studentIDs))
+	for i, id := range studentIDs {
+		nameArgs[i] = id
 	}
-	args = append(args, startDate, endDate)
+	nameMap := make(map[string]string)
+	nameRows, err := db.Query(
+		`SELECT id, COALESCE(first_name,'')||' '||COALESCE(last_name,'') FROM students WHERE id IN (`+placeholders+`)`,
+		nameArgs...)
+	if err == nil {
+		for nameRows.Next() {
+			var id, name string
+			nameRows.Scan(&id, &name)
+			nameMap[id] = strings.TrimSpace(name)
+		}
+		nameRows.Close()
+	}
 
-	rows, err := db.Query(`
-		SELECT student_id, student_name,
-			COUNT(*) as total,
-			SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_count,
-			SUM(CASE WHEN status = 'not_done' THEN 1 ELSE 0 END) as not_done_count
+	// Query done counts per student from tracker_responses
+	doneArgs := make([]any, 0, len(studentIDs)+2)
+	for _, id := range studentIDs {
+		doneArgs = append(doneArgs, id)
+	}
+	doneArgs = append(doneArgs, startDate, endDate)
+	doneRows, err := db.Query(`
+		SELECT student_id, COALESCE(student_name,''),
+			SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_count
 		FROM tracker_responses
 		WHERE student_id IN (`+placeholders+`)
 		AND response_date >= ? AND response_date <= ?
-		GROUP BY student_id, student_name`,
-		args...,
+		GROUP BY student_id`,
+		doneArgs...,
 	)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var stats []models.ProgressStats
-	for rows.Next() {
-		var s models.ProgressStats
-		if err := rows.Scan(&s.StudentID, &s.StudentName, &s.TotalItems, &s.DoneCount, &s.NotDone); err != nil {
+	doneMap := make(map[string]int)
+	respNameMap := make(map[string]string)
+	for doneRows.Next() {
+		var sid, sname string
+		var done int
+		if err := doneRows.Scan(&sid, &sname, &done); err != nil {
+			doneRows.Close()
 			return nil, err
 		}
-		if s.TotalItems > 0 {
-			s.Completion = float64(s.DoneCount) / float64(s.TotalItems) * 100
+		doneMap[sid] = done
+		if sname != "" {
+			respNameMap[sid] = sname
+		}
+	}
+	doneRows.Close()
+
+	// 3. Build stats per student
+	var stats []models.ProgressStats
+	for _, sid := range studentIDs {
+		// Student-specific items expected count
+		studentExpected := 0
+		stiRows, err := db.Query(`
+			SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
+			FROM student_tracker_items
+			WHERE student_id = ? AND active = 1 AND deleted = 0 AND completed = 0`, sid)
+		if err != nil {
+			return nil, err
+		}
+		for stiRows.Next() {
+			var it trackerItemDates
+			if err := stiRows.Scan(&it.StartDate, &it.EndDate, &it.Recurrence); err != nil {
+				stiRows.Close()
+				return nil, err
+			}
+			studentExpected += countExpectedForItem(it, rangeStart, rangeEnd)
+		}
+		stiRows.Close()
+
+		total := globalExpected + studentExpected
+		done := doneMap[sid]
+		if done > total {
+			done = total // cap at expected
+		}
+		name := nameMap[sid]
+		if name == "" {
+			name = respNameMap[sid]
+		}
+
+		s := models.ProgressStats{
+			StudentID:   sid,
+			StudentName: name,
+			TotalItems:  total,
+			DoneCount:   done,
+			NotDone:     total - done,
+		}
+		if total > 0 {
+			s.Completion = float64(done) / float64(total) * 100
 		}
 		stats = append(stats, s)
 	}
-	return stats, rows.Err()
+	return stats, nil
 }
 
 // GetAllActiveStudentIDs returns all active student IDs from the students table.
@@ -455,7 +623,7 @@ func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.Student
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(
-		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, due_date,
+		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, end_date,
 		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
@@ -465,7 +633,7 @@ func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.Student
 	defer stmt.Close()
 
 	for _, sid := range studentIDs {
-		_, err = stmt.Exec(sid, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.DueDate),
+		_, err = stmt.Exec(sid, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
 			item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active)
 		if err != nil {
 			return err
@@ -528,10 +696,10 @@ func GetParentStudentIDs(db *sql.DB, parentID string) ([]string, error) {
 // GetAllTasksForStudent returns both global and student-specific items for calendar/list views.
 func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, error) {
 	rows, err := db.Query(`
-		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.due_date,''), ti.recurrence
+		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence
 		FROM tracker_items ti WHERE ti.active = 1 AND ti.deleted = 0
 		UNION ALL
-		SELECT 'adhoc', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.due_date,''), sti.recurrence
+		SELECT 'adhoc', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
 		FROM student_tracker_items sti WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0`,
 		studentID,
 	)
@@ -543,7 +711,7 @@ func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, erro
 	var items []models.DueItem
 	for rows.Next() {
 		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.DueDate, &it.Recurrence); err != nil {
+		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence); err != nil {
 			return nil, err
 		}
 		items = append(items, it)

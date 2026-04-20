@@ -35,6 +35,7 @@
         .dark select, .dark textarea {
             background-color: #1f2937; color: #e5e7eb; border-color: #4b5563;
         }
+        .dark input[type="date"] { color-scheme: dark; }
         .dark input::placeholder { color: #6b7280; }
         .dark .hover\:bg-gray-50:hover { background-color: #1f2937 !important; }
         .dark .border-gray-200, .dark .border-gray-300 { border-color: #374151; }
@@ -300,9 +301,9 @@
                         <table class="w-full text-left">
                             <thead><tr class="border-b text-sm text-gray-400 dark:text-gray-500">
                                 <th class="pb-2 font-medium">Student</th>
-                                <th class="pb-2 font-medium text-center">Total</th>
+                                <th class="pb-2 font-medium text-center">Expected</th>
                                 <th class="pb-2 font-medium text-center">Done</th>
-                                <th class="pb-2 font-medium text-center">Not Done</th>
+                                <th class="pb-2 font-medium text-center">Missed</th>
                                 <th class="pb-2 font-medium text-center">Completion</th>
                             </tr></thead>
                             <tbody id="progress-summary-tbody"></tbody>
@@ -318,7 +319,9 @@
                 <!-- Global Tracker Items -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-gray-700">Tracker Items</h2>
+                        <h2 class="text-lg font-semibold text-gray-700">Tracker Items
+                            <button onclick="document.getElementById('tracker-help-modal').classList.remove('hidden')" class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 text-xs font-bold" title="How tracker items work">?</button>
+                        </h2>
                         <button onclick="openTrackerItemModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add Item
@@ -332,7 +335,7 @@
                                 <th class="pb-2 font-medium">Notes</th>
                                 <th class="pb-2 font-medium text-center">Priority</th>
                                 <th class="pb-2 font-medium text-center">Recurrence</th>
-                                <th class="pb-2 font-medium text-center">Due Date</th>
+                                <th class="pb-2 font-medium text-center">End Date</th>
                                 <th class="pb-2 font-medium text-center">Active</th>
                                 <th class="pb-2 font-medium text-right">Actions</th>
                             </tr></thead>
@@ -572,7 +575,10 @@
     <div id="tracker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4">
             <div class="flex items-center justify-between px-6 py-4 border-b">
-                <h3 id="tracker-modal-title" class="text-lg font-semibold text-gray-800">Add Tracker Item</h3>
+                <div class="flex items-center gap-1">
+                    <h3 id="tracker-modal-title" class="text-lg font-semibold text-gray-800">Add Tracker Item</h3>
+                    <button onclick="document.getElementById('tracker-help-modal').classList.remove('hidden')" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 text-xs font-bold" title="How tracker items work">?</button>
+                </div>
                 <button onclick="closeTrackerModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <div class="px-6 py-4 space-y-3">
@@ -591,8 +597,8 @@
                         <input type="date" id="tracker-item-start-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-600 mb-1">Due Date</label>
-                        <input type="date" id="tracker-item-due-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                        <label class="block text-sm text-gray-600 mb-1">End Date</label>
+                        <input type="date" id="tracker-item-end-date" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -626,6 +632,52 @@
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
                 <button onclick="closeTrackerModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
                 <button onclick="saveTrackerItem()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tracker Help Modal -->
+    <div id="tracker-help-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40 no-print">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">How Tracker Items Work</h3>
+                <button onclick="document.getElementById('tracker-help-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <div class="px-6 py-4 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4">
+                <div>
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-1">What are tracker items?</h4>
+                    <p>Tracker items are tasks that students must respond to (Done / Not Done) at checkout. They help track daily habits, assignments, and goals across all students.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-1">Recurrence</h4>
+                    <ul class="list-disc ml-4 space-y-1">
+                        <li><strong>Daily</strong> &mdash; appears every day. Resets each day.</li>
+                        <li><strong>Weekly</strong> &mdash; appears once per week (Monday&ndash;Sunday). Once responded, it won't appear again until next week.</li>
+                        <li><strong>Monthly</strong> &mdash; appears once per month. Once responded, it won't appear again until next month.</li>
+                        <li><strong>One-time</strong> &mdash; appears until the student marks it done.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-1">Start Date &amp; End Date</h4>
+                    <p>These define the active window for the item. Both are optional.</p>
+                    <ul class="list-disc ml-4 space-y-1 mt-1">
+                        <li><strong>Neither set</strong> &mdash; the item is always active (no date restrictions).</li>
+                        <li><strong>Start date only</strong> &mdash; the item becomes active on that date and continues indefinitely.</li>
+                        <li><strong>End date only</strong> &mdash; the item is active immediately and stops appearing after the end date.</li>
+                        <li><strong>Both set</strong> &mdash; the item is only active within that date range.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-1">Progress &amp; Completion</h4>
+                    <p>Progress is calculated based on <em>expected</em> completions, not just responses. If a daily item is active for 5 days and a student only marks it done on 3, their completion is 60% &mdash; the 2 missed days count against them.</p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                    <h4 class="font-semibold text-gray-700 dark:text-gray-200 mb-1">Example</h4>
+                    <p>A "Homework Check" item set to <em>Daily</em> with start date Apr 1 and end date Apr 30 will appear every day in April. A student who checks in on 20 of those days and marks it done each time has 20/30 = 67% completion.</p>
+                </div>
+            </div>
+            <div class="flex justify-end px-6 py-3 border-t">
+                <button onclick="document.getElementById('tracker-help-modal').classList.add('hidden')" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Got it</button>
             </div>
         </div>
     </div>
@@ -1153,7 +1205,7 @@
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${pColors[it.priority] || pColors.medium}">${it.priority}</span>
                     </td>
                     <td class="py-2 text-center text-xs text-gray-500">${it.recurrence}</td>
-                    <td class="py-2 text-center text-xs text-gray-500">${it.due_date || '-'}</td>
+                    <td class="py-2 text-center text-xs text-gray-500">${it.end_date || '-'}</td>
                     <td class="py-2 text-center">
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${it.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${it.active ? 'Yes' : 'No'}</span>
                     </td>
@@ -1172,7 +1224,7 @@
             document.getElementById('tracker-item-name').value = item ? item.name : '';
             document.getElementById('tracker-item-notes').value = item ? (item.notes || '') : '';
             document.getElementById('tracker-item-start-date').value = item ? (item.start_date || '') : '';
-            document.getElementById('tracker-item-due-date').value = item ? (item.due_date || '') : '';
+            document.getElementById('tracker-item-end-date').value = item ? (item.end_date || '') : '';
             document.getElementById('tracker-item-priority').value = item ? (item.priority || 'medium') : 'medium';
             document.getElementById('tracker-item-recurrence').value = item ? (item.recurrence || 'daily') : 'daily';
             document.getElementById('tracker-item-category').value = item ? (item.category || '') : '';
@@ -1203,7 +1255,7 @@
                     body: JSON.stringify({
                         id: id || undefined, name, notes, active,
                         start_date: document.getElementById('tracker-item-start-date').value || '',
-                        due_date: document.getElementById('tracker-item-due-date').value || '',
+                        end_date: document.getElementById('tracker-item-end-date').value || '',
                         priority: document.getElementById('tracker-item-priority').value || 'medium',
                         recurrence: document.getElementById('tracker-item-recurrence').value || 'daily',
                         category: document.getElementById('tracker-item-category').value.trim() || ''

@@ -699,6 +699,453 @@ func TestAdmin_CanDeleteAnyItem(t *testing.T) {
 	}
 }
 
+// ==================== PROGRESS STATS ====================
+
+func TestProgress_ExpectedBased_DailyItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a daily global item active for a known 5-day range
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Daily Check", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-13", EndDate: "2026-04-17", Active: true,
+	})
+
+	// Student S001 responds "done" on 3 of the 5 days
+	for _, d := range []string{"2026-04-13", "2026-04-14", "2026-04-16"} {
+		app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+			VALUES ('S001', 'Alice', 'global', 1, 'Daily Check', 'done', ?, datetime('now','localtime'))`, d)
+	}
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-13", "2026-04-17")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 stat, got %d", len(stats))
+	}
+	s := stats[0]
+	if s.TotalItems != 5 {
+		t.Errorf("expected 5 expected items (daily x 5 days), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 3 {
+		t.Errorf("expected 3 done, got %d", s.DoneCount)
+	}
+	if s.NotDone != 2 {
+		t.Errorf("expected 2 missed, got %d", s.NotDone)
+	}
+	if s.Completion < 59 || s.Completion > 61 {
+		t.Errorf("expected ~60%% completion, got %.1f%%", s.Completion)
+	}
+}
+
+func TestProgress_ExpectedBased_WeeklyItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a weekly item spanning 2 weeks (Mon Apr 13 - Sun Apr 26 = 2 ISO weeks)
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Weekly Review", Priority: "medium", Recurrence: "weekly",
+		StartDate: "2026-04-13", EndDate: "2026-04-26", Active: true,
+	})
+
+	// Student responds in week 1 only
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S001', 'Alice', 'global', 1, 'Weekly Review', 'done', '2026-04-15', datetime('now','localtime'))`)
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-13", "2026-04-26")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 stat, got %d", len(stats))
+	}
+	s := stats[0]
+	if s.TotalItems != 2 {
+		t.Errorf("expected 2 expected items (weekly x 2 weeks), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 1 {
+		t.Errorf("expected 1 done, got %d", s.DoneCount)
+	}
+	if s.Completion < 49 || s.Completion > 51 {
+		t.Errorf("expected ~50%% completion, got %.1f%%", s.Completion)
+	}
+}
+
+func TestProgress_ExpectedBased_MonthlyItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Monthly item spanning 2 months
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Monthly Report", Priority: "low", Recurrence: "monthly",
+		StartDate: "2026-03-15", EndDate: "2026-04-30", Active: true,
+	})
+
+	// Student responds in both months
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S001', 'Alice', 'global', 1, 'Monthly Report', 'done', '2026-03-20', datetime('now','localtime'))`)
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S001', 'Alice', 'global', 1, 'Monthly Report', 'done', '2026-04-10', datetime('now','localtime'))`)
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-03-15", "2026-04-30")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 2 {
+		t.Errorf("expected 2 expected (monthly x 2 months), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 2 {
+		t.Errorf("expected 2 done, got %d", s.DoneCount)
+	}
+	if s.Completion < 99 {
+		t.Errorf("expected 100%% completion, got %.1f%%", s.Completion)
+	}
+}
+
+func TestProgress_ExpectedBased_OneTimeItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// One-time item with a date window
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Submit Application", Priority: "high", Recurrence: "none",
+		StartDate: "2026-04-10", EndDate: "2026-04-20", Active: true,
+	})
+
+	// Student does NOT respond — should have 0/1 completion
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-10", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 stat, got %d", len(stats))
+	}
+	s := stats[0]
+	if s.TotalItems != 1 {
+		t.Errorf("expected 1 expected (one-time), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 0 {
+		t.Errorf("expected 0 done, got %d", s.DoneCount)
+	}
+	if s.Completion != 0 {
+		t.Errorf("expected 0%% completion, got %.1f%%", s.Completion)
+	}
+}
+
+func TestProgress_NoDateConstraints(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Daily item with no start/end dates — always active
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Open-ended Daily", Priority: "medium", Recurrence: "daily", Active: true,
+	})
+
+	// Query a 3-day range
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 3 {
+		t.Errorf("expected 3 expected (daily x 3 days, no date constraint), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 0 {
+		t.Errorf("expected 0 done, got %d", s.DoneCount)
+	}
+}
+
+func TestProgress_StartDateOnly(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Daily item starting Apr 19, querying Apr 18-20 — only active on 19 and 20
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Late Start", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-19", Active: true,
+	})
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 2 {
+		t.Errorf("expected 2 expected (daily, start Apr 19, 2 of 3 days), got %d", s.TotalItems)
+	}
+}
+
+func TestProgress_EndDateOnly(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Daily item ending Apr 19, querying Apr 18-20 — active on 18 and 19
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Early End", Priority: "medium", Recurrence: "daily",
+		EndDate: "2026-04-19", Active: true,
+	})
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 2 {
+		t.Errorf("expected 2 expected (daily, end Apr 19, 2 of 3 days), got %d", s.TotalItems)
+	}
+}
+
+func TestProgress_StudentSpecificItems(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Global daily item
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Global Task", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+	})
+	// Student-specific daily item for S001 only
+	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
+		StudentID: "S001", Name: "Personal Task", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+	})
+
+	// S001 should have 6 expected (3 global + 3 student)
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 6 {
+		t.Errorf("expected 6 expected (3 global + 3 student), got %d", s.TotalItems)
+	}
+
+	// S002 should have 3 expected (3 global only, no student items)
+	stats, err = database.GetProgressStats(app.DB, []string{"S002"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s = stats[0]
+	if s.TotalItems != 3 {
+		t.Errorf("expected 3 expected (global only for S002), got %d", s.TotalItems)
+	}
+}
+
+func TestProgress_MultipleStudents(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// One global daily item, 2-day range
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Daily", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-04-18", EndDate: "2026-04-19", Active: true,
+	})
+
+	// S001 does 2/2, S002 does 1/2
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S001', 'Alice', 'global', 1, 'Daily', 'done', '2026-04-18', datetime('now','localtime'))`)
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S001', 'Alice', 'global', 1, 'Daily', 'done', '2026-04-19', datetime('now','localtime'))`)
+	app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+		VALUES ('S002', 'Bob', 'global', 1, 'Daily', 'done', '2026-04-18', datetime('now','localtime'))`)
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001", "S002"}, "2026-04-18", "2026-04-19")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	if len(stats) != 2 {
+		t.Fatalf("expected 2 stats, got %d", len(stats))
+	}
+
+	statsMap := map[string]models.ProgressStats{}
+	for _, s := range stats {
+		statsMap[s.StudentID] = s
+	}
+
+	s1 := statsMap["S001"]
+	if s1.TotalItems != 2 || s1.DoneCount != 2 || s1.Completion < 99 {
+		t.Errorf("S001: expected 2/2 100%%, got %d/%d %.0f%%", s1.DoneCount, s1.TotalItems, s1.Completion)
+	}
+	s2 := statsMap["S002"]
+	if s2.TotalItems != 2 || s2.DoneCount != 1 || s2.Completion < 49 || s2.Completion > 51 {
+		t.Errorf("S002: expected 1/2 50%%, got %d/%d %.0f%%", s2.DoneCount, s2.TotalItems, s2.Completion)
+	}
+}
+
+func TestProgress_DoneCappedAtExpected(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// One-time item
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "One Shot", Priority: "medium", Recurrence: "none",
+		StartDate: "2026-04-18", EndDate: "2026-04-20", Active: true,
+	})
+
+	// Student responds done multiple times (shouldn't exceed 100%)
+	for _, d := range []string{"2026-04-18", "2026-04-19", "2026-04-20"} {
+		app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+			VALUES ('S001', 'Alice', 'global', 1, 'One Shot', 'done', ?, datetime('now','localtime'))`, d)
+	}
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 1 {
+		t.Errorf("expected 1 expected (one-time), got %d", s.TotalItems)
+	}
+	if s.DoneCount != 1 {
+		t.Errorf("expected done capped at 1, got %d", s.DoneCount)
+	}
+	if s.Completion > 101 {
+		t.Errorf("completion should not exceed 100%%, got %.1f%%", s.Completion)
+	}
+}
+
+func TestProgress_InactiveItemsExcluded(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Active item
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Active Task", Priority: "medium", Recurrence: "daily", Active: true,
+	})
+	// Inactive item — should not count toward expected
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Inactive Task", Priority: "medium", Recurrence: "daily", Active: false,
+	})
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 3 {
+		t.Errorf("expected 3 expected (only active daily x 3 days), got %d", s.TotalItems)
+	}
+}
+
+func TestProgress_OutsideDateWindow(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Item with start/end outside the query range
+	database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Past Item", Priority: "medium", Recurrence: "daily",
+		StartDate: "2026-03-01", EndDate: "2026-03-10", Active: true,
+	})
+
+	stats, err := database.GetProgressStats(app.DB, []string{"S001"}, "2026-04-18", "2026-04-20")
+	if err != nil {
+		t.Fatalf("GetProgressStats: %v", err)
+	}
+	s := stats[0]
+	if s.TotalItems != 0 {
+		t.Errorf("expected 0 expected (item window doesn't overlap query range), got %d", s.TotalItems)
+	}
+}
+
+// ==================== PROGRESS API E2E ====================
+
+func TestProgress_API_EndToEnd(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+	app.PinMode = "off"
+	app.SetRequirePIN(false)
+
+	// 1. Admin creates a daily global item for a specific date range
+	req := reqWithSession("POST", "/api/v1/tracker/items",
+		`{"name":"Homework Check","priority":"medium","recurrence":"daily","start_date":"2026-04-13","end_date":"2026-04-17","active":true}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleTrackerItems, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("create item failed: %v", resp)
+	}
+
+	// 2. Verify item was created with end_date (not due_date)
+	req = reqWithSession("GET", "/api/v1/tracker/items", "", app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerItems, req)
+	items := mustDecodeArray(t, w)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0]["end_date"] != "2026-04-17" {
+		t.Errorf("expected end_date=2026-04-17, got %v", items[0]["end_date"])
+	}
+	if _, hasDue := items[0]["due_date"]; hasDue {
+		t.Error("should not have due_date field, should be end_date")
+	}
+
+	// 3. Student checks in and responds to the daily item for 3 of 5 days
+	for _, d := range []string{"2026-04-13", "2026-04-14", "2026-04-16"} {
+		app.DB.Exec(`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, response_date, responded_at)
+			VALUES ('S001', 'Alice', 'global', ?, 'Homework Check', 'done', ?, datetime('now','localtime'))`,
+			int(items[0]["id"].(float64)), d)
+	}
+
+	// 4. Query progress API
+	req = reqWithSession("GET", "/api/dashboard/progress?student_id=S001&start_date=2026-04-13&end_date=2026-04-17",
+		"", app, "user", "student", "S001")
+	w = doReq(app.HandleTrackerProgress, req)
+	var progressStats []map[string]any
+	json.NewDecoder(w.Body).Decode(&progressStats)
+
+	if len(progressStats) != 1 {
+		t.Fatalf("expected 1 progress entry, got %d", len(progressStats))
+	}
+	ps := progressStats[0]
+	totalItems := int(ps["total_items"].(float64))
+	doneCount := int(ps["done_count"].(float64))
+	notDone := int(ps["not_done_count"].(float64))
+	completionPct := ps["completion_pct"].(float64)
+
+	if totalItems != 5 {
+		t.Errorf("expected total_items=5 (daily x 5), got %d", totalItems)
+	}
+	if doneCount != 3 {
+		t.Errorf("expected done_count=3, got %d", doneCount)
+	}
+	if notDone != 2 {
+		t.Errorf("expected not_done_count=2, got %d", notDone)
+	}
+	if completionPct < 59 || completionPct > 61 {
+		t.Errorf("expected ~60%% completion, got %.1f%%", completionPct)
+	}
+}
+
+func TestProgress_API_EndDateField(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create item via API with end_date
+	req := reqWithSession("POST", "/api/v1/tracker/items",
+		`{"name":"Test Item","priority":"low","recurrence":"weekly","end_date":"2026-05-01"}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleTrackerItems, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("create failed: %v", resp)
+	}
+
+	// Verify round-trip
+	req = reqWithSession("GET", "/api/v1/tracker/items", "", app, "admin", "", "admin")
+	w = doReq(app.HandleTrackerItems, req)
+	items := mustDecodeArray(t, w)
+	if items[0]["end_date"] != "2026-05-01" {
+		t.Errorf("expected end_date=2026-05-01, got %v", items[0]["end_date"])
+	}
+
+	// Verify no due_date key exists
+	if _, ok := items[0]["due_date"]; ok {
+		t.Error("API should return end_date, not due_date")
+	}
+}
+
 // ==================== HELPERS ====================
 
 func jsonNum(f float64) string {
