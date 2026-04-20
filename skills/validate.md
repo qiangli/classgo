@@ -249,7 +249,48 @@ curl -s -o /dev/null -w "%{http_code}" $BASE/api/v1/preferences
 rm -f /tmp/cg-cookies
 ```
 
-### 13. Go Test Suite
+### 13. Admin Data Page Round-Trip (Profile Navigation)
+
+Requires authentication. Tests the admin→profile→admin flow.
+
+```bash
+# Login as admin
+curl -s -c /tmp/cg-cookies -X POST $BASE/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin"}'
+
+# Load admin page
+curl -s -b /tmp/cg-cookies -o /dev/null -w "%{http_code}" $BASE/admin
+# Expect: 200
+
+# Load directory API (data tab content)
+curl -s -b /tmp/cg-cookies $BASE/api/v1/directory | python3 -c "import sys,json; d=json.load(sys.stdin); assert len(d.get('students',[])) > 0, 'no students'"
+# Expect: JSON with non-empty students array
+
+# Load student profile page
+curl -s -b /tmp/cg-cookies -o /dev/null -w "%{http_code}" "$BASE/admin/profile?id=S001"
+# Expect: 200
+
+# Load student profile API
+curl -s -b /tmp/cg-cookies "$BASE/api/v1/student/profile?id=S001"
+# Expect: {"ok": true, "student": {...}, "parent": {...}}
+
+# Return to admin page (simulates clicking /admin#data back link)
+curl -s -b /tmp/cg-cookies -o /dev/null -w "%{http_code}" $BASE/admin
+# Expect: 200
+
+# Directory API still works after round-trip
+curl -s -b /tmp/cg-cookies $BASE/api/v1/directory | python3 -c "import sys,json; d=json.load(sys.stdin); assert len(d.get('students',[])) > 0, 'no students after round-trip'"
+# Expect: students still present
+
+# Preferences API works (needed for data tab init)
+curl -s -b /tmp/cg-cookies -o /dev/null -w "%{http_code}" $BASE/api/v1/preferences
+# Expect: 200
+
+rm -f /tmp/cg-cookies
+```
+
+### 14. Go Test Suite
 
 ```bash
 go test -v -count=1 .
@@ -277,6 +318,7 @@ Validation Results:
   Exports:         PASS (CSV, XLSX)
   Static:          PASS (logo, favicon, JS)
   Preferences:     PASS (save, load, unauthenticated rejected)
+  Profile Nav:     PASS (admin→profile→admin round-trip, data persists)
   Go Tests:        PASS (all passed)
 ```
 

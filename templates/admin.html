@@ -646,22 +646,6 @@
             history.replaceState(null, '', '#' + section);
         }
 
-        const hash = location.hash.replace('#', '');
-        navigate(sections.includes(hash) ? hash : 'checkin');
-
-        // Re-navigate on hash change (e.g., browser back/forward)
-        window.addEventListener('hashchange', () => {
-            const h = location.hash.replace('#', '');
-            if (sections.includes(h) && h !== currentSection) navigate(h);
-        });
-        // Handle bfcache page restoration
-        window.addEventListener('pageshow', (e) => {
-            if (e.persisted) {
-                const h = location.hash.replace('#', '');
-                navigate(sections.includes(h) ? h : currentSection);
-            }
-        });
-
         // ==================== CHECK-IN / PIN ====================
         let requirePIN = {{.RequirePIN}};
 
@@ -1767,6 +1751,22 @@
         document.addEventListener('click', e => {
             if (!e.target.closest('#export-dropdown')) closeDropdowns();
             if (!e.target.closest('#att-filter-search-wrap')) document.getElementById('att-filter-results').classList.add('hidden');
+        });
+
+        // ==================== INITIAL NAVIGATION ====================
+        // Must run after all let/const declarations to avoid temporal dead zone errors.
+        const hash = location.hash.replace('#', '');
+        navigate(sections.includes(hash) ? hash : 'checkin');
+
+        window.addEventListener('hashchange', () => {
+            const h = location.hash.replace('#', '');
+            if (sections.includes(h) && h !== currentSection) navigate(h);
+        });
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                const h = location.hash.replace('#', '');
+                navigate(sections.includes(h) ? h : currentSection);
+            }
         });
 
     </script>

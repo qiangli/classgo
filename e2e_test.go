@@ -503,6 +503,95 @@ func TestColumnPreferences_SaveAndLoad(t *testing.T) {
 	}
 }
 
+// ====================================================================================
+// Admin Data Page Round-Trip: Navigate to student profile and back.
+// Verifies admin page, profile page, and directory API all work in sequence,
+// simulating the user flow: admin data tab → student profile → back to admin data.
+// ====================================================================================
+
+func TestAdminDataPage_ReturnFromProfile(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// 1. Admin loads the admin page (initial visit)
+	req := reqWithSession("GET", "/admin", "", app, "admin", "", "admin")
+	w := doReq(app.HandleAdmin, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin page: expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "section-data") {
+		t.Error("admin page should contain data section")
+	}
+	if !strings.Contains(body, `navigate(sections.includes(hash)`) {
+		t.Error("admin page should contain hash-based navigation init")
+	}
+
+	// 2. Directory API returns student data (what the data tab fetches via JS)
+	req = reqWithSession("GET", "/api/v1/directory", "", app, "admin", "", "admin")
+	w = doReq(app.HandleDirectoryAPI, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("directory API: expected 200, got %d", w.Code)
+	}
+	var dirData map[string]any
+	json.NewDecoder(w.Body).Decode(&dirData)
+	students, ok := dirData["students"].([]any)
+	if !ok || len(students) == 0 {
+		t.Fatal("directory API should return students")
+	}
+
+	// 3. Admin navigates to a student profile page
+	req = reqWithSession("GET", "/admin/profile?id=S001", "", app, "admin", "", "admin")
+	w = doReq(app.HandleProfilePage, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("profile page: expected 200, got %d", w.Code)
+	}
+	profileBody := w.Body.String()
+	if !strings.Contains(profileBody, "/admin#data") {
+		t.Error("profile page should contain back link to /admin#data")
+	}
+
+	// 4. Profile API returns student data
+	req = reqWithSession("GET", "/api/v1/student/profile?id=S001", "", app, "admin", "", "admin")
+	w = doReq(app.HandleStudentProfile, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("student profile API: expected 200, got %d", w.Code)
+	}
+	var profileResp map[string]any
+	json.NewDecoder(w.Body).Decode(&profileResp)
+	if profileResp["ok"] != true {
+		t.Fatalf("student profile API failed: %v", profileResp)
+	}
+
+	// 5. Simulate returning to admin page (as if user clicked /admin#data back link)
+	// The admin page must render successfully again
+	req = reqWithSession("GET", "/admin", "", app, "admin", "", "admin")
+	w = doReq(app.HandleAdmin, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin page on return: expected 200, got %d", w.Code)
+	}
+
+	// 6. Directory API must still return data after the round-trip
+	req = reqWithSession("GET", "/api/v1/directory", "", app, "admin", "", "admin")
+	w = doReq(app.HandleDirectoryAPI, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("directory API on return: expected 200, got %d", w.Code)
+	}
+	dirData = map[string]any{}
+	json.NewDecoder(w.Body).Decode(&dirData)
+	students, ok = dirData["students"].([]any)
+	if !ok || len(students) == 0 {
+		t.Fatal("directory API should still return students after round-trip")
+	}
+
+	// 7. Preferences API must work (used by data tab init)
+	req = reqWithSession("GET", "/api/v1/preferences", "", app, "admin", "", "admin")
+	w = doReq(app.HandlePreferences, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("preferences API on return: expected 200, got %d", w.Code)
+	}
+}
+
 func TestColumnPreferences_Unauthenticated(t *testing.T) {
 	app, cleanup := setupTrackerTest(t)
 	defer cleanup()
