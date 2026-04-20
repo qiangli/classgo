@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"classgo/internal/auth"
 	"classgo/internal/database"
 	"classgo/internal/datastore"
 	"classgo/internal/memos"
@@ -920,4 +921,55 @@ func subtractMinutes(timeStr string, minutes int) string {
 	}
 	t = t.Add(-time.Duration(minutes) * time.Minute)
 	return t.Format("15:04")
+}
+
+// HandlePreferences handles GET/POST for per-user UI preferences (e.g., column visibility).
+func (a *App) HandlePreferences(w http.ResponseWriter, r *http.Request) {
+	token := auth.GetSessionToken(r)
+	sess, ok := a.Sessions.Get(token)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Not authenticated"})
+		return
+	}
+	userID := sess.Username
+
+	switch r.Method {
+	case http.MethodGet:
+		rows, err := a.DB.Query("SELECT pref_key, pref_value FROM user_preferences WHERE user_id = ?", userID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Database error"})
+			return
+		}
+		defer rows.Close()
+		prefs := map[string]string{}
+		for rows.Next() {
+			var key, value string
+			if err := rows.Scan(&key, &value); err != nil {
+				continue
+			}
+			prefs[key] = value
+		}
+		writeJSON(w, http.StatusOK, prefs)
+
+	case http.MethodPost:
+		var req map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+			return
+		}
+		for key, value := range req {
+			_, err := a.DB.Exec(
+				"INSERT INTO user_preferences (user_id, pref_key, pref_value, updated_at) VALUES (?, ?, ?, datetime('now','localtime')) ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value, updated_at = excluded.updated_at",
+				userID, key, value,
+			)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Save failed"})
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
 }

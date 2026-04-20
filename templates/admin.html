@@ -466,7 +466,7 @@
                     </div>
                 </div>
 
-                <!-- Filter + New + Show Deleted -->
+                <!-- Filter + New + Columns + Show Deleted -->
                 <div class="flex items-center gap-4 mb-4 no-print">
                     <div class="max-w-md flex-1">
                         <input type="text" id="data-filter" placeholder="Filter by any field..."
@@ -477,6 +477,12 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         New
                     </button>
+                    <div class="relative">
+                        <button id="col-config-btn" onclick="showColumnConfig(event)" class="text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg transition flex items-center gap-1" title="Configure visible columns">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                            Columns
+                        </button>
+                    </div>
                     <label class="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap">
                         <input type="checkbox" id="show-deleted" onchange="toggleShowDeleted()" class="rounded">
                         Show deleted
@@ -515,7 +521,7 @@
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
                 <button onclick="closeModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
-                <button onclick="saveModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
+                <button id="modal-save-btn" onclick="saveModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
             </div>
         </div>
     </div>
@@ -635,7 +641,7 @@
             if (section === 'schedule' && !scheduleLoaded) loadSchedule();
             if (section === 'progress') loadTrackerItems();
             if (section === 'audit') loadAuditData();
-            if (section === 'data') loadDataSection();
+            if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().then(() => loadDataSection()); } else { loadDataSection(); } }
 
             history.replaceState(null, '', '#' + section);
         }
@@ -1313,19 +1319,123 @@
         }
 
         // ==================== DATA (tabbed spreadsheet) ====================
-        let dataStore = null, currentDataTab = 'students', dataFilterText = '', showDeleted = false;
+        let dataStore = null, currentDataTab = 'students', dataFilterText = '', showDeleted = false, prefsLoaded = false;
+        let sortState = {}; // { tab: { key, dir } }
+        let columnVisibility = {}; // { tab: { key: bool } } — loaded from server
 
         const dataTabs = ['students', 'parents', 'teachers', 'rooms', 'schedules'];
         const refFields = { parent_id: 'parents', teacher_id: 'teachers', room_id: 'rooms', student_ids: 'students' };
         const dataColumns = {
-            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'dob',label:'DOB'},{key:'birthplace',label:'Birthplace'},{key:'years_in_us',label:'Years in US'},{key:'first_language',label:'First Language'},{key:'previous_schools',label:'Previous Schools'},{key:'courses_outside',label:'Courses Outside HS'},{key:'profile_status',label:'Profile'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
+            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'dob',label:'DOB'},{key:'birthplace',label:'Birthplace'},{key:'years_in_us',label:'Years in US'},{key:'first_language',label:'First Language'},{key:'previous_schools',label:'Previous Schools'},{key:'courses_outside',label:'Courses Outside HS'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
             parents:   [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'email2',label:'Email 2'},{key:'phone2',label:'Phone 2'},{key:'address',label:'Address'},{key:'notes',label:'Notes'}],
             teachers:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'subjects',label:'Subjects'},{key:'active',label:'Active'}],
             rooms:     [{key:'id',label:'ID'},{key:'name',label:'Name'},{key:'capacity',label:'Capacity'},{key:'notes',label:'Notes'}],
             schedules: [{key:'id',label:'ID'},{key:'day_of_week',label:'Day'},{key:'start_time',label:'Start'},{key:'end_time',label:'End'},{key:'teacher_id',label:'Teacher',ref:'teachers'},{key:'room_id',label:'Room',ref:'rooms'},{key:'subject',label:'Subject'},{key:'student_ids',label:'Students',ref:'students'},{key:'effective_from',label:'From'},{key:'effective_until',label:'Until'}]
         };
 
+        // Default visible columns per tab (keys that are shown by default)
+        const defaultVisible = {
+            students:  ['id','first_name','last_name','grade','parent_id','email','phone','active'],
+            parents:   ['id','first_name','last_name','email','phone','email2','phone2'],
+            teachers:  ['id','first_name','last_name','email','phone','subjects','active'],
+            rooms:     ['id','name','capacity','notes'],
+            schedules: ['id','day_of_week','start_time','end_time','teacher_id','room_id','subject','student_ids','effective_from','effective_until']
+        };
+
+        function getVisibleCols(tab) {
+            const cols = dataColumns[tab];
+            const vis = columnVisibility[tab];
+            if (!vis) return cols; // no prefs yet — use defaults
+            return cols.filter(c => vis[c.key] !== false);
+        }
+
+        function isColVisible(tab, key) {
+            const vis = columnVisibility[tab];
+            if (!vis) return defaultVisible[tab].includes(key);
+            return vis[key] !== false;
+        }
+
+        function initColumnVisibility() {
+            dataTabs.forEach(tab => {
+                if (columnVisibility[tab]) return; // already loaded from server
+                const vis = {};
+                dataColumns[tab].forEach(c => { vis[c.key] = defaultVisible[tab].includes(c.key); });
+                columnVisibility[tab] = vis;
+            });
+        }
+
+        async function loadPreferences() {
+            try {
+                const prefs = await (await fetch('/api/v1/preferences')).json();
+                if (prefs && prefs.data_columns) {
+                    const saved = JSON.parse(prefs.data_columns);
+                    dataTabs.forEach(tab => { if (saved[tab]) columnVisibility[tab] = saved[tab]; });
+                }
+            } catch(e) { /* use defaults */ }
+            initColumnVisibility();
+        }
+
+        async function saveColumnPrefs() {
+            try {
+                await fetch('/api/v1/preferences', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ data_columns: JSON.stringify(columnVisibility) })
+                });
+            } catch(e) { console.error('Failed to save preferences:', e); }
+        }
+
+        function toggleColumn(tab, key) {
+            columnVisibility[tab][key] = !columnVisibility[tab][key];
+            // Ensure at least one column stays visible
+            const vis = columnVisibility[tab];
+            if (!Object.values(vis).some(v => v)) { vis[key] = true; return; }
+            saveColumnPrefs();
+            renderDataTab();
+        }
+
+        let colConfigOpen = false;
+
+        function showColumnConfig(e) {
+            e.stopPropagation();
+            if (colConfigOpen) { closeColumnConfig(); return; }
+            closeColumnConfig();
+            colConfigOpen = true;
+            const tab = currentDataTab;
+            const cols = dataColumns[tab];
+            const menu = document.createElement('div');
+            menu.id = 'col-config-menu';
+            menu.className = 'absolute right-0 mt-1 w-56 bg-white dark:bg-gray-700 rounded-lg shadow-lg border dark:border-gray-600 z-30 py-1 max-h-80 overflow-y-auto';
+            menu.onclick = function(ev) { ev.stopPropagation(); };
+            menu.innerHTML = cols.map(c => {
+                const checked = isColVisible(tab, c.key) ? 'checked' : '';
+                return `<label class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
+                    <input type="checkbox" ${checked} onchange="toggleColumn('${tab}','${c.key}')" class="rounded"> ${c.label}
+                </label>`;
+            }).join('');
+            const btn = document.getElementById('col-config-btn');
+            btn.parentElement.style.position = 'relative';
+            btn.parentElement.appendChild(menu);
+            setTimeout(() => document.addEventListener('click', closeColumnConfig), 0);
+        }
+
+        function closeColumnConfig() {
+            colConfigOpen = false;
+            document.removeEventListener('click', closeColumnConfig);
+            const m = document.getElementById('col-config-menu');
+            if (m) m.remove();
+        }
+
         function resolveRef(id, refType) {
+            if (!id || !dataStore || !dataStore[refType]) return id;
+            const item = dataStore[refType].find(r => r.id === id);
+            if (!item) return id;
+            if (item.first_name) return `${item.first_name} ${item.last_name}`;
+            if (item.name) return item.name;
+            return id;
+        }
+
+        function resolveRefFull(id, refType) {
             if (!id || !dataStore || !dataStore[refType]) return id;
             const item = dataStore[refType].find(r => r.id === id);
             if (!item) return id;
@@ -1344,6 +1454,37 @@
             if (ref && typeof val === 'string' && val) return resolveRef(val, ref);
             if (Array.isArray(val)) return val.join('; ');
             return String(val);
+        }
+
+        function sortRows(rows, tab) {
+            const s = sortState[tab];
+            if (!s) return rows;
+            const sorted = [...rows];
+            sorted.sort((a, b) => {
+                let va = a[s.key], vb = b[s.key];
+                // resolve refs for display sorting
+                const ref = refFields[s.key];
+                if (ref) { va = fmtVal(va, s.key); vb = fmtVal(vb, s.key); }
+                if (va == null) va = '';
+                if (vb == null) vb = '';
+                if (typeof va === 'boolean') { va = va ? 1 : 0; vb = vb ? 1 : 0; }
+                if (typeof va === 'number' && typeof vb === 'number') return s.dir === 'asc' ? va - vb : vb - va;
+                va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+                if (va < vb) return s.dir === 'asc' ? -1 : 1;
+                if (va > vb) return s.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+            return sorted;
+        }
+
+        function toggleSort(key) {
+            const s = sortState[currentDataTab];
+            if (s && s.key === key) {
+                sortState[currentDataTab] = s.dir === 'asc' ? { key, dir: 'desc' } : null;
+            } else {
+                sortState[currentDataTab] = { key, dir: 'asc' };
+            }
+            renderDataTab();
         }
 
         async function loadDataSection(force) {
@@ -1370,16 +1511,24 @@
                     : 'data-tab px-4 py-2 text-sm font-medium border-b-2 transition text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300';
             });
 
-            const cols = dataColumns[currentDataTab];
+            const allCols = dataColumns[currentDataTab];
+            const cols = getVisibleCols(currentDataTab);
             const filter = (dataFilterText || '').toLowerCase();
             const allRows = (dataStore && dataStore[currentDataTab]) || [];
-            const rows = filter ? allRows.filter(row => cols.some(c => fmtVal(row[c.key], c.key).toLowerCase().includes(filter))) : allRows;
+            // filter using ALL columns so hidden columns still match search
+            const filtered = filter ? allRows.filter(row => allCols.some(c => fmtVal(row[c.key], c.key).toLowerCase().includes(filter))) : allRows;
+            const rows = sortRows(filtered, currentDataTab);
 
             document.getElementById('data-count').textContent = `${rows.length} of ${allRows.length} records`;
 
-            // Header with Actions column
+            // Header with sortable columns + Actions
+            const s = sortState[currentDataTab];
             document.getElementById('data-thead').innerHTML = '<tr class="border-b text-sm text-gray-400">' +
-                cols.map(c => `<th class="py-2 px-3 whitespace-nowrap">${c.label}</th>`).join('') +
+                cols.map(c => {
+                    const arrow = s && s.key === c.key ? (s.dir === 'asc' ? ' ↑' : ' ↓') : '';
+                    const sortCls = s && s.key === c.key ? 'text-indigo-600' : '';
+                    return `<th class="py-2 px-3 whitespace-nowrap cursor-pointer select-none hover:text-gray-600 ${sortCls}" onclick="toggleSort('${c.key}')">${c.label}${arrow}</th>`;
+                }).join('') +
                 '<th class="py-2 px-3 whitespace-nowrap no-print">Actions</th></tr>';
 
             const tbody = document.getElementById('data-tbody');
@@ -1392,18 +1541,45 @@
                 const rowCls = isDeleted ? 'border-b bg-red-50 opacity-60' : 'border-b hover:bg-gray-50';
                 return `<tr class="${rowCls}">` +
                     cols.map(c => {
-                        const val = fmtVal(row[c.key], c.key);
+                        let val = fmtVal(row[c.key], c.key);
                         let cls = 'text-gray-700';
                         if (c.key === 'active') cls = row[c.key] ? 'text-green-600' : 'text-red-500';
-                        return `<td class="py-2 px-3 text-sm ${cls} max-w-xs truncate" title="${val.replace(/"/g,'&quot;')}">${val}</td>`;
+                        let inner = `<span title="${val.replace(/"/g,'&quot;')}">${val}</span>`;
+                        // Student ID → link to profile
+                        if (currentDataTab === 'students' && c.key === 'id' && !isDeleted) {
+                            inner = `<a href="/admin/profile?id=${encodeURIComponent(row.id)}" class="text-indigo-600 hover:text-indigo-800 underline" title="View profile">${val}</a>`;
+                        }
+                        // Parent column → link to show parent details
+                        if (c.key === 'parent_id' && row[c.key] && !isDeleted) {
+                            const parentId = row[c.key];
+                            inner = `<a href="javascript:void(0)" onclick="showParentProfile('${parentId}')" class="text-teal-600 hover:text-teal-800 underline" title="View parent profile">${val}</a>`;
+                        }
+                        return `<td class="py-2 px-3 text-sm ${cls} max-w-xs truncate">${inner}</td>`;
                     }).join('') +
                     `<td class="py-2 px-3 whitespace-nowrap no-print">
                         <button onclick='openEditModal(${JSON.stringify(row).replace(/'/g,"&#39;")})' class="text-indigo-600 hover:text-indigo-800 text-sm mr-1" title="Edit">Edit</button>
-                        ${!isDeleted && currentDataTab === 'students' ? `<a href="/admin/profile?id=${encodeURIComponent(row.id)}" class="text-teal-600 hover:text-teal-800 text-sm mr-1" title="Student Profile">Profile</a>` : ''}
                         ${!isDeleted && ['students','parents','teachers'].includes(currentDataTab) ? `<button onclick="openPasswordModal('${row.id}','${(row.first_name||'').replace(/'/g,"\\'")} ${(row.last_name||'').replace(/'/g,"\\'")}')" class="text-amber-600 hover:text-amber-800 text-sm mr-1" title="Reset Password">Pwd</button>` : ''}
                         ${!isDeleted ? `<button onclick="deleteRecord('${row.id}')" class="text-red-500 hover:text-red-700 text-sm" title="Delete">Del</button>` : ''}
                     </td></tr>`;
             }).join('');
+        }
+
+        function showParentProfile(parentId) {
+            if (!dataStore || !dataStore.parents) return;
+            const parent = dataStore.parents.find(p => p.id === parentId);
+            if (!parent) { alert('Parent not found: ' + parentId); return; }
+            const fields = [
+                ['ID', parent.id], ['Name', `${parent.first_name} ${parent.last_name}`],
+                ['Email', parent.email], ['Phone', parent.phone],
+                ['Email 2', parent.email2], ['Phone 2', parent.phone2],
+                ['Address', parent.address], ['Notes', parent.notes]
+            ].filter(([,v]) => v);
+            const html = fields.map(([l,v]) => `<div class="mb-2"><span class="text-sm font-medium text-gray-500">${l}:</span> <span class="text-sm text-gray-800 dark:text-gray-200">${v}</span></div>`).join('');
+            const modal = document.getElementById('entity-modal');
+            document.getElementById('modal-title').textContent = `Parent: ${parent.first_name} ${parent.last_name}`;
+            document.getElementById('modal-form').innerHTML = html;
+            document.getElementById('modal-save-btn').classList.add('hidden');
+            modal.classList.remove('hidden');
         }
 
         // ==================== MODAL ====================
@@ -1420,6 +1596,7 @@
         function openModal(title, row, cols) {
             const modal = document.getElementById('entity-modal');
             document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-save-btn').classList.remove('hidden');
             const form = document.getElementById('modal-form');
             form.innerHTML = cols.map(c => {
                 const val = row[c.key] ?? '';

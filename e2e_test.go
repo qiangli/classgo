@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -409,5 +411,106 @@ func TestPhase2_BulkAssignFromLibrary(t *testing.T) {
 		if resp["pending_tasks"] != true {
 			t.Errorf("%s: expected pending_tasks=true", name)
 		}
+	}
+}
+
+// ====================================================================================
+// Column Preferences E2E: Admin saves column visibility, preferences persist and
+// are isolated per user.
+// ====================================================================================
+
+func TestColumnPreferences_SaveAndLoad(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// 1. GET preferences for admin — should be empty initially
+	req := reqWithSession("GET", "/api/v1/preferences", "", app, "admin", "", "admin")
+	w := doReq(app.HandlePreferences, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET preferences: expected 200, got %d", w.Code)
+	}
+	var prefs map[string]string
+	json.NewDecoder(w.Body).Decode(&prefs)
+	if len(prefs) != 0 {
+		t.Errorf("expected empty preferences initially, got %v", prefs)
+	}
+
+	// 2. POST column visibility preferences (value must be a string, not nested JSON)
+	colPrefs := `{"students":{"id":true,"first_name":true,"last_name":true,"grade":true,"school":false,"parent_id":true,"email":false,"phone":false,"active":true}}`
+	// The preferences API expects map[string]string, so data_columns value is a JSON string
+	postBody, _ := json.Marshal(map[string]string{"data_columns": colPrefs})
+	req = reqWithSession("POST", "/api/v1/preferences",
+		string(postBody),
+		app, "admin", "", "admin")
+	w = doReq(app.HandlePreferences, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST preferences: expected 200, got %d", w.Code)
+	}
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("save preferences failed: %v", resp)
+	}
+
+	// 3. GET preferences — should return saved data
+	req = reqWithSession("GET", "/api/v1/preferences", "", app, "admin", "", "admin")
+	w = doReq(app.HandlePreferences, req)
+	prefs = map[string]string{}
+	json.NewDecoder(w.Body).Decode(&prefs)
+	if prefs["data_columns"] == "" {
+		t.Fatal("expected data_columns in preferences")
+	}
+	var savedCols map[string]map[string]bool
+	json.Unmarshal([]byte(prefs["data_columns"]), &savedCols)
+	if savedCols["students"]["school"] != false {
+		t.Error("expected school=false in saved preferences")
+	}
+	if savedCols["students"]["id"] != true {
+		t.Error("expected id=true in saved preferences")
+	}
+
+	// 4. Update preferences (toggle a column)
+	colPrefs2 := `{"students":{"id":true,"first_name":true,"last_name":true,"grade":true,"school":true,"parent_id":true,"email":true,"phone":false,"active":true}}`
+	postBody, _ = json.Marshal(map[string]string{"data_columns": colPrefs2})
+	req = reqWithSession("POST", "/api/v1/preferences",
+		string(postBody),
+		app, "admin", "", "admin")
+	w = doReq(app.HandlePreferences, req)
+	resp = mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("update preferences failed: %v", resp)
+	}
+
+	// 5. Verify update persisted
+	req = reqWithSession("GET", "/api/v1/preferences", "", app, "admin", "", "admin")
+	w = doReq(app.HandlePreferences, req)
+	prefs = map[string]string{}
+	json.NewDecoder(w.Body).Decode(&prefs)
+	json.Unmarshal([]byte(prefs["data_columns"]), &savedCols)
+	if savedCols["students"]["school"] != true {
+		t.Error("expected school=true after update")
+	}
+	if savedCols["students"]["email"] != true {
+		t.Error("expected email=true after update")
+	}
+
+	// 6. Different user has separate preferences
+	req = reqWithSession("GET", "/api/v1/preferences", "", app, "user", "student", "S001")
+	w = doReq(app.HandlePreferences, req)
+	var studentPrefs map[string]string
+	json.NewDecoder(w.Body).Decode(&studentPrefs)
+	if len(studentPrefs) != 0 {
+		t.Errorf("expected empty preferences for different user, got %v", studentPrefs)
+	}
+}
+
+func TestColumnPreferences_Unauthenticated(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Request without session — should get 401
+	req := httptest.NewRequest("GET", "/api/v1/preferences", nil)
+	w := doReq(app.HandlePreferences, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for unauthenticated request, got %d", w.Code)
 	}
 }

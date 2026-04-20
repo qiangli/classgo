@@ -218,7 +218,38 @@ curl -s -b /tmp/cg-cookies "$BASE/api/dashboard/all-tasks?student_id=S001"
 rm -f /tmp/cg-cookies
 ```
 
-### 12. Go Test Suite
+### 12. Column Preferences API
+
+These require authentication. Reuse cookies from test 11.
+
+```bash
+# Login as admin
+curl -s -c /tmp/cg-cookies -X POST $BASE/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin"}'
+
+# GET preferences — initially empty
+curl -s -b /tmp/cg-cookies $BASE/api/v1/preferences
+# Expect: {} (empty object)
+
+# POST column visibility preferences
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/v1/preferences \
+  -H 'Content-Type: application/json' \
+  -d '{"data_columns":"{\"students\":{\"id\":true,\"first_name\":true,\"last_name\":true,\"grade\":true,\"school\":false}}"}'
+# Expect: {"ok": true}
+
+# GET preferences — should return saved data
+curl -s -b /tmp/cg-cookies $BASE/api/v1/preferences
+# Expect: {"data_columns": "..."} with the saved JSON string
+
+# Unauthenticated request should fail
+curl -s -o /dev/null -w "%{http_code}" $BASE/api/v1/preferences
+# Expect: 302 (redirect to login) or 401
+
+rm -f /tmp/cg-cookies
+```
+
+### 13. Go Test Suite
 
 ```bash
 go test -v -count=1 .
@@ -245,6 +276,7 @@ Validation Results:
   Task Items:      PASS (global CRUD, personal, due, all-tasks)
   Exports:         PASS (CSV, XLSX)
   Static:          PASS (logo, favicon, JS)
+  Preferences:     PASS (save, load, unauthenticated rejected)
   Go Tests:        PASS (all passed)
 ```
 

@@ -192,6 +192,14 @@ func MigrateDB(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_audit_ip_date ON checkin_audit(client_ip, date(created_at));
 	CREATE INDEX IF NOT EXISTS idx_audit_flagged ON checkin_audit(flagged) WHERE flagged = 1;
 	CREATE INDEX IF NOT EXISTS idx_audit_device ON checkin_audit(client_ip, fingerprint, device_id, date(created_at));
+
+	CREATE TABLE IF NOT EXISTS user_preferences (
+		user_id    TEXT NOT NULL,
+		pref_key   TEXT NOT NULL,
+		pref_value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT (datetime('now','localtime')),
+		PRIMARY KEY (user_id, pref_key)
+	);
 	`
 	_, err := db.Exec(schema)
 	return err

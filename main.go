@@ -259,6 +259,7 @@ func main() {
 	mux.HandleFunc("/api/v1/audit/devices", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditDevices)))
 	mux.HandleFunc("/api/v1/audit/dismiss", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditDismiss)))
 	mux.HandleFunc("/api/v1/student/profile", handlers.NoCache(app.RequireAdminAPI(app.HandleStudentProfile)))
+	mux.HandleFunc("/api/v1/preferences", handlers.NoCache(app.RequireAuth(app.HandlePreferences)))
 
 	// Memos — require any authenticated user (redirect to login)
 	mux.Handle("/memos/", handlers.NoCache(app.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
