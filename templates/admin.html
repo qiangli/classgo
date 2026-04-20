@@ -6,6 +6,7 @@
     <title>{{.AppName}} - Admin</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script src="/static/js/toast.js"></script>
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||localStorage.getItem('admin-theme')||'system';
@@ -821,8 +822,8 @@
 
         async function savePIN() {
             const pin = document.getElementById('pin-input').value.trim();
-            if (!/^\d{4}$/.test(pin)) { alert('PIN must be 4 digits'); return; }
-            try { const res = await fetch('/api/admin/pin', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) }); const data = await res.json(); if (data.ok) { document.getElementById('pin-value').textContent = pin; cancelEditPIN(); } } catch (err) { alert('Failed to update PIN'); }
+            if (!/^\d{4}$/.test(pin)) { showToast('PIN must be 4 digits', 'error'); return; }
+            try { const res = await fetch('/api/admin/pin', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) }); const data = await res.json(); if (data.ok) { document.getElementById('pin-value').textContent = pin; cancelEditPIN(); } } catch (err) { showToast('Failed to update PIN', 'error'); }
         }
 
         let qrShowingMDNS = true;
@@ -1055,7 +1056,7 @@
                 });
                 currentPinMode = mode;
                 updatePinModeButtons();
-            } catch(e) { alert('Failed to update PIN mode'); }
+            } catch(e) { showToast('Failed to update PIN mode', 'error'); }
         }
 
         // Per-student PIN override
@@ -1086,7 +1087,7 @@
                     body: JSON.stringify({ student_id: studentId, require_pin: require })
                 });
                 loadPinOverrideList();
-            } catch(e) { alert('Failed'); }
+            } catch(e) { showToast('Failed', 'error'); }
         }
 
         async function resetStudentPinFromAudit(studentId) {
@@ -1098,9 +1099,9 @@
                     body: JSON.stringify({ student_id: studentId })
                 });
                 const data = await resp.json();
-                if (data.pin) alert('New PIN: ' + data.pin);
+                if (data.pin) showToast('New PIN: ' + data.pin, 'info');
                 loadPinOverrideList();
-            } catch(e) { alert('Failed'); }
+            } catch(e) { showToast('Failed', 'error'); }
         }
 
         async function loadPinOverrideList() {
@@ -1195,7 +1196,7 @@
                     body: JSON.stringify({ id })
                 });
                 loadAuditData();
-            } catch(e) { alert('Failed'); }
+            } catch(e) { showToast('Failed', 'error'); }
         }
 
         // ==================== SCHEDULE ====================
@@ -1309,7 +1310,7 @@
             const name = document.getElementById('tracker-item-name').value.trim();
             const notes = document.getElementById('tracker-item-notes').value.trim();
             const active = document.getElementById('tracker-item-active').checked;
-            if (!name) { alert('Name is required'); return; }
+            if (!name) { showToast('Name is required', 'error'); return; }
             try {
                 await fetch('/api/v1/tracker/items', {
                     method: 'POST',
@@ -1326,7 +1327,7 @@
                 });
                 closeTrackerModal();
                 loadTrackerItems();
-            } catch(e) { alert('Failed to save'); }
+            } catch(e) { showToast('Failed to save', 'error'); }
         }
 
         async function deleteTrackerItem(id) {
@@ -1338,7 +1339,7 @@
                     body: JSON.stringify({ id })
                 });
                 loadTrackerItems();
-            } catch(e) { alert('Failed to delete'); }
+            } catch(e) { showToast('Failed to delete', 'error'); }
         }
 
         // Student Ad Hoc Items
@@ -1424,7 +1425,7 @@
                 document.getElementById('adhoc-new-category').value = '';
                 document.getElementById('adhoc-new-requires-signoff').checked = true;
                 loadAdhocItems();
-            } catch(e) { alert('Failed to add'); }
+            } catch(e) { showToast('Failed to add', 'error'); }
         }
 
         async function deleteAdhocItem(id) {
@@ -1436,7 +1437,7 @@
                     body: JSON.stringify({ id })
                 });
                 loadAdhocItems();
-            } catch(e) { alert('Failed to delete'); }
+            } catch(e) { showToast('Failed to delete', 'error'); }
         }
 
         // ==================== PROGRESS SECTION ====================
@@ -1489,12 +1490,12 @@
             const start = document.getElementById('summary-start').value;
             const end = document.getElementById('summary-end').value;
             if (!start || !end) return;
-            if (start > end) { alert('Start date cannot be after end date.'); return; }
+            if (start > end) { showToast('Start date cannot be after end date.', 'error'); return; }
             let url = '/api/v1/admin/progress-summary?start_date=' + start + '&end_date=' + end;
             if (refresh) url += '&refresh=true';
             try {
                 const res = await fetch(url);
-                if (!res.ok) { alert('Failed to load progress: ' + res.statusText); return; }
+                if (!res.ok) { showToast('Failed to load progress: ' + res.statusText, 'error'); return; }
                 const data = await res.json();
                 const tbody = document.getElementById('progress-summary-tbody');
                 const empty = document.getElementById('progress-summary-empty');
@@ -1544,7 +1545,7 @@
                 }).join('');
                 ts.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
                 ts.classList.remove('hidden');
-            } catch(e) { console.error(e); alert('Failed to load progress summary'); }
+            } catch(e) { console.error(e); showToast('Failed to load progress summary', 'error'); }
         }
 
         // Row expansion for inline responses
@@ -1855,7 +1856,7 @@
         function showParentProfile(parentId) {
             if (!dataStore || !dataStore.parents) return;
             const parent = dataStore.parents.find(p => p.id === parentId);
-            if (!parent) { alert('Parent not found: ' + parentId); return; }
+            if (!parent) { showToast('Parent not found: ' + parentId, 'error'); return; }
             const fields = [
                 ['ID', parent.id], ['Name', `${parent.first_name} ${parent.last_name}`],
                 ['Email', parent.email], ['Phone', parent.phone],
@@ -1939,7 +1940,7 @@
             if (data.student_ids && typeof data.student_ids === 'string') {
                 data.student_ids = data.student_ids; // stored as semicolon-separated string
             }
-            if (!data.id) { alert('ID is required'); return; }
+            if (!data.id) { showToast('ID is required', 'error'); return; }
 
             try {
                 const res = await fetch('/api/v1/data', {
@@ -1948,8 +1949,8 @@
                 });
                 const result = await res.json();
                 if (result.ok) { closeModal(); dataStore = null; loadDataSection(true); }
-                else alert(result.error || 'Save failed');
-            } catch(e) { alert('Save failed'); }
+                else showToast(result.error || 'Save failed', 'error');
+            } catch(e) { showToast('Save failed', 'error'); }
         }
 
         async function deleteRecord(id) {
@@ -1961,8 +1962,8 @@
                 });
                 const result = await res.json();
                 if (result.ok) { dataStore = null; loadDataSection(true); }
-                else alert(result.error || 'Delete failed');
-            } catch(e) { alert('Delete failed'); }
+                else showToast(result.error || 'Delete failed', 'error');
+            } catch(e) { showToast('Delete failed', 'error'); }
         }
 
         // ==================== PASSWORD RESET ====================

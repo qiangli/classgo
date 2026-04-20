@@ -6,6 +6,7 @@
     <title>{{.AppName}} - Dashboard</title>
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script src="/static/js/toast.js"></script>
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||'system';
@@ -745,7 +746,7 @@
                     body: JSON.stringify({ id, complete, entity_id: entityID })
                 });
                 loadTasks();
-            } catch(e) { alert('Failed'); }
+            } catch(e) { showToast('Failed', 'error'); }
         }
 
         async function deleteTask(id) {
@@ -757,7 +758,7 @@
                     body: JSON.stringify({ id })
                 });
                 loadTasks();
-            } catch(e) { alert('Failed'); }
+            } catch(e) { showToast('Failed', 'error'); }
         }
 
         function resetTaskModal() {
@@ -792,7 +793,7 @@
 
         async function saveTask() {
             const name = document.getElementById('task-name').value.trim();
-            if (!name) { alert('Name is required'); return; }
+            if (!name) { showToast('Name is required', 'error'); return; }
 
             let studentID = '';
             if (userType === 'student') {
@@ -801,7 +802,7 @@
                 const sel = document.getElementById('task-student-id');
                 studentID = sel ? sel.value : getSelectedStudentID();
             }
-            if (!studentID && taskModalMode === 'assign') { alert('Please select a student'); return; }
+            if (!studentID && taskModalMode === 'assign') { showToast('Please select a student', 'error'); return; }
 
             const item = {
                 id: parseInt(document.getElementById('task-edit-id').value) || undefined,
@@ -829,7 +830,7 @@
                 } else {
                     loadTasks();
                 }
-            } catch(e) { alert('Failed to save'); }
+            } catch(e) { showToast('Failed to save', 'error'); }
         }
 
         {{if eq .UserType "teacher"}}
@@ -996,10 +997,10 @@
 
         async function submitBulkAssign() {
             const name = document.getElementById('bulk-name').value.trim();
-            if (!name) { alert('Name is required'); return; }
+            if (!name) { showToast('Name is required', 'error'); return; }
             const studentIDs = Object.keys(bulkSelectedStudents);
             const scheduleID = document.getElementById('bulk-class').value;
-            if (studentIDs.length === 0 && !scheduleID) { alert('Select at least one student or a class'); return; }
+            if (studentIDs.length === 0 && !scheduleID) { showToast('Select at least one student or a class', 'error'); return; }
             try {
                 await fetch('/api/dashboard/bulk-assign', {
                     method: 'POST',
@@ -1019,8 +1020,8 @@
                 });
                 closeBulkModal();
                 loadTasks();
-                alert('Assigned successfully!');
-            } catch(e) { alert('Failed to assign'); }
+                showToast('Assigned successfully!', 'success');
+            } catch(e) { showToast('Failed to assign', 'error'); }
         }
         {{end}}
 
@@ -1144,7 +1145,7 @@
                     body: JSON.stringify({ id })
                 });
                 loadMyItems();
-            } catch(e) { alert('Failed to delete'); }
+            } catch(e) { showToast('Failed to delete', 'error'); }
         }
 
         {{if ne .UserType "student"}}
@@ -1173,7 +1174,7 @@
         async function submitAssignLibrary() {
             const itemId = parseInt(document.getElementById('assign-item-id').value);
             const studentIDs = Array.from(document.querySelectorAll('.assign-student-cb:checked')).map(cb => cb.value);
-            if (studentIDs.length === 0) { alert('Select at least one student'); return; }
+            if (studentIDs.length === 0) { showToast('Select at least one student', 'error'); return; }
 
             try {
                 const res = await fetch('/api/dashboard/assign-library-item', {
@@ -1185,11 +1186,11 @@
                 if (data.ok) {
                     closeAssignModal();
                     loadMyItems();
-                    alert('Assigned to ' + data.count + ' student(s)');
+                    showToast('Assigned to ' + data.count + ' student(s)', 'success');
                 } else {
-                    alert(data.error || 'Failed');
+                    showToast(data.error || 'Failed', 'error');
                 }
-            } catch(e) { alert('Failed to assign'); }
+            } catch(e) { showToast('Failed to assign', 'error'); }
         }
         {{end}}
 

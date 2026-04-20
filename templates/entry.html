@@ -14,6 +14,7 @@
         })();
     </script>
     <script src="/static/js/fingerprint.js"></script>
+    <script src="/static/js/toast.js"></script>
     <style>
         .dark body { color: #e5e7eb; }
         .dark input[type="text"], .dark input[type="password"], .dark input[type="search"],
@@ -498,10 +499,10 @@
                 if (data.ok) {
                     showConfirmation(name, false, true);
                 } else {
-                    alert(data.error || 'Check out failed');
+                    showToast(data.error || 'Check out failed', 'error');
                 }
             } catch (err) {
-                alert('Connection error');
+                showToast('Connection error', 'error');
             }
         }
 
@@ -606,10 +607,10 @@
                 if (data.ok) {
                     showConfirmation(name, false, true);
                 } else {
-                    alert(data.error || 'Check out failed');
+                    showToast(data.error || 'Check out failed', 'error');
                 }
             } catch (err) {
-                alert('Connection error');
+                showToast('Connection error', 'error');
             }
             submitBtn.disabled = false;
             submitBtn.textContent = 'Complete Check Out';
