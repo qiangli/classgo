@@ -274,133 +274,181 @@
 
             <!-- ==================== PROGRESS SECTION ==================== -->
             <section id="section-progress" class="hidden">
-                <!-- All Students Progress Summary -->
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">All Students Progress</h2>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="relative">
-                                <input type="date" id="summary-start" class="border rounded-lg px-3 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-8">
-                                <button type="button" onclick="document.getElementById('summary-start').showPicker()" class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 p-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                </button>
-                            </div>
-                            <span class="text-gray-400 text-sm">to</span>
-                            <div class="relative">
-                                <input type="date" id="summary-end" class="border rounded-lg px-3 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-8">
-                                <button type="button" onclick="document.getElementById('summary-end').showPicker()" class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 p-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                </button>
-                            </div>
-                            <button onclick="loadProgressSummary(true)" class="text-sm bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-white px-3 py-2 rounded-lg transition" title="Force refresh">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <!-- Sub-tab bar -->
+                <div class="flex gap-2 mb-4">
+                    <button id="ptab-overview" onclick="switchProgressTab('overview')" class="px-4 py-1.5 text-sm rounded-lg border transition bg-indigo-100 border-indigo-300 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-600 dark:text-indigo-300">Overview</button>
+                    <button id="ptab-manage" onclick="switchProgressTab('manage')" class="px-4 py-1.5 text-sm rounded-lg border transition hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300">Manage Items</button>
+                </div>
+
+                <!-- ===== OVERVIEW TAB ===== -->
+                <div id="progress-overview">
+                    <!-- Filter bar -->
+                    <div class="flex items-center gap-3 mb-4 flex-wrap no-print">
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="summary-start" class="text-sm border rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <span class="text-gray-400">to</span>
+                            <input type="date" id="summary-end" class="text-sm border rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="setProgressRange('week')" class="prog-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300 transition">This Week</button>
+                            <button onclick="setProgressRange('month')" class="prog-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300 transition">This Month</button>
+                            <button onclick="setProgressRange('last7')" class="prog-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300 transition">Last 7 Days</button>
+                            <button onclick="setProgressRange('last30')" class="prog-quick text-xs px-3 py-1.5 rounded-lg border hover:bg-indigo-50 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300 transition">Last 30 Days</button>
+                        </div>
+                        <button onclick="loadProgressSummary(true)" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition">Refresh</button>
+                    </div>
+
+                    <!-- Metric cards -->
+                    <div id="progress-metrics" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center">
+                            <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400" id="pm-total">0</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Total Students</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center">
+                            <p class="text-2xl font-bold text-gray-700 dark:text-gray-200" id="pm-avg">0%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Avg Completion</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center">
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400" id="pm-ontrack">0</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">On Track (&ge;80%)</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center">
+                            <p class="text-2xl font-bold text-red-600 dark:text-red-400" id="pm-atrisk">0</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">At Risk (&lt;50%)</p>
+                        </div>
+                    </div>
+
+                    <!-- Progress table card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead><tr class="border-b text-sm text-gray-400 dark:text-gray-500">
+                                    <th class="pb-2 font-medium">Student</th>
+                                    <th class="pb-2 font-medium text-center">Expected</th>
+                                    <th class="pb-2 font-medium text-center">Done</th>
+                                    <th class="pb-2 font-medium text-center">Missed</th>
+                                    <th class="pb-2 font-medium text-center">Completion</th>
+                                </tr></thead>
+                                <tbody id="progress-summary-tbody"></tbody>
+                            </table>
+                            <p id="progress-summary-empty" class="text-center text-gray-400 py-8 hidden">No progress data found for the selected period.</p>
+                        </div>
+                        <p id="progress-summary-time" class="text-xs text-gray-400 mt-2 hidden"></p>
+                    </div>
+                </div>
+
+                <!-- ===== MANAGE ITEMS TAB ===== -->
+                <div id="progress-manage" class="hidden">
+                    <!-- Global Tracker Items -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Tracker Items
+                                <button onclick="document.getElementById('tracker-help-modal').classList.remove('hidden')" class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 text-xs font-bold" title="How tracker items work">?</button>
+                            </h2>
+                            <button onclick="openTrackerItemModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Item
                             </button>
                         </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead><tr class="border-b text-sm text-gray-400 dark:text-gray-500">
-                                <th class="pb-2 font-medium">Student</th>
-                                <th class="pb-2 font-medium text-center">Expected</th>
-                                <th class="pb-2 font-medium text-center">Done</th>
-                                <th class="pb-2 font-medium text-center">Missed</th>
-                                <th class="pb-2 font-medium text-center">Completion</th>
-                            </tr></thead>
-                            <tbody id="progress-summary-tbody"></tbody>
-                        </table>
-                        <div id="progress-summary-empty" class="text-center py-8">
-                            <p class="text-gray-400 mb-3" id="progress-summary-msg">Load all students' progress summary for the selected date range.</p>
-                            <button onclick="loadProgressSummary()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg transition">Load Progress</button>
-                        </div>
-                    </div>
-                    <p id="progress-summary-time" class="text-xs text-gray-400 mt-2 hidden"></p>
-                </div>
-
-                <!-- Global Tracker Items -->
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-gray-700">Tracker Items
-                            <button onclick="document.getElementById('tracker-help-modal').classList.remove('hidden')" class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 text-xs font-bold" title="How tracker items work">?</button>
-                        </h2>
-                        <button onclick="openTrackerItemModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            Add Item
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-400 mb-4">These items appear for all students at checkout. Each student must respond Done/Not Done before checking out.</p>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead><tr class="border-b text-sm text-gray-400">
-                                <th class="pb-2 font-medium">Name</th>
-                                <th class="pb-2 font-medium">Notes</th>
-                                <th class="pb-2 font-medium text-center">Priority</th>
-                                <th class="pb-2 font-medium text-center">Recurrence</th>
-                                <th class="pb-2 font-medium text-center">End Date</th>
-                                <th class="pb-2 font-medium text-center">Active</th>
-                                <th class="pb-2 font-medium text-right">Actions</th>
-                            </tr></thead>
-                            <tbody id="tracker-items-tbody"></tbody>
-                        </table>
-                        <p id="tracker-items-empty" class="hidden text-center text-gray-400 py-8">No tracker items defined. Add one to start tracking student progress.</p>
-                    </div>
-                </div>
-
-                <!-- Student Ad Hoc Items -->
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-6">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Student-Specific Items</h2>
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="flex-1 max-w-md">
-                            <input type="text" id="adhoc-student-search" placeholder="Search student by name or ID..."
-                                oninput="searchStudentForAdhoc(this.value)"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
-                            <div id="adhoc-student-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20"></div>
-                        </div>
-                        <span id="adhoc-student-label" class="text-sm text-gray-500"></span>
-                    </div>
-                    <div id="adhoc-items-container" class="hidden">
-                        <div class="flex items-center gap-2 mb-3">
-                            <input type="text" id="adhoc-new-name" placeholder="New item name..."
-                                class="flex-1 max-w-sm px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
-                            <button onclick="addAdhocItem()" class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition">Add</button>
-                        </div>
+                        <p class="text-sm text-gray-400 mb-4">These items appear for all students at checkout. Each student must respond Done/Not Done before checking out.</p>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead><tr class="border-b text-sm text-gray-400">
                                     <th class="pb-2 font-medium">Name</th>
-                                    <th class="pb-2 font-medium">Added By</th>
+                                    <th class="pb-2 font-medium">Notes</th>
+                                    <th class="pb-2 font-medium text-center">Priority</th>
+                                    <th class="pb-2 font-medium text-center">Recurrence</th>
+                                    <th class="pb-2 font-medium text-center">End Date</th>
+                                    <th class="pb-2 font-medium text-center">Sign-off</th>
+                                    <th class="pb-2 font-medium text-center">Active</th>
                                     <th class="pb-2 font-medium text-right">Actions</th>
                                 </tr></thead>
-                                <tbody id="adhoc-items-tbody"></tbody>
+                                <tbody id="tracker-items-tbody"></tbody>
                             </table>
-                            <p id="adhoc-items-empty" class="hidden text-center text-gray-400 py-6">No ad hoc items for this student.</p>
+                            <p id="tracker-items-empty" class="hidden text-center text-gray-400 py-8">No tracker items defined. Add one to start tracking student progress.</p>
                         </div>
                     </div>
-                </div>
 
-                <!-- Response Viewer -->
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Daily Responses</h2>
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="flex-1 max-w-md">
-                            <input type="text" id="resp-student-search" placeholder="Search student by name or ID..."
-                                oninput="searchStudentForResp(this.value)"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm">
-                            <div id="resp-student-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20"></div>
+                    <!-- Personal Items -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
+                        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Personal Items</h2>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="flex-1 max-w-md relative">
+                                <input type="text" id="adhoc-student-search" placeholder="Search student by name or ID..."
+                                    oninput="searchStudentForAdhoc(this.value)"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <div id="adhoc-student-results" class="hidden absolute bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20 w-full"></div>
+                            </div>
+                            <span id="adhoc-student-label" class="text-sm text-gray-500 dark:text-gray-400"></span>
                         </div>
-                        <input type="date" id="resp-date" onchange="loadResponses()"
-                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead><tr class="border-b text-sm text-gray-400">
-                                <th class="pb-2 font-medium">Item</th>
-                                <th class="pb-2 font-medium">Type</th>
-                                <th class="pb-2 font-medium">Status</th>
-                                <th class="pb-2 font-medium">Time</th>
-                            </tr></thead>
-                            <tbody id="resp-tbody"></tbody>
-                        </table>
-                        <p id="resp-empty" class="text-center text-gray-400 py-8">Select a student to view their responses.</p>
+                        <div id="adhoc-items-container" class="hidden">
+                            <!-- Add Personal Item Form -->
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4 space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="col-span-2">
+                                        <input type="text" id="adhoc-new-name" placeholder="Task name *"
+                                            class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    </div>
+                                    <div class="col-span-2">
+                                        <input type="text" id="adhoc-new-notes" placeholder="Notes (optional)"
+                                            class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Start Date</label>
+                                        <input type="date" id="adhoc-new-start-date"
+                                            class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">End Date</label>
+                                        <input type="date" id="adhoc-new-end-date"
+                                            class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Priority</label>
+                                        <select id="adhoc-new-priority" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Recurrence</label>
+                                        <select id="adhoc-new-recurrence" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                            <option value="none" selected>One-time</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Category</label>
+                                        <input type="text" id="adhoc-new-category" placeholder="e.g. Homework"
+                                            class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                                    </div>
+                                    <div class="flex items-end pb-1">
+                                        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <input type="checkbox" id="adhoc-new-requires-signoff" checked class="rounded">
+                                            Requires sign-off
+                                        </label>
+                                    </div>
+                                </div>
+                                <button onclick="addAdhocItem()" class="text-sm bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg transition">Add Item</button>
+                            </div>
+                            <!-- Items Table -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead><tr class="border-b text-sm text-gray-400">
+                                        <th class="pb-2 font-medium">Name</th>
+                                        <th class="pb-2 font-medium">Priority</th>
+                                        <th class="pb-2 font-medium">Sign-off</th>
+                                        <th class="pb-2 font-medium">Added By</th>
+                                        <th class="pb-2 font-medium text-right">Actions</th>
+                                    </tr></thead>
+                                    <tbody id="adhoc-items-tbody"></tbody>
+                                </table>
+                                <p id="adhoc-items-empty" class="hidden text-center text-gray-400 py-6">No personal items for this student.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -624,10 +672,16 @@
                     <label class="block text-sm text-gray-600 mb-1">Category</label>
                     <input type="text" id="tracker-item-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Math, SAT Prep">
                 </div>
-                <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" id="tracker-item-active" checked class="rounded">
-                    Active
-                </label>
+                <div class="flex items-center gap-6">
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <input type="checkbox" id="tracker-item-requires-signoff" checked class="rounded">
+                        Requires sign-off at checkout
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <input type="checkbox" id="tracker-item-active" checked class="rounded">
+                        Active
+                    </label>
+                </div>
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
                 <button onclick="closeTrackerModal()" class="text-sm bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg">Cancel</button>
@@ -712,7 +766,7 @@
             checkin:    { title: 'Check In / Out', subtitle: '{{.Date}}' },
             attendance: { title: 'Attendance', subtitle: '{{.Date}}' },
             schedule:   { title: 'Schedule', subtitle: 'Weekly Schedule' },
-            progress:   { title: 'Progress Tracker', subtitle: 'Manage tracker items & view responses' },
+            progress:   { title: 'Progress', subtitle: 'Student completion overview & task management' },
             audit:      { title: 'Audit', subtitle: 'Anti-fraud monitoring & PIN settings' },
             data:       { title: 'Data', subtitle: 'Manage entity data' }
         };
@@ -733,7 +787,12 @@
 
             if (section === 'attendance') refreshAttendees();
             if (section === 'schedule' && !scheduleLoaded) loadSchedule();
-            if (section === 'progress') loadTrackerItems();
+            if (section === 'progress') {
+                if (!progressLoaded) {
+                    progressLoaded = true;
+                    setProgressRange('last7');
+                }
+            }
             if (section === 'audit') loadAuditData();
             if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
 
@@ -1176,8 +1235,7 @@
         // ==================== PROGRESS TRACKER ====================
         let trackerItems = [];
         let adhocStudentID = '', adhocStudentName = '';
-        let respStudentID = '', respStudentName = '';
-        let adhocSearchTimeout = null, respSearchTimeout = null;
+        let adhocSearchTimeout = null;
 
         async function loadTrackerItems() {
             try {
@@ -1206,6 +1264,7 @@
                     </td>
                     <td class="py-2 text-center text-xs text-gray-500">${it.recurrence}</td>
                     <td class="py-2 text-center text-xs text-gray-500">${it.end_date || '-'}</td>
+                    <td class="py-2 text-center">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
                     <td class="py-2 text-center">
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${it.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${it.active ? 'Yes' : 'No'}</span>
                     </td>
@@ -1228,6 +1287,7 @@
             document.getElementById('tracker-item-priority').value = item ? (item.priority || 'medium') : 'medium';
             document.getElementById('tracker-item-recurrence').value = item ? (item.recurrence || 'daily') : 'daily';
             document.getElementById('tracker-item-category').value = item ? (item.category || '') : '';
+            document.getElementById('tracker-item-requires-signoff').checked = item ? (item.requires_signoff !== false) : true;
             document.getElementById('tracker-item-active').checked = item ? item.active : true;
             document.getElementById('tracker-modal-title').textContent = item ? 'Edit Tracker Item' : 'Add Tracker Item';
             document.getElementById('tracker-modal').classList.remove('hidden');
@@ -1258,7 +1318,8 @@
                         end_date: document.getElementById('tracker-item-end-date').value || '',
                         priority: document.getElementById('tracker-item-priority').value || 'medium',
                         recurrence: document.getElementById('tracker-item-recurrence').value || 'daily',
-                        category: document.getElementById('tracker-item-category').value.trim() || ''
+                        category: document.getElementById('tracker-item-category').value.trim() || '',
+                        requires_signoff: document.getElementById('tracker-item-requires-signoff').checked
                     })
                 });
                 closeTrackerModal();
@@ -1319,7 +1380,9 @@
                 empty.classList.add('hidden');
                 tbody.innerHTML = items.map(it => `
                     <tr class="border-b hover:bg-gray-50">
-                        <td class="py-2 text-sm text-gray-700">${esc(it.name)}</td>
+                        <td class="py-2 text-sm text-gray-700">${esc(it.name)}${it.category ? ` <span class="text-xs text-gray-400">${esc(it.category)}</span>` : ''}</td>
+                        <td class="py-2 text-sm"><span class="px-1.5 py-0.5 rounded text-xs ${it.priority === 'high' ? 'bg-red-100 text-red-600' : it.priority === 'low' ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-600'}">${esc(it.priority)}</span></td>
+                        <td class="py-2 text-sm">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
                         <td class="py-2 text-sm text-gray-500">${esc(it.created_by || 'admin')}</td>
                         <td class="py-2 text-right">
                             <button onclick="deleteAdhocItem(${it.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
@@ -1336,9 +1399,28 @@
                 await fetch('/api/tracker/student-items', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ student_id: adhocStudentID, name, created_by: 'admin', active: true })
+                    body: JSON.stringify({
+                        student_id: adhocStudentID,
+                        name: name,
+                        notes: document.getElementById('adhoc-new-notes').value.trim(),
+                        start_date: document.getElementById('adhoc-new-start-date').value,
+                        end_date: document.getElementById('adhoc-new-end-date').value,
+                        priority: document.getElementById('adhoc-new-priority').value,
+                        recurrence: document.getElementById('adhoc-new-recurrence').value,
+                        category: document.getElementById('adhoc-new-category').value.trim(),
+                        requires_signoff: document.getElementById('adhoc-new-requires-signoff').checked,
+                        created_by: 'admin',
+                        active: true
+                    })
                 });
                 document.getElementById('adhoc-new-name').value = '';
+                document.getElementById('adhoc-new-notes').value = '';
+                document.getElementById('adhoc-new-start-date').value = '';
+                document.getElementById('adhoc-new-end-date').value = '';
+                document.getElementById('adhoc-new-priority').value = 'medium';
+                document.getElementById('adhoc-new-recurrence').value = 'none';
+                document.getElementById('adhoc-new-category').value = '';
+                document.getElementById('adhoc-new-requires-signoff').checked = true;
                 loadAdhocItems();
             } catch(e) { alert('Failed to add'); }
         }
@@ -1355,68 +1437,96 @@
             } catch(e) { alert('Failed to delete'); }
         }
 
-        // All Students Progress Summary
+        // ==================== PROGRESS SECTION ====================
+        let progressLoaded = false;
+        let expandedStudentRow = null;
+
         function localDateStr(d) {
             return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
         }
-        let summaryLastStart = '', summaryLastEnd = '';
-        (function() {
-            const d = new Date();
-            const s = new Date(d); s.setDate(s.getDate() - 7);
-            const startEl = document.getElementById('summary-start');
-            const endEl = document.getElementById('summary-end');
-            summaryLastStart = startEl.value = localDateStr(s);
-            summaryLastEnd = endEl.value = localDateStr(d);
-            startEl.addEventListener('change', onSummaryDateChange);
-            endEl.addEventListener('change', onSummaryDateChange);
-        })();
 
-        function onSummaryDateChange() {
-            const start = document.getElementById('summary-start').value;
-            const end = document.getElementById('summary-end').value;
-            if (start && end && start > end) {
-                alert('Start date cannot be after end date.');
-                document.getElementById('summary-start').value = summaryLastStart;
-                document.getElementById('summary-end').value = summaryLastEnd;
-                return;
+        function switchProgressTab(tab) {
+            document.getElementById('progress-overview').classList.toggle('hidden', tab !== 'overview');
+            document.getElementById('progress-manage').classList.toggle('hidden', tab !== 'manage');
+            const ovBtn = document.getElementById('ptab-overview');
+            const mgBtn = document.getElementById('ptab-manage');
+            const active = 'bg-indigo-100 border-indigo-300 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-600 dark:text-indigo-300';
+            const inactive = 'hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300';
+            ovBtn.className = 'px-4 py-1.5 text-sm rounded-lg border transition ' + (tab === 'overview' ? active : inactive);
+            mgBtn.className = 'px-4 py-1.5 text-sm rounded-lg border transition ' + (tab === 'manage' ? active : inactive);
+            if (tab === 'manage') loadTrackerItems();
+        }
+
+        function setProgressRange(preset) {
+            const today = new Date();
+            let from = new Date(today), to = new Date(today);
+            switch(preset) {
+                case 'week':
+                    const dow = today.getDay();
+                    from.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+                    break;
+                case 'month':
+                    from.setDate(1);
+                    break;
+                case 'last7':
+                    from.setDate(today.getDate() - 6);
+                    break;
+                case 'last30':
+                    from.setDate(today.getDate() - 29);
+                    break;
             }
-            if (start !== summaryLastStart || end !== summaryLastEnd) {
-                summaryLastStart = start;
-                summaryLastEnd = end;
-                document.getElementById('progress-summary-tbody').innerHTML = '';
-                document.getElementById('progress-summary-msg').textContent = 'Date range changed. Click "Load Progress" to refresh.';
-                document.getElementById('progress-summary-empty').classList.remove('hidden');
-                document.getElementById('progress-summary-time').classList.add('hidden');
-            }
+            document.getElementById('summary-start').value = localDateStr(from);
+            document.getElementById('summary-end').value = localDateStr(to);
+            // Highlight active button
+            document.querySelectorAll('.prog-quick').forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-700'));
+            if (event && event.target) event.target.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
+            loadProgressSummary();
         }
 
         async function loadProgressSummary(refresh) {
             const start = document.getElementById('summary-start').value;
             const end = document.getElementById('summary-end').value;
-            if (!start || !end) { alert('Select a date range'); return; }
+            if (!start || !end) return;
             if (start > end) { alert('Start date cannot be after end date.'); return; }
             let url = '/api/v1/admin/progress-summary?start_date=' + start + '&end_date=' + end;
             if (refresh) url += '&refresh=true';
             try {
                 const res = await fetch(url);
+                if (!res.ok) { alert('Failed to load progress: ' + res.statusText); return; }
                 const data = await res.json();
                 const tbody = document.getElementById('progress-summary-tbody');
                 const empty = document.getElementById('progress-summary-empty');
                 const ts = document.getElementById('progress-summary-time');
+                const metrics = document.getElementById('progress-metrics');
+
                 if (!data || data.length === 0) {
                     tbody.innerHTML = '';
-                    document.getElementById('progress-summary-msg').textContent = 'No progress data found for the selected period.';
                     empty.classList.remove('hidden');
+                    metrics.classList.add('hidden');
                     ts.classList.add('hidden');
                     return;
                 }
+
+                // Update metric cards
+                const total = data.length;
+                const withItems = data.filter(s => s.total_items > 0);
+                const avg = withItems.length ? (withItems.reduce((a, s) => a + (s.completion_pct || 0), 0) / withItems.length) : 0;
+                const onTrack = withItems.filter(s => s.completion_pct >= 80).length;
+                const atRisk = withItems.filter(s => s.completion_pct < 50).length;
+                document.getElementById('pm-total').textContent = total;
+                document.getElementById('pm-avg').textContent = avg.toFixed(0) + '%';
+                document.getElementById('pm-ontrack').textContent = onTrack;
+                document.getElementById('pm-atrisk').textContent = atRisk;
+                metrics.classList.remove('hidden');
+
                 empty.classList.add('hidden');
+                expandedStudentRow = null;
                 tbody.innerHTML = data.map(s => {
                     const noData = !s.total_items;
                     const pct = noData ? 0 : (s.completion_pct ? s.completion_pct.toFixed(0) : '0');
                     const barColor = noData ? 'bg-gray-300 dark:bg-gray-600' : pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500';
                     const name = s.student_name || s.student_id;
-                    return `<tr class="border-b dark:border-gray-700">
+                    return `<tr class="border-b dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" onclick="toggleStudentDetail('${esc(s.student_id)}', '${esc(name)}', this)">
                         <td class="py-2 text-sm text-gray-700 dark:text-gray-300">${esc(name)}</td>
                         <td class="py-2 text-sm text-center text-gray-600 dark:text-gray-400">${s.total_items}</td>
                         <td class="py-2 text-center"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">${s.done_count}</span></td>
@@ -1435,58 +1545,63 @@
             } catch(e) { console.error(e); alert('Failed to load progress summary'); }
         }
 
-        // Response Viewer
-        function searchStudentForResp(q) {
-            clearTimeout(respSearchTimeout);
-            if (!q || q.length < 2) { document.getElementById('resp-student-results').classList.add('hidden'); return; }
-            respSearchTimeout = setTimeout(async () => {
-                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
-                const students = await res.json();
-                const div = document.getElementById('resp-student-results');
-                if (!students || students.length === 0) { div.classList.add('hidden'); return; }
-                div.innerHTML = students.map(s =>
-                    `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm" onclick="selectRespStudent('${s.id}', '${esc(s.first_name + ' ' + s.last_name)}')">${esc(s.first_name + ' ' + s.last_name)} <span class="text-gray-400">${esc(s.id)}</span></div>`
-                ).join('');
-                div.classList.remove('hidden');
-            }, 300);
-        }
-
-        function selectRespStudent(id, name) {
-            respStudentID = id;
-            respStudentName = name;
-            document.getElementById('resp-student-search').value = name;
-            document.getElementById('resp-student-results').classList.add('hidden');
-            if (!document.getElementById('resp-date').value) {
-                document.getElementById('resp-date').value = new Date().toISOString().split('T')[0];
+        // Row expansion for inline responses
+        async function toggleStudentDetail(studentId, studentName, rowEl) {
+            // Collapse existing expanded row
+            const existing = document.getElementById('detail-row-expanded');
+            if (existing) {
+                const wasForSame = existing.dataset.studentId === studentId;
+                existing.remove();
+                expandedStudentRow = null;
+                if (wasForSame) return; // toggle off
             }
-            loadResponses();
+
+            // Create detail row
+            const detailTr = document.createElement('tr');
+            detailTr.id = 'detail-row-expanded';
+            detailTr.dataset.studentId = studentId;
+            detailTr.innerHTML = `<td colspan="5" class="p-0"><div class="bg-gray-50 dark:bg-gray-700/50 border-l-4 border-indigo-400 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">${esc(studentName)} &mdash; Daily Responses</span>
+                    <input type="date" id="detail-resp-date" value="${localDateStr(new Date())}" onchange="loadDetailResponses('${esc(studentId)}', '${esc(studentName)}')"
+                        class="text-xs border rounded px-2 py-1 dark:bg-gray-600 dark:border-gray-500 dark:text-white">
+                </div>
+                <div id="detail-resp-content"><p class="text-xs text-gray-400">Loading...</p></div>
+            </div></td>`;
+            rowEl.after(detailTr);
+            expandedStudentRow = studentId;
+            loadDetailResponses(studentId, studentName);
         }
 
-        async function loadResponses() {
-            if (!respStudentID) return;
-            const date = document.getElementById('resp-date').value;
+        async function loadDetailResponses(studentId, studentName) {
+            const date = document.getElementById('detail-resp-date').value;
+            const container = document.getElementById('detail-resp-content');
             if (!date) return;
             try {
-                const res = await fetch('/api/v1/tracker/responses?student_id=' + encodeURIComponent(respStudentID) + '&date=' + date);
+                const res = await fetch('/api/v1/tracker/responses?student_id=' + encodeURIComponent(studentId) + '&date=' + date);
+                if (!res.ok) { container.innerHTML = '<p class="text-xs text-red-400">Failed to load responses.</p>'; return; }
                 const responses = await res.json();
-                const tbody = document.getElementById('resp-tbody');
-                const empty = document.getElementById('resp-empty');
                 if (!responses || responses.length === 0) {
-                    tbody.innerHTML = '';
-                    empty.textContent = 'No responses found for ' + respStudentName + ' on ' + date;
-                    empty.classList.remove('hidden');
+                    container.innerHTML = `<p class="text-xs text-gray-400">No responses for ${esc(studentName)} on ${date}.</p>`;
                     return;
                 }
-                empty.classList.add('hidden');
-                tbody.innerHTML = responses.map(r => `
-                    <tr class="border-b">
-                        <td class="py-2 text-sm text-gray-700">${esc(r.item_name)}</td>
-                        <td class="py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.item_type === 'global' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'}">${r.item_type}</span></td>
-                        <td class="py-2"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${r.status === 'done' ? 'Done' : 'Not Done'}</span></td>
-                        <td class="py-2 text-sm text-gray-500">${r.responded_at || ''}</td>
-                    </tr>
-                `).join('');
-            } catch(e) { console.error(e); }
+                container.innerHTML = `<table class="w-full text-left text-xs">
+                    <thead><tr class="border-b text-gray-400 dark:text-gray-500">
+                        <th class="pb-1 font-medium">Item</th>
+                        <th class="pb-1 font-medium">Type</th>
+                        <th class="pb-1 font-medium">Status</th>
+                        <th class="pb-1 font-medium">Time</th>
+                    </tr></thead>
+                    <tbody>${responses.map(r => `
+                        <tr class="border-b dark:border-gray-600">
+                            <td class="py-1.5 text-gray-700 dark:text-gray-300">${esc(r.item_name)}</td>
+                            <td class="py-1.5"><span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium ${r.item_type === 'global' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}">${r.item_type}</span></td>
+                            <td class="py-1.5"><span class="inline-block px-1.5 py-0.5 rounded text-xs font-medium ${r.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}">${r.status === 'done' ? 'Done' : 'Not Done'}</span></td>
+                            <td class="py-1.5 text-gray-500 dark:text-gray-400">${r.responded_at || ''}</td>
+                        </tr>
+                    `).join('')}</tbody>
+                </table>`;
+            } catch(e) { container.innerHTML = '<p class="text-xs text-red-400">Error loading responses.</p>'; }
         }
 
         // ==================== DATA (tabbed spreadsheet) ====================
