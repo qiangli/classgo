@@ -213,35 +213,6 @@
                             Sign In
                         </button>
                     </div>
-                    <div class="mt-6 pt-4 border-t dark:border-gray-600 text-center">
-                        <button onclick="showAdminLogin()" class="text-xs text-gray-400 hover:text-gray-600 transition">Admin Login</button>
-                    </div>
-                </div>
-
-                <!-- Admin Login -->
-                <div id="admin-login" class="hidden">
-                    <p class="text-gray-500 text-sm text-center mb-4">Admin Login (System Account)</p>
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-600 mb-1">System Username</label>
-                        <input type="text" id="admin-username" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
-                            placeholder="OS username">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm text-gray-600 mb-1">System Password</label>
-                        <input type="password" id="admin-password" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
-                            placeholder="OS password"
-                            onkeydown="if(event.key==='Enter') submitAdminLogin()">
-                    </div>
-                    <div id="admin-error" class="hidden bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-2 mb-4"></div>
-                    <button onclick="submitAdminLogin()"
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition text-sm">
-                        Sign In as Admin
-                    </button>
-                    <div class="mt-4 text-center">
-                        <button onclick="showUserLogin()" class="text-xs text-gray-400 hover:text-gray-600 transition">Back to User Login</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -863,6 +834,70 @@
                     window.location.href = result.redirect || '/dashboard';
                 } else {
                     errorEl.textContent = result.error || 'Login failed';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errorEl.textContent = 'Login failed';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+    </script>
+    <script src="/static/js/theme.js"></script>
+</body>
+</html>
+ogin failed';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errorEl.textContent = 'Login failed';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+    </script>
+    <script src="/static/js/theme.js"></script>
+</body>
+</html>
+'admin-login').classList.add('hidden');
+            document.getElementById('user-login').classList.remove('hidden');
+            loginSearchInput.focus();
+        }
+
+        async function submitAdminLogin() {
+            const username = document.getElementById('admin-username').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-error');
+
+            if (!username || !password) {
+                errorEl.textContent = 'Username and password required';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            errorEl.classList.add('hidden');
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'admin', username, password })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    window.location.href = result.redirect || '/admin';
+                } else {
+                    errorEl.textContent = result.error || 'Login failed';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch(e) {
+                errorEl.textContent = 'Login failed';
+                errorEl.classList.remove('hidden');
+            }
+        }
+    </script>
+    <script src="/static/js/theme.js"></script>
+</body>
+</html>
+ogin failed';
                     errorEl.classList.remove('hidden');
                 }
             } catch(e) {

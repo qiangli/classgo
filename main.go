@@ -226,9 +226,13 @@ func main() {
 	mux.HandleFunc("/profile", handlers.NoCache(app.RequireAuth(app.HandleUserProfilePage)))
 	mux.HandleFunc("/api/v1/user/profile", handlers.NoCache(app.RequireAuth(app.HandleUserProfile)))
 
-	// Admin pages — require admin role (redirect to login)
+	// Admin login — dedicated page (no auth required)
+	mux.HandleFunc("/admin/login", handlers.NoCache(app.HandleAdminLogin))
+	mux.HandleFunc("/admin/api/login", handlers.NoCache(app.HandleAdminLoginAPI))
+
+	// Admin pages — require admin role (redirect to admin login)
 	mux.HandleFunc("/admin", handlers.NoCache(app.RequireAdmin(app.HandleAdmin)))
-	mux.HandleFunc("/schedule", handlers.NoCache(app.RequireAdmin(app.HandleSchedulePage)))
+	mux.HandleFunc("/admin/schedule", handlers.NoCache(app.RequireAdmin(app.HandleSchedulePage)))
 	mux.HandleFunc("/admin/directory", handlers.NoCache(app.RequireAdmin(app.HandleDirectory)))
 	mux.HandleFunc("/admin/profile", handlers.NoCache(app.RequireAdmin(app.HandleProfilePage)))
 	mux.HandleFunc("/admin/export", handlers.NoCache(app.RequireAdmin(app.HandleExport)))

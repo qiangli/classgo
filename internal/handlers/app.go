@@ -79,17 +79,17 @@ func (a *App) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// RequireAdmin wraps a handler to require admin role. Redirects to login.
+// RequireAdmin wraps a handler to require admin role. Redirects to admin login.
 func (a *App) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := auth.GetSessionToken(r)
 		if token == "" {
-			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			http.Redirect(w, r, auth.AdminLoginPath, http.StatusFound)
 			return
 		}
 		sess, ok := a.Sessions.Get(token)
 		if !ok || sess.Role != "admin" {
-			http.Redirect(w, r, auth.LoginPath, http.StatusFound)
+			http.Redirect(w, r, auth.AdminLoginPath, http.StatusFound)
 			return
 		}
 		next(w, r)
@@ -138,7 +138,51 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+// HandleAdminLogin serves the dedicated admin login page.
+func (a *App) HandleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	// If already authenticated as admin, redirect to admin dashboard
+	token := auth.GetSessionToken(r)
+	if token != "" {
+		if sess, ok := a.Sessions.Get(token); ok && sess.Role == "admin" {
+			http.Redirect(w, r, "/admin", http.StatusFound)
+			return
+		}
+	}
+	a.Tmpl.ExecuteTemplate(w, "admin_login.html", models.CheckInPageData{AppName: a.AppName})
+}
+
 // HandleLoginAPI handles login POST as JSON API.
+// HandleAdminLoginAPI handles admin login POST as JSON API.
+func (a *App) HandleAdminLoginAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+
+	if req.Username == "" || req.Password == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Username and password required"})
+		return
+	}
+	if err := auth.Authenticate(req.Username, req.Password); err != nil {
+		log.Printf("Admin login failed for %q: %v", req.Username, err)
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
+		return
+	}
+	token := a.Sessions.Create(req.Username, "admin", "", "")
+	auth.SetSessionCookie(w, token)
+	log.Printf("Admin login: %s", req.Username)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "admin", "redirect": "/admin"})
+}
+
 func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -147,9 +191,8 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		EntityID  string `json:"entity_id"` // entity ID (e.g., "S001") for user login
-		Username  string `json:"username"`  // system username for admin login
 		Password  string `json:"password"`
-		Action    string `json:"action"`     // "login", "setup", "signup", "admin", "check"
+		Action    string `json:"action"`     // "login", "setup", "signup", "check"
 		FirstName string `json:"first_name"` // for signup
 		LastName  string `json:"last_name"`  // for signup
 	}
@@ -159,22 +202,6 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch req.Action {
-	case "admin":
-		// Admin login via OS authentication
-		if req.Username == "" || req.Password == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Username and password required"})
-			return
-		}
-		if err := auth.Authenticate(req.Username, req.Password); err != nil {
-			log.Printf("Admin login failed for %q: %v", req.Username, err)
-			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
-			return
-		}
-		token := a.Sessions.Create(req.Username, "admin", "", "")
-		auth.SetSessionCookie(w, token)
-		log.Printf("Admin login: %s", req.Username)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "admin", "redirect": "/admin"})
-
 	case "check":
 		// Check if user has a password set (for first-time detection)
 		if req.EntityID == "" {

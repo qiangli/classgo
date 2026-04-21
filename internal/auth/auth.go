@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	SessionCookie = "classgo_session"
-	SessionMaxAge = 8 * time.Hour
-	LoginPath     = "/login"
+	SessionCookie  = "classgo_session"
+	SessionMaxAge  = 8 * time.Hour
+	LoginPath      = "/login"
+	AdminLoginPath = "/admin/login"
 )
 
 type Session struct {

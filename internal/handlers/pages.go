@@ -15,6 +15,11 @@ func (a *App) HandleSchedulePage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin#schedule", http.StatusFound)
 }
 
+// Keep old /schedule path working — redirect to new location.
+func (a *App) HandleScheduleRedirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin/schedule", http.StatusMovedPermanently)
+}
+
 func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
