@@ -290,7 +290,72 @@ curl -s -b /tmp/cg-cookies -o /dev/null -w "%{http_code}" $BASE/api/v1/preferenc
 rm -f /tmp/cg-cookies
 ```
 
-### 14. Go Test Suite
+### 14. Per-Student PIN Override API
+
+Requires authentication. Tests the admin PIN override management (now on the Check-in page).
+
+```bash
+# Login as admin
+curl -s -c /tmp/cg-cookies -X POST $BASE/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin"}'
+
+# Check PIN requirement for a student (should be off initially)
+curl -s "$BASE/api/pin/check?student_id=S005"
+# Expect: {"needs_pin": false, "pin_mode": "off"}
+
+# Flag a student as requiring PIN
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/v1/student/pin/require \
+  -H 'Content-Type: application/json' \
+  -d '{"student_id":"S005","require_pin":true}'
+# Expect: {"ok": true, "pin": "NNNN"} (4-digit PIN returned)
+
+# Verify PIN is now required for the flagged student
+curl -s "$BASE/api/pin/check?student_id=S005"
+# Expect: {"needs_pin": true, "pin_mode": "off"}
+
+# Check-in without PIN should be rejected
+curl -s -X POST $BASE/api/checkin \
+  -H 'Content-Type: application/json' \
+  -d '{"student_name":"Emma Taylor","student_id":"S005","device_type":"mobile"}'
+# Expect: {"ok": false, "needs_pin": true}
+
+# Regenerate PIN for the flagged student
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/v1/student/pin/reset \
+  -H 'Content-Type: application/json' \
+  -d '{"student_id":"S005"}'
+# Expect: {"ok": true, "pin": "NNNN"} (new 4-digit PIN)
+
+# Unflag the student
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/v1/student/pin/require \
+  -H 'Content-Type: application/json' \
+  -d '{"student_id":"S005","require_pin":false}'
+# Expect: {"ok": true}
+
+# Verify PIN is no longer required
+curl -s "$BASE/api/pin/check?student_id=S005"
+# Expect: {"needs_pin": false, "pin_mode": "off"}
+
+# Change PIN mode to center
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/admin/pin/mode \
+  -H 'Content-Type: application/json' \
+  -d '{"pin_mode":"center"}'
+# Expect: {"ok": true, "pin_mode": "center"}
+
+# All students should now need PIN
+curl -s "$BASE/api/pin/check?student_id=S003"
+# Expect: {"needs_pin": true, "pin_mode": "center"}
+
+# Reset PIN mode back to off
+curl -s -b /tmp/cg-cookies -X POST $BASE/api/admin/pin/mode \
+  -H 'Content-Type: application/json' \
+  -d '{"pin_mode":"off"}'
+# Expect: {"ok": true, "pin_mode": "off"}
+
+rm -f /tmp/cg-cookies
+```
+
+### 15. Go Test Suite
 
 ```bash
 go test -v -count=1 .
@@ -319,6 +384,7 @@ Validation Results:
   Static:          PASS (logo, favicon, JS)
   Preferences:     PASS (save, load, unauthenticated rejected)
   Profile Nav:     PASS (admin→profile→admin round-trip, data persists)
+  PIN Override:    PASS (flag/unflag student, regenerate PIN, PIN mode change)
   Go Tests:        PASS (all passed)
 ```
 

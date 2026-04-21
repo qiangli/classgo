@@ -400,6 +400,159 @@ func TestPinOverride_UnflaggedStudentNoPin(t *testing.T) {
 	}
 }
 
+// ==================== GROUP 4b: PIN OVERRIDE API HANDLERS ====================
+
+func TestPinCheck_OffModeUnflagged(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+	app.PinMode = "off"
+
+	w := apiGet(app.HandlePINCheck, "/api/pin/check?student_id=S001")
+	r := resp(t, w)
+	if r["needs_pin"] != false {
+		t.Errorf("expected needs_pin=false for unflagged student in off mode, got: %v", r)
+	}
+	if r["pin_mode"] != "off" {
+		t.Errorf("expected pin_mode=off, got: %v", r["pin_mode"])
+	}
+}
+
+func TestPinCheck_OffModeFlagged(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+	app.PinMode = "off"
+
+	database.SetStudentRequirePIN(app.DB, "S001", true)
+
+	w := apiGet(app.HandlePINCheck, "/api/pin/check?student_id=S001")
+	r := resp(t, w)
+	if r["needs_pin"] != true {
+		t.Errorf("expected needs_pin=true for flagged student, got: %v", r)
+	}
+}
+
+func TestPinCheck_CenterMode(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+	app.PinMode = "center"
+
+	w := apiGet(app.HandlePINCheck, "/api/pin/check?student_id=S001")
+	r := resp(t, w)
+	if r["needs_pin"] != true {
+		t.Errorf("expected needs_pin=true in center mode, got: %v", r)
+	}
+	if r["pin_mode"] != "center" {
+		t.Errorf("expected pin_mode=center, got: %v", r["pin_mode"])
+	}
+}
+
+func TestPinCheck_ByStudentName(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+	app.PinMode = "off"
+
+	database.SetStudentRequirePIN(app.DB, "S001", true)
+
+	w := apiGet(app.HandlePINCheck, "/api/pin/check?student_name=Alice+Wang")
+	r := resp(t, w)
+	if r["needs_pin"] != true {
+		t.Errorf("expected needs_pin=true when looking up by name, got: %v", r)
+	}
+}
+
+func TestHandleStudentRequirePIN_FlagAndUnflag(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+	app.PinMode = "off"
+
+	// Flag student
+	w := apiPost(app.HandleStudentRequirePIN, "/api/v1/student/pin/require",
+		`{"student_id":"S003","require_pin":true}`)
+	r := resp(t, w)
+	if r["ok"] != true {
+		t.Fatalf("flag student failed: %v", r)
+	}
+	if r["pin"] == nil || r["pin"] == "" {
+		t.Error("expected PIN to be returned when flagging student")
+	}
+
+	// Verify student is flagged
+	if !database.StudentRequiresPIN(app.DB, "S003") {
+		t.Error("student should be flagged after API call")
+	}
+
+	// Unflag student
+	w = apiPost(app.HandleStudentRequirePIN, "/api/v1/student/pin/require",
+		`{"student_id":"S003","require_pin":false}`)
+	r = resp(t, w)
+	if r["ok"] != true {
+		t.Fatalf("unflag student failed: %v", r)
+	}
+
+	// Verify student is unflagged
+	if database.StudentRequiresPIN(app.DB, "S003") {
+		t.Error("student should not be flagged after unflagging")
+	}
+}
+
+func TestHandlePINModeChange(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+
+	// Change to center
+	w := apiPost(app.HandlePINModeChange, "/api/admin/pin/mode",
+		`{"pin_mode":"center"}`)
+	r := resp(t, w)
+	if r["ok"] != true {
+		t.Fatalf("set center mode failed: %v", r)
+	}
+	if app.PinMode != "center" {
+		t.Errorf("expected PinMode=center, got %s", app.PinMode)
+	}
+
+	// Change to off
+	w = apiPost(app.HandlePINModeChange, "/api/admin/pin/mode",
+		`{"pin_mode":"off"}`)
+	r = resp(t, w)
+	if r["ok"] != true {
+		t.Fatalf("set off mode failed: %v", r)
+	}
+	if app.PinMode != "off" {
+		t.Errorf("expected PinMode=off, got %s", app.PinMode)
+	}
+
+	// Invalid mode
+	w = apiPost(app.HandlePINModeChange, "/api/admin/pin/mode",
+		`{"pin_mode":"invalid"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid mode, got %d", w.Code)
+	}
+}
+
+func TestHandleStudentPINReset(t *testing.T) {
+	app, cleanup := setupTestWithData(t)
+	defer cleanup()
+
+	// Flag and generate initial PIN
+	database.SetStudentRequirePIN(app.DB, "S004", true)
+	oldPin, _ := database.EnsureDailyStudentPin(app.DB, "S004")
+
+	// Reset PIN via handler
+	w := apiPost(app.HandleStudentPINReset, "/api/v1/student/pin/reset",
+		`{"student_id":"S004"}`)
+	r := resp(t, w)
+	if r["ok"] != true {
+		t.Fatalf("PIN reset failed: %v", r)
+	}
+	newPin, ok := r["pin"].(string)
+	if !ok || newPin == "" {
+		t.Fatal("expected new PIN in response")
+	}
+	if newPin == oldPin {
+		t.Error("new PIN should differ from old PIN")
+	}
+}
+
 // ==================== GROUP 5: RATE LIMITING ====================
 
 func TestRateLimit_MobileDifferentStudents(t *testing.T) {
