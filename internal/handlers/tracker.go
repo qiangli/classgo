@@ -12,9 +12,11 @@ import (
 )
 
 // HandleTrackerDue returns due tracker items for a student today.
+// Pass signoff_only=true to return only items that require signoff (used during checkout).
 func (a *App) HandleTrackerDue(w http.ResponseWriter, r *http.Request) {
 	studentID := r.URL.Query().Get("student_id")
 	studentName := r.URL.Query().Get("student_name")
+	signoffOnly := r.URL.Query().Get("signoff_only") == "true"
 
 	if studentID == "" && studentName != "" {
 		studentID = a.findStudentID(studentName)
@@ -24,8 +26,14 @@ func (a *App) HandleTrackerDue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	today := time.Now().Format("2006-01-02")
-	items, err := database.GetDueItems(a.DB, studentID, today)
+	var items []models.DueItem
+	var err error
+	if signoffOnly {
+		items, err = database.PendingSignoffItems(a.DB, studentID)
+	} else {
+		today := time.Now().Format("2006-01-02")
+		items, err = database.GetDueItems(a.DB, studentID, today)
+	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return

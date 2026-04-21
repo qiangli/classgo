@@ -73,6 +73,21 @@ export async function pinCheckViaAPI(studentId: string) {
   return res.json();
 }
 
+export async function clearStudentTrackerItemsViaAPI(cookie: string, studentId: string) {
+  const res = await fetch(`${BASE_URL}/api/tracker/student-items?student_id=${encodeURIComponent(studentId)}`, {
+    headers: { Cookie: cookie },
+  });
+  const items = await res.json();
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    await fetch(`${BASE_URL}/api/tracker/student-items/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ id: item.id }),
+    });
+  }
+}
+
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   const res = await fetch(`${BASE_URL}/admin/api/login`, {
     method: 'POST',

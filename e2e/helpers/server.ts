@@ -1,5 +1,5 @@
 import { execSync, spawn, ChildProcess } from 'child_process';
-import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, unlinkSync, rmSync, existsSync } from 'fs';
 import path from 'path';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
@@ -16,7 +16,8 @@ export function buildServer(): void {
 }
 
 export function startServer(port: number, dataDir: string): ServerState {
-  const dbPath = execSync('mktemp /tmp/classgo-e2e-XXXXXX.db').toString().trim();
+  const tmpDir = execSync('mktemp -d /tmp/classgo-e2e-XXXXXX').toString().trim();
+  const dbPath = path.join(tmpDir, 'classgo.db');
 
   const proc: ChildProcess = spawn(
     path.join(PROJECT_ROOT, 'bin', 'classgo'),
@@ -53,7 +54,7 @@ export function stopServer(): void {
     process.kill(state.pid, 'SIGTERM');
   } catch {}
   try {
-    unlinkSync(state.dbPath);
+    rmSync(path.dirname(state.dbPath), { recursive: true, force: true });
   } catch {}
   try {
     unlinkSync(STATE_FILE);
