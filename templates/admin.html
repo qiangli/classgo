@@ -158,6 +158,22 @@
                         <p class="text-xs text-gray-300 mt-1 cursor-pointer select-none" onclick="toggleQR()">tap QR to switch</p>
                     </div>
                 </div>
+
+                <!-- Per-Student PIN Override -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3">Per-Student PIN Override</h2>
+                    <p class="text-sm text-gray-400 mb-3">Flagged students must get their PIN from admin to check in/out. PIN auto-rotates daily.</p>
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="flex-1 max-w-md relative">
+                            <input type="text" id="pin-override-search" placeholder="Search student by name or ID..."
+                                oninput="searchStudentForPinOverride(this.value)"
+                                class="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <div id="pin-override-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20 w-full"></div>
+                        </div>
+                    </div>
+                    <div id="pin-override-list" class="space-y-2"></div>
+                    <p id="pin-override-empty" class="text-sm text-gray-400 text-center py-4">No students with PIN override enabled.</p>
+                </div>
             </section>
 
             <!-- ==================== ATTENDANCE SECTION ==================== -->
@@ -456,32 +472,24 @@
 
             <!-- ==================== AUDIT SECTION ==================== -->
             <section id="section-audit" class="hidden">
-                <!-- PIN Mode Selector -->
+                <!-- PIN Mode (read-only) -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-4">
                     <h2 class="text-lg font-semibold text-gray-700 mb-3">PIN Mode</h2>
                     <div class="flex gap-3">
-                        <button onclick="setPinMode('off')" id="pin-mode-off" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Off</button>
-                        <button onclick="setPinMode('center')" id="pin-mode-center" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm transition">Center-wide PIN</button>
+                        <span id="pin-mode-off" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm">Off</span>
+                        <span id="pin-mode-center" class="pin-mode-btn px-4 py-2 rounded-lg border text-sm">Center-wide PIN</span>
                     </div>
                     <p class="text-xs text-gray-400 mt-2">
-                        <strong>Off</strong>: No PIN required. <strong>Center</strong>: One daily PIN for all. Use per-student override below for flagged students.
+                        <strong>Off</strong>: No PIN required. <strong>Center</strong>: One daily PIN for all. Change PIN mode on the Check-in page.
                     </p>
                 </div>
 
-                <!-- Per-Student PIN Override -->
+                <!-- Per-Student PIN Override (read-only) -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 mb-4">
                     <h2 class="text-lg font-semibold text-gray-700 mb-3">Per-Student PIN Override</h2>
-                    <p class="text-sm text-gray-400 mb-3">Flagged students must get their PIN from admin to check in/out. PIN auto-rotates daily.</p>
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="flex-1 max-w-md relative">
-                            <input type="text" id="pin-override-search" placeholder="Search student by name or ID..."
-                                oninput="searchStudentForPinOverride(this.value)"
-                                class="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
-                            <div id="pin-override-results" class="hidden absolute bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20 w-full"></div>
-                        </div>
-                    </div>
-                    <div id="pin-override-list" class="space-y-2"></div>
-                    <p id="pin-override-empty" class="text-sm text-gray-400 text-center py-4">No students with PIN override enabled.</p>
+                    <p class="text-sm text-gray-400 mb-3">Flagged students must get their PIN from admin to check in/out. Manage overrides on the Check-in page.</p>
+                    <div id="pin-override-list-audit" class="space-y-2"></div>
+                    <p id="pin-override-empty-audit" class="text-sm text-gray-400 text-center py-4">No students with PIN override enabled.</p>
                 </div>
 
                 <!-- Flagged Check-ins -->
@@ -793,6 +801,7 @@
                     setProgressRange('last7');
                 }
             }
+            if (section === 'checkin') loadPinOverrideList();
             if (section === 'audit') loadAuditData();
             if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
 
@@ -1133,8 +1142,32 @@
             } catch(e) { console.error(e); }
         }
 
+        async function loadPinOverrideListAudit() {
+            try {
+                const res = await fetch('/api/v1/directory?include_deleted=0');
+                const data = await res.json();
+                const students = (data.students || []).filter(s => s.require_pin);
+                const container = document.getElementById('pin-override-list-audit');
+                const empty = document.getElementById('pin-override-empty-audit');
+                if (!students.length) {
+                    container.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                empty.classList.add('hidden');
+                container.innerHTML = students.map(s => `
+                    <div class="flex items-center justify-between border rounded-lg p-3">
+                        <div>
+                            <span class="font-medium text-gray-800">${esc(s.first_name + ' ' + s.last_name)}</span>
+                            <span class="text-sm text-gray-400 ml-2">${esc(s.id)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
         async function loadAuditData() {
-            loadPinOverrideList();
+            loadPinOverrideListAudit();
             const date = document.getElementById('audit-date').value;
             try {
                 const [flagsRes, devicesRes] = await Promise.all([
