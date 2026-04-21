@@ -267,14 +267,34 @@
             } catch(e) { console.warn('FingerprintJS failed:', e); }
         })();
 
-        // Fetch settings to check PIN mode
-        fetch('/api/settings').then(r => r.json()).then(s => {
-            pinMode = s.pin_mode || 'off';
-            pinRequired = s.require_pin || pinMode === 'center';
-            if (!pinRequired) {
+        // Check if PIN is required for a specific student (center-wide OR per-student override)
+        async function checkPinRequired(studentId, studentName) {
+            try {
+                const params = new URLSearchParams();
+                if (studentId) params.set('student_id', studentId);
+                else if (studentName) params.set('student_name', studentName);
+                const res = await fetch('/api/pin/check?' + params);
+                const data = await res.json();
+                pinMode = data.pin_mode || 'off';
+                return !!data.needs_pin;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        function updatePinFieldVisibility() {
+            if (pinRequired || selectedStudentRequiresPin) {
+                document.getElementById('pin-field').classList.remove('hidden');
+            } else {
                 document.getElementById('pin-field').classList.add('hidden');
             }
-        }).catch(() => {});
+        }
+
+        // Initial settings fetch (no student context yet)
+        checkPinRequired('', '').then(needed => {
+            pinRequired = needed;
+            updatePinFieldVisibility();
+        });
 
         let searchTimeout = null;
         let highlightIndex = -1;
@@ -340,11 +360,13 @@
 
         let selectedStudentRequiresPin = false;
 
-        function selectStudent(li) {
+        async function selectStudent(li) {
             studentNameInput.value = li.dataset.name;
             studentIdInput.value = li.dataset.id;
-            selectedStudentRequiresPin = li.dataset.requirePin === '1';
             searchResults.classList.add('hidden');
+            // Always check PIN requirement from server for this student
+            selectedStudentRequiresPin = await checkPinRequired(li.dataset.id, '');
+            updatePinFieldVisibility();
             pinInput.focus();
         }
 
@@ -384,10 +406,11 @@
 
         async function checkStatus(name) {
             try {
+                const sid = studentIdInput.value || '';
+                selectedStudentRequiresPin = await checkPinRequired(sid, name);
                 const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
                 const data = await res.json();
                 if (data.checked_in) {
-                    selectedStudentRequiresPin = !!data.require_pin;
                     showConfirmation(name, true, data.checked_out);
                 }
             } catch (err) {}
@@ -407,7 +430,7 @@
                 document.getElementById('confirmed-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
                 document.getElementById('confirmed-status').className = 'text-green-600 mt-1';
                 checkoutBtn.classList.remove('hidden');
-                // Show PIN field if this student is tagged for per-student PIN
+                // Show PIN field if PIN is required (center-wide or student-specific)
                 if (selectedStudentRequiresPin) {
                     document.getElementById('checkout-pin-field').classList.remove('hidden');
                 } else {
@@ -451,6 +474,13 @@
         async function doCheckOut() {
             const name = document.getElementById('confirmed-name').textContent;
             const sid = studentIdInput.value;
+
+            // Check PIN requirement for this specific student before checkout
+            selectedStudentRequiresPin = await checkPinRequired(sid, name);
+            const pinField = document.getElementById('checkout-pin-field');
+            if (selectedStudentRequiresPin) {
+                pinField.classList.remove('hidden');
+            }
 
             try {
                 const params = new URLSearchParams();
@@ -613,6 +643,12 @@
             checkinSubmitBtn.textContent = 'Checking in...';
             checkinMessageEl.classList.add('hidden');
 
+            // Check PIN requirement for this specific student before submitting
+            const sid = studentIdInput.value || '';
+            pinRequired = await checkPinRequired(sid, studentNameInput.value.trim());
+            selectedStudentRequiresPin = pinRequired;
+            updatePinFieldVisibility();
+
             try {
                 const payload = {
                     student_name: studentNameInput.value.trim(),
@@ -639,7 +675,6 @@
                     showCheckinMessage('PIN required — ask the admin for your PIN', false);
                 } else if (data.ok) {
                     const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
-                    selectedStudentRequiresPin = !!data.require_pin;
                     showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
                     pinInput.value = '';
 
@@ -842,112 +877,6 @@
             }
         }
 
-    </script>
-    <script src="/static/js/theme.js"></script>
-</body>
-</html>
-ogin failed';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch(e) {
-                errorEl.textContent = 'Login failed';
-                errorEl.classList.remove('hidden');
-            }
-        }
-
-    </script>
-    <script src="/static/js/theme.js"></script>
-</body>
-</html>
-'admin-login').classList.add('hidden');
-            document.getElementById('user-login').classList.remove('hidden');
-            loginSearchInput.focus();
-        }
-
-        async function submitAdminLogin() {
-            const username = document.getElementById('admin-username').value.trim();
-            const password = document.getElementById('admin-password').value;
-            const errorEl = document.getElementById('admin-error');
-
-            if (!username || !password) {
-                errorEl.textContent = 'Username and password required';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            errorEl.classList.add('hidden');
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ action: 'admin', username, password })
-                });
-                const result = await res.json();
-                if (result.ok) {
-                    window.location.href = result.redirect || '/admin';
-                } else {
-                    errorEl.textContent = result.error || 'Login failed';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch(e) {
-                errorEl.textContent = 'Login failed';
-                errorEl.classList.remove('hidden');
-            }
-        }
-    </script>
-    <script src="/static/js/theme.js"></script>
-</body>
-</html>
-ogin failed';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch(e) {
-                errorEl.textContent = 'Login failed';
-                errorEl.classList.remove('hidden');
-            }
-        }
-
-        // ==================== ADMIN LOGIN ====================
-        function showAdminLogin() {
-            document.getElementById('user-login').classList.add('hidden');
-            document.getElementById('admin-login').classList.remove('hidden');
-            document.getElementById('admin-username').focus();
-        }
-
-        function showUserLogin() {
-            document.getElementById('admin-login').classList.add('hidden');
-            document.getElementById('user-login').classList.remove('hidden');
-            loginSearchInput.focus();
-        }
-
-        async function submitAdminLogin() {
-            const username = document.getElementById('admin-username').value.trim();
-            const password = document.getElementById('admin-password').value;
-            const errorEl = document.getElementById('admin-error');
-
-            if (!username || !password) {
-                errorEl.textContent = 'Username and password required';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            errorEl.classList.add('hidden');
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ action: 'admin', username, password })
-                });
-                const result = await res.json();
-                if (result.ok) {
-                    window.location.href = result.redirect || '/admin';
-                } else {
-                    errorEl.textContent = result.error || 'Login failed';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch(e) {
-                errorEl.textContent = 'Login failed';
-                errorEl.classList.remove('hidden');
-            }
-        }
     </script>
     <script src="/static/js/theme.js"></script>
 </body>

@@ -167,11 +167,20 @@
 
         let kioskSearchTimeout = null;
 
-        // Fetch settings
-        fetch('/api/settings').then(r => r.json()).then(s => {
-            kioskPinMode = s.pin_mode || 'off';
-            kioskPinRequired = s.require_pin || kioskPinMode === 'center';
-        }).catch(() => {});
+        // Check if PIN is required for a specific student (center-wide OR per-student override)
+        async function checkKioskPinRequired(sid, name) {
+            try {
+                const params = new URLSearchParams();
+                if (sid) params.set('student_id', sid);
+                else if (name) params.set('student_name', name);
+                const res = await fetch('/api/pin/check?' + params);
+                const data = await res.json();
+                kioskPinMode = data.pin_mode || 'off';
+                return !!data.needs_pin;
+            } catch(e) {
+                return false;
+            }
+        }
 
         nameInput.addEventListener('input', () => {
             kioskStudentId.value = '';
@@ -223,7 +232,7 @@
             setTimeout(() => errorMsg.classList.add('hidden'), 3000);
         }
 
-        function startCheckIn() {
+        async function startCheckIn() {
             const name = nameInput.value.trim();
             if (!name) return;
             studentName = name;
@@ -231,6 +240,8 @@
             kioskSearchResults.classList.add('hidden');
             mode = 'checkin';
             currentInput = '';
+            // Check PIN requirement for this specific student
+            kioskPinRequired = await checkKioskPinRequired(studentId, studentName);
             if (!kioskPinRequired) {
                 doCheckIn();
                 return;
@@ -260,6 +271,8 @@
             kioskSearchResults.classList.add('hidden');
             mode = 'checkout';
             currentInput = '';
+            // Check PIN requirement for this specific student
+            kioskPinRequired = await checkKioskPinRequired(studentId, studentName);
             if (!kioskPinRequired) {
                 doCheckOut();
                 return;

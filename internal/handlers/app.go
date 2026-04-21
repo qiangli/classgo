@@ -521,6 +521,12 @@ func (a *App) HandlePINToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.SetRequirePIN(req.RequirePIN)
+	// Sync PinMode with toggle state
+	if req.RequirePIN {
+		a.PinMode = "center"
+	} else {
+		a.PinMode = "off"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "require_pin": req.RequirePIN})
 }
 
@@ -583,9 +589,6 @@ func (a *App) ValidatePIN(studentID, pin string) (bool, string) {
 	case "off":
 		return false, ""
 	case "center":
-		if !a.RequirePIN() {
-			return false, ""
-		}
 		if pin == "" {
 			return false, "PIN is required"
 		}
@@ -598,6 +601,35 @@ func (a *App) ValidatePIN(studentID, pin string) (bool, string) {
 		return false, ""
 	}
 	return false, ""
+}
+
+// HandlePINCheck returns whether a PIN is required for a given student.
+// It considers both center-wide PIN mode and per-student PIN override.
+// GET /api/pin/check?student_id=S001
+func (a *App) HandlePINCheck(w http.ResponseWriter, r *http.Request) {
+	studentID := r.URL.Query().Get("student_id")
+	studentName := r.URL.Query().Get("student_name")
+
+	// Resolve student_id from name if needed
+	if studentID == "" && studentName != "" {
+		studentID = a.findStudentID(studentName)
+	}
+
+	pinMode := a.PinMode
+	if pinMode == "" {
+		pinMode = "off"
+	}
+
+	// PIN is required if center-wide mode is "center" OR the student is individually flagged
+	needsPin := pinMode == "center"
+	if !needsPin && studentID != "" {
+		needsPin = database.StudentRequiresPIN(a.DB, studentID)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"needs_pin": needsPin,
+		"pin_mode":  pinMode,
+	})
 }
 
 // HandleStudentPINSetup is disabled — PINs are now admin-controlled.
@@ -828,6 +860,49 @@ func NoCache(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Expires", "0")
 		next(w, r)
 	}
+}
+
+// AllowPrivateNetwork wraps a handler to:
+//  1. Redirect .local mDNS hostname requests to the LAN IP. Chrome's PNA
+//     blocks HTTP subresource loads when the hostname resolves to a "more
+//     private" address space — both loopback (server machine) and local/private
+//     (LAN clients). Redirecting page navigations to the IP ensures all
+//     subsequent subresource loads use a consistent IP origin.
+//  2. Set PNA headers and handle OPTIONS preflight for any remaining cases.
+func AllowPrivateNetwork(next http.Handler) http.Handler {
+	lanIP := GetLocalIP()
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hostname, port, _ := net.SplitHostPort(r.Host)
+		if hostname == "" {
+			hostname = r.Host
+		}
+
+		// Redirect .local navigations to the LAN IP so subresources
+		// load from a numeric IP origin, avoiding PNA address-space blocks.
+		if strings.HasSuffix(hostname, ".local") && lanIP != "127.0.0.1" {
+			if strings.Contains(r.Header.Get("Accept"), "text/html") {
+				target := lanIP
+				if port != "" {
+					target = net.JoinHostPort(lanIP, port)
+				}
+				http.Redirect(w, r, "http://"+target+r.RequestURI, http.StatusTemporaryRedirect)
+				return
+			}
+		}
+
+		w.Header().Set("Access-Control-Allow-Private-Network", "true")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {

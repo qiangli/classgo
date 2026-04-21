@@ -178,10 +178,16 @@ func (a *App) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	studentID := a.findStudentID(studentName)
 	requirePin := studentID != "" && database.StudentRequiresPIN(a.DB, studentID)
 
+	pinMode := a.PinMode
+	if pinMode == "" {
+		pinMode = "off"
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"checked_in":  true,
 		"checked_out": checkOutTime.Valid,
 		"require_pin": requirePin,
+		"pin_mode":    pinMode,
 	})
 }
 

@@ -27,3 +27,6 @@ data/*.db
 data/backups
 data/csv.example/backups/
 data/csv.example/memos/
+
+#
+.env

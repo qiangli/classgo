@@ -42,12 +42,6 @@ func NewWatcher(dataDir string, db *sql.DB, onChange func()) (*Watcher, error) {
 		log.Printf("Watcher: cannot watch %s: %v", dataDir, err)
 	}
 
-	// Watch csv subdirectory if it exists
-	csvDir := filepath.Join(dataDir, "csv")
-	if err := fsw.Add(csvDir); err != nil {
-		log.Printf("Watcher: cannot watch %s: %v (will use xlsx only)", csvDir, err)
-	}
-
 	return w, nil
 }
 

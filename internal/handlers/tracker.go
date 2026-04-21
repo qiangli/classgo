@@ -72,16 +72,15 @@ func (a *App) HandleTrackerRespond(w http.ResponseWriter, r *http.Request) {
 		req.StudentID = a.findStudentID(req.StudentName)
 	}
 
-	if a.RequirePIN() {
-		if req.PIN == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "PIN is required"})
-			return
+	// Validate PIN (center-wide and per-student override)
+	_, pinErr := a.ValidatePIN(req.StudentID, req.PIN)
+	if pinErr != "" {
+		if strings.Contains(pinErr, "required") {
+			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "needs_pin": true, "error": pinErr})
+		} else {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": pinErr})
 		}
-		pin := a.EnsureDailyPIN()
-		if req.PIN != pin {
-			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid PIN"})
-			return
-		}
+		return
 	}
 
 	for _, resp := range req.Responses {

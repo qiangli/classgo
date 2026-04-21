@@ -211,6 +211,7 @@ func main() {
 	mux.HandleFunc("/api/tracker/student-items/delete", handlers.NoCache(app.HandleStudentTrackerItemDelete))
 	mux.HandleFunc("/api/tracker/complete", handlers.NoCache(app.HandleTrackerComplete))
 	mux.HandleFunc("/api/student/pin/setup", handlers.NoCache(app.HandleStudentPINSetup))
+	mux.HandleFunc("/api/pin/check", handlers.NoCache(app.HandlePINCheck))
 
 	// Dashboard — require any authenticated user
 	mux.HandleFunc("/dashboard", handlers.NoCache(app.RequireAuth(app.HandleDashboard)))
@@ -299,7 +300,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: mux,
+		Handler: handlers.AllowPrivateNetwork(mux),
 	}
 
 	// Start file watcher
