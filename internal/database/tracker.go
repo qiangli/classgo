@@ -196,7 +196,7 @@ func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
 	tx.QueryRow("SELECT COALESCE(first_name,'')||' '||COALESCE(last_name,'') FROM students WHERE id = ?", studentID).Scan(&studentName)
 
 	if _, err := tx.Exec(
-		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, attendance_id) VALUES (?, ?, 'adhoc', ?, ?, 'done', 0)",
+		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, attendance_id) VALUES (?, ?, 'personal', ?, ?, 'done', 0)",
 		studentID, strings.TrimSpace(studentName), id, itemName,
 	); err != nil {
 		return err
@@ -222,7 +222,7 @@ func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
 	}
 	// Only remove dashboard-created responses (attendance_id=0), not checkout responses
 	if _, err := tx.Exec(
-		"DELETE FROM tracker_responses WHERE item_type = 'adhoc' AND item_id = ? AND status = 'done' AND attendance_id = 0",
+		"DELETE FROM tracker_responses WHERE item_type = 'personal' AND item_id = ? AND status = 'done' AND attendance_id = 0",
 		id,
 	); err != nil {
 		return err
@@ -245,7 +245,7 @@ func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error)
 	for _, it := range allDue {
 		var reqSignoff bool
 		switch it.ItemType {
-		case "adhoc":
+		case "personal":
 			db.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
 		case "global":
 			db.QueryRow("SELECT requires_signoff FROM tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
@@ -300,23 +300,23 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 		)
 		UNION ALL
 		-- Student-specific items (one-time by default)
-		SELECT 'adhoc' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
+		SELECT 'personal' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
 		FROM student_tracker_items sti
 		WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0 AND sti.completed = 0
 		AND (sti.start_date IS NULL OR sti.start_date <= ?)
 		AND (sti.end_date IS NULL OR sti.end_date >= ?)
 		AND (
 			(sti.recurrence = 'daily' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'adhoc' AND tr.response_date = ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.response_date = ?
 			))
 			OR (sti.recurrence = 'weekly' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'adhoc' AND tr.response_date >= ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.response_date >= ?
 			))
 			OR (sti.recurrence = 'monthly' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'adhoc' AND strftime('%Y-%m', tr.response_date) = ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND strftime('%Y-%m', tr.response_date) = ?
 			))
 			OR (sti.recurrence = 'none' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'adhoc' AND tr.status = 'done'
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.status = 'done'
 			))
 		)`,
 		// Global params
@@ -563,12 +563,12 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 			SUM(CASE WHEN tr.status = 'done' THEN 1 ELSE 0 END) as done_count
 		FROM tracker_responses tr
 		LEFT JOIN tracker_items ti ON tr.item_type = 'global' AND tr.item_id = ti.id
-		LEFT JOIN student_tracker_items sti ON tr.item_type = 'adhoc' AND tr.item_id = sti.id
+		LEFT JOIN student_tracker_items sti ON tr.item_type = 'personal' AND tr.item_id = sti.id
 		WHERE tr.student_id IN (`+placeholders+`)
 		AND tr.response_date >= ? AND tr.response_date <= ?
 		AND (
 			(tr.item_type = 'global' AND COALESCE(ti.requires_signoff, 1) = 1)
-			OR (tr.item_type = 'adhoc' AND COALESCE(sti.requires_signoff, 1) = 1)
+			OR (tr.item_type = 'personal' AND COALESCE(sti.requires_signoff, 1) = 1)
 		)
 		GROUP BY tr.student_id`,
 		doneArgs...,
@@ -749,7 +749,7 @@ func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, erro
 		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence
 		FROM tracker_items ti WHERE ti.active = 1 AND ti.deleted = 0
 		UNION ALL
-		SELECT 'adhoc', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
+		SELECT 'personal', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
 		FROM student_tracker_items sti WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0`,
 		studentID,
 	)

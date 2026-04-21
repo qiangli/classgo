@@ -68,4 +68,4 @@ Key columns: `student_id` (empty for library items), `name`, `notes`, `start_dat
 
 ### `tracker_responses` (Completion Tracking)
 
-Key columns: `student_id`, `student_name`, `item_type` (global/adhoc), `item_id`, `item_name`, `status` (done/not_done), `notes`, `response_date`, `attendance_id`
+Key columns: `student_id`, `student_name`, `item_type` (global/personal), `item_id`, `item_name`, `status` (done/not_done), `notes`, `response_date`, `attendance_id`

@@ -96,7 +96,7 @@ func (a *App) HandleTrackerRespond(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid status: " + resp.Status})
 			return
 		}
-		if resp.ItemType != "global" && resp.ItemType != "adhoc" {
+		if resp.ItemType != "global" && resp.ItemType != "personal" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid item type"})
 			return
 		}

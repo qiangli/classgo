@@ -178,7 +178,7 @@ func TestPhase2_AdminCreateTaskAndAssignToStudent(t *testing.T) {
 	}
 	foundAdhoc := false
 	for _, it := range dueItems {
-		if it["item_type"] == "adhoc" && it["name"] == "Complete Math Worksheet" {
+		if it["item_type"] == "personal" && it["name"] == "Complete Math Worksheet" {
 			foundAdhoc = true
 		}
 	}
@@ -205,7 +205,7 @@ func TestPhase2_AdminCreateTaskAndAssignToStudent(t *testing.T) {
 		"student_name": "Alice",
 		"student_id": "S001",
 		"responses": [
-			{"item_type":"adhoc","item_id":` + jsonNum(signoffItemID) + `,"item_name":"Complete Math Worksheet","status":"done"}
+			{"item_type":"personal","item_id":` + jsonNum(signoffItemID) + `,"item_name":"Complete Math Worksheet","status":"done"}
 		]}`
 	w = postJSON(app.HandleTrackerRespond, respondBody)
 	resp = decodeResp(t, w)

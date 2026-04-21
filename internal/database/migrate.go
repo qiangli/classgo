@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -13,6 +14,9 @@ func OpenDB(path string) (*sql.DB, error) {
 func MigrateDB(db *sql.DB) error {
 	// Migrate old column names if they exist
 	migrateColumns(db)
+
+	// Rename item_type 'adhoc' -> 'personal' and recreate table constraint
+	migrateTrackerItemType(db)
 	// Add new columns to existing tables
 	addMissingColumns(db)
 
@@ -166,7 +170,7 @@ func MigrateDB(db *sql.DB) error {
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
 		student_id    TEXT NOT NULL,
 		student_name  TEXT NOT NULL,
-		item_type     TEXT NOT NULL CHECK(item_type IN ('global','adhoc')),
+		item_type     TEXT NOT NULL CHECK(item_type IN ('global','personal')),
 		item_id       INTEGER NOT NULL,
 		item_name     TEXT NOT NULL,
 		status        TEXT NOT NULL CHECK(status IN ('done','not_done')),
@@ -220,6 +224,52 @@ func migrateColumns(db *sql.DB) {
 	db.Exec("ALTER TABLE attendance RENAME COLUMN sign_in_time TO check_in_time")
 	db.Exec("ALTER TABLE attendance RENAME COLUMN sign_out_time TO check_out_time")
 	db.Exec("DROP INDEX IF EXISTS idx_attendance_date")
+}
+
+// migrateTrackerItemType renames item_type 'adhoc' to 'personal' in tracker_responses
+// and recreates the table to update the CHECK constraint. Also clears any orphaned responses.
+func migrateTrackerItemType(db *sql.DB) {
+	// Check if migration is needed
+	var adhocCount int
+	db.QueryRow("SELECT COUNT(*) FROM tracker_responses WHERE item_type = 'adhoc'").Scan(&adhocCount)
+
+	// Check the old CHECK constraint by trying to detect the old schema
+	var sql string
+	db.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='tracker_responses'").Scan(&sql)
+	needsRecreate := strings.Contains(sql, "'adhoc'")
+
+	if adhocCount == 0 && !needsRecreate {
+		return
+	}
+
+	// Recreate table with updated CHECK constraint
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	tx.Exec(`CREATE TABLE IF NOT EXISTS tracker_responses_new (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		student_id    TEXT NOT NULL,
+		student_name  TEXT NOT NULL,
+		item_type     TEXT NOT NULL CHECK(item_type IN ('global','personal')),
+		item_id       INTEGER NOT NULL,
+		item_name     TEXT NOT NULL,
+		status        TEXT NOT NULL CHECK(status IN ('done','not_done')),
+		notes         TEXT,
+		response_date DATE NOT NULL DEFAULT (date('now','localtime')),
+		attendance_id INTEGER,
+		responded_at  DATETIME DEFAULT (datetime('now','localtime'))
+	)`)
+	tx.Exec(`INSERT INTO tracker_responses_new (id, student_id, student_name, item_type, item_id, item_name, status, notes, response_date, attendance_id, responded_at)
+		SELECT id, student_id, student_name, CASE WHEN item_type = 'adhoc' THEN 'personal' ELSE item_type END, item_id, item_name, status, notes, response_date, attendance_id, responded_at
+		FROM tracker_responses`)
+	tx.Exec("DROP TABLE tracker_responses")
+	tx.Exec("ALTER TABLE tracker_responses_new RENAME TO tracker_responses")
+	tx.Exec("CREATE INDEX IF NOT EXISTS idx_tr_student_date ON tracker_responses(student_id, response_date)")
+	tx.Exec("CREATE INDEX IF NOT EXISTS idx_tr_attendance ON tracker_responses(attendance_id)")
+	tx.Commit()
 }
 
 // addMissingColumns adds columns that were introduced after initial schema creation.

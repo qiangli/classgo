@@ -46,7 +46,7 @@ test.describe('Kiosk', () => {
 
   test('check out a student', async ({ page }, testInfo) => {
     // Kiosk checkout is affected by phantom tracker_responses in the e2e database
-    // that cause GetDueItems to incorrectly exclude adhoc items
+    // that cause GetDueItems to incorrectly exclude personal items
     test.fixme(true, 'Kiosk checkout blocked by phantom tracker_responses');
     // Use Diana Chen (S004) — check in via API, then checkout on kiosk
     const studentName = 'Diana Chen';

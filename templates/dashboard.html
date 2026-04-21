@@ -620,7 +620,7 @@
             }
             // Student items
             for (const s of (allTasks.student_items || [])) {
-                items.push({ type: 'adhoc', id: s.id, name: s.name, notes: s.notes, priority: s.priority, end_date: s.end_date, recurrence: s.recurrence, category: s.category, owner: s.created_by, owner_type: s.owner_type, completed: s.completed, completed_by: s.completed_by });
+                items.push({ type: 'personal', id: s.id, name: s.name, notes: s.notes, priority: s.priority, end_date: s.end_date, recurrence: s.recurrence, category: s.category, owner: s.created_by, owner_type: s.owner_type, completed: s.completed, completed_by: s.completed_by });
             }
 
             if (items.length === 0) {
@@ -644,8 +644,8 @@
             const today = new Date().toISOString().split('T')[0];
             container.innerHTML = items.map(it => {
                 const overdue = it.end_date && it.end_date < today && !it.completed;
-                const canEdit = it.type === 'adhoc' && (it.owner === entityID || userType === 'admin');
-                const canComplete = it.type === 'adhoc' && it.recurrence === 'none';
+                const canEdit = it.type === 'personal' && (it.owner === entityID || userType === 'admin');
+                const canComplete = it.type === 'personal' && it.recurrence === 'none';
                 return `
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-start gap-3 priority-${it.priority} ${it.completed ? 'opacity-60' : ''} ${overdue ? 'border-r-4 border-red-400' : ''}">
                     ${canComplete ? `<button onclick="toggleComplete(${it.id}, ${!it.completed})" class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition ${it.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'}">
@@ -720,7 +720,7 @@
 
             const allItems = [];
             for (const g of (allTasks.global_items || [])) allItems.push({ ...g, type: 'global' });
-            for (const s of (allTasks.student_items || [])) allItems.push({ ...s, type: 'adhoc' });
+            for (const s of (allTasks.student_items || [])) allItems.push({ ...s, type: 'personal' });
             const dayItems = allItems.filter(it => it.end_date === dateStr);
 
             if (dayItems.length === 0) {

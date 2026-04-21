@@ -592,15 +592,15 @@ func TestDueItems_RecurrenceFiltering(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&items)
 
 	if len(items) != 2 {
-		t.Fatalf("expected 2 due items (1 global + 1 adhoc), got %d", len(items))
+		t.Fatalf("expected 2 due items (1 global + 1 personal), got %d", len(items))
 	}
 
 	types := map[string]bool{}
 	for _, it := range items {
 		types[it["item_type"].(string)] = true
 	}
-	if !types["global"] || !types["adhoc"] {
-		t.Errorf("expected both global and adhoc types, got %v", types)
+	if !types["global"] || !types["personal"] {
+		t.Errorf("expected both global and personal types, got %v", types)
 	}
 }
 
@@ -1235,7 +1235,7 @@ func TestCompleteStudentItem_CreatesTrackerResponse(t *testing.T) {
 
 	// Verify tracker_responses row was created
 	var count int
-	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='adhoc' AND item_id=? AND status='done'`, id).Scan(&count)
+	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='personal' AND item_id=? AND status='done'`, id).Scan(&count)
 	if count != 1 {
 		t.Errorf("expected 1 tracker_response row after completion, got %d", count)
 	}
@@ -1259,7 +1259,7 @@ func TestUncompleteStudentItem_RemovesTrackerResponse(t *testing.T) {
 
 	// Verify tracker_responses row was removed
 	var count int
-	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='adhoc' AND item_id=? AND status='done' AND attendance_id=0`, id).Scan(&count)
+	app.DB.QueryRow(`SELECT COUNT(*) FROM tracker_responses WHERE item_type='personal' AND item_id=? AND status='done' AND attendance_id=0`, id).Scan(&count)
 	if count != 0 {
 		t.Errorf("expected 0 tracker_response rows after uncomplete, got %d", count)
 	}
