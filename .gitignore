@@ -14,6 +14,11 @@ tailwindcss
 static/css/tailwind.css
 
 memos/web/node_modules/
+e2e/node_modules/
+e2e/.auth/
+e2e/.server-state.json
+e2e/test-results/
+e2e/playwright-report/
 memos/server/router/frontend/dist/
 data/memos/
 data/csv/

@@ -1,8 +1,9 @@
 APP := classgo
 BIN := bin/$(APP)
 PID_FILE := bin/.pid
+LOG_FILE := bin/classgo.log
 
-.PHONY: help tidy build build-all test start stop clean memos-frontend tailwind
+.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -38,8 +39,10 @@ start: build ## Start the server in the background
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "$(APP) is already running (PID $$(cat $(PID_FILE)))"; \
 	else \
-		$(BIN) & echo $$! > $(PID_FILE); \
-		echo "$(APP) started (PID $$(cat $(PID_FILE)))"; \
+		$(BIN) > $(LOG_FILE) 2>&1 & echo $$! > $(PID_FILE); \
+		sleep 1; \
+		cat $(LOG_FILE); \
+		echo "$(APP) started (PID $$(cat $(PID_FILE))), logging to $(LOG_FILE)"; \
 	fi
 
 stop: ## Stop the running server
@@ -51,6 +54,17 @@ stop: ## Stop the running server
 		echo "$(APP) is not running"; \
 		rm -f $(PID_FILE); \
 	fi
+
+test-e2e-setup: ## Install Playwright dependencies
+	cd e2e && npm install && npx playwright install chromium
+
+test-e2e: ## Run Playwright E2E tests (Go-only build)
+	go build -o $(BIN) .
+	cd e2e && npx playwright test
+
+test-e2e-headed: ## Run E2E tests in headed browser
+	go build -o $(BIN) .
+	cd e2e && npx playwright test --headed
 
 clean: ## Remove build artifacts and database
 	rm -rf bin/
