@@ -149,7 +149,8 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 		a.RateLimiter.Record(deviceKey, req.StudentName)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Welcome, %s!", req.StudentName)})
+	requirePIN := req.StudentID != "" && database.StudentRequiresPIN(a.DB, req.StudentID)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": fmt.Sprintf("Welcome, %s!", req.StudentName), "require_pin": requirePIN})
 }
 
 func (a *App) HandleStatus(w http.ResponseWriter, r *http.Request) {
@@ -173,9 +174,14 @@ func (a *App) HandleStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"checked_in": false, "error": "Database error"})
 		return
 	}
+	// Check if student requires per-student PIN
+	studentID := a.findStudentID(studentName)
+	requirePin := studentID != "" && database.StudentRequiresPIN(a.DB, studentID)
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"checked_in":  true,
 		"checked_out": checkOutTime.Valid,
+		"require_pin": requirePin,
 	})
 }
 
@@ -212,7 +218,11 @@ func (a *App) HandleCheckOut(w http.ResponseWriter, r *http.Request) {
 	// Validate PIN
 	_, pinErr := a.ValidatePIN(req.StudentID, req.PIN)
 	if pinErr != "" {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": pinErr})
+		if strings.Contains(pinErr, "required") {
+			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "needs_pin": true, "error": pinErr})
+		} else {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": pinErr})
+		}
 		return
 	}
 

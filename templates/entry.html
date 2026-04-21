@@ -104,6 +104,11 @@
                     <p id="confirmed-name" class="text-2xl font-bold text-gray-800"></p>
                     <p id="confirmed-status" class="text-green-600 mt-1">Checked in!</p>
                 </div>
+                <div id="checkout-pin-field" class="hidden mt-4">
+                    <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Enter PIN to check out</label>
+                    <input type="tel" id="checkout-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="Ask admin for your PIN"
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-center text-lg tracking-widest bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-red-400">
+                </div>
                 <button id="checkout-btn" onclick="doCheckOut()"
                     class="w-full mt-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition">
                     Check Out
@@ -346,7 +351,7 @@
                 highlightIndex = -1;
                 if (!students.length) { searchResults.classList.add('hidden'); return; }
                 searchResults.innerHTML = students.map((s, i) =>
-                    `<li data-id="${s.id}" data-name="${s.first_name} ${s.last_name}"
+                    `<li data-id="${s.id}" data-name="${s.first_name} ${s.last_name}" data-require-pin="${s.require_pin ? '1' : '0'}"
                          class="px-4 py-3 cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-600 border-b last:border-0 text-sm">
                         <span class="font-medium text-gray-800">${s.first_name} ${s.last_name}</span>
                         <span class="text-gray-400 ml-1">(${s.id})</span>
@@ -362,9 +367,12 @@
             }
         }
 
+        let selectedStudentRequiresPin = false;
+
         function selectStudent(li) {
             studentNameInput.value = li.dataset.name;
             studentIdInput.value = li.dataset.id;
+            selectedStudentRequiresPin = li.dataset.requirePin === '1';
             searchResults.classList.add('hidden');
             pinInput.focus();
         }
@@ -407,22 +415,33 @@
             try {
                 const res = await fetch('/api/status?student_name=' + encodeURIComponent(name));
                 const data = await res.json();
-                if (data.checked_in) showConfirmation(name, true, data.checked_out);
+                if (data.checked_in) {
+                    selectedStudentRequiresPin = !!data.require_pin;
+                    showConfirmation(name, true, data.checked_out);
+                }
             } catch (err) {}
         }
 
         function showConfirmation(name, alreadyCheckedIn, signedOut) {
             document.getElementById('confirmed-name').textContent = name;
+            document.getElementById('checkout-pin').value = '';
             if (signedOut) {
                 document.getElementById('confirmed-icon').innerHTML = '&#128075;';
                 document.getElementById('confirmed-status').textContent = 'Checked out!';
                 document.getElementById('confirmed-status').className = 'text-gray-500 mt-1';
                 checkoutBtn.classList.add('hidden');
+                document.getElementById('checkout-pin-field').classList.add('hidden');
             } else {
                 document.getElementById('confirmed-icon').innerHTML = '&#10003;';
                 document.getElementById('confirmed-status').textContent = alreadyCheckedIn ? 'Already checked in!' : 'Checked in!';
                 document.getElementById('confirmed-status').className = 'text-green-600 mt-1';
                 checkoutBtn.classList.remove('hidden');
+                // Show PIN field if this student is tagged for per-student PIN
+                if (selectedStudentRequiresPin) {
+                    document.getElementById('checkout-pin-field').classList.remove('hidden');
+                } else {
+                    document.getElementById('checkout-pin-field').classList.add('hidden');
+                }
             }
             confirmedCard.classList.remove('hidden');
             checkinCard.classList.add('hidden');
@@ -458,18 +477,9 @@
             }, 3000);
         }
 
-        let trackerPin = '';
-
         async function doCheckOut() {
             const name = document.getElementById('confirmed-name').textContent;
             const sid = studentIdInput.value;
-
-            if (pinRequired) {
-                trackerPin = prompt('Enter PIN to check out:');
-                if (!trackerPin) return;
-            } else {
-                trackerPin = '';
-            }
 
             try {
                 const params = new URLSearchParams();
@@ -487,8 +497,12 @@
         }
 
         async function performCheckout(name, sid) {
+            const pinField = document.getElementById('checkout-pin-field');
+            const pinInput = document.getElementById('checkout-pin');
+            const pin = pinInput.value.trim();
+
             try {
-                const checkoutPayload = { student_name: name, pin: trackerPin, fingerprint: deviceFingerprint, device_id: deviceId };
+                const checkoutPayload = { student_name: name, pin: pin, fingerprint: deviceFingerprint, device_id: deviceId };
                 if (sid) checkoutPayload.student_id = sid;
                 const res = await fetch('/api/checkout', {
                     method: 'POST',
@@ -497,7 +511,13 @@
                 });
                 const data = await res.json();
                 if (data.ok) {
+                    pinField.classList.add('hidden');
+                    pinInput.value = '';
                     showConfirmation(name, false, true);
+                } else if (data.needs_pin) {
+                    pinField.classList.remove('hidden');
+                    pinInput.focus();
+                    showToast('PIN required — ask the admin for your PIN', 'error');
                 } else {
                     showToast(data.error || 'Check out failed', 'error');
                 }
@@ -595,7 +615,7 @@
             });
 
             try {
-                const payload = { student_name: name, pin: trackerPin, responses, fingerprint: deviceFingerprint, device_id: deviceId };
+                const payload = { student_name: name, pin: document.getElementById('checkout-pin').value.trim(), responses, fingerprint: deviceFingerprint, device_id: deviceId };
                 if (sid) payload.student_id = sid;
                 const res = await fetch('/api/tracker/respond', {
                     method: 'POST',
@@ -648,6 +668,7 @@
                     showCheckinMessage('PIN required — ask the admin for your PIN', false);
                 } else if (data.ok) {
                     const alreadyCheckedIn = (data.message || '').toLowerCase().includes('already');
+                    selectedStudentRequiresPin = !!data.require_pin;
                     showSuccess(studentNameInput.value.trim(), alreadyCheckedIn);
                     pinInput.value = '';
 

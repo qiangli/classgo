@@ -371,6 +371,13 @@
 
                 if (data.ok) {
                     showCheckOutSuccess(studentName);
+                } else if (data.needs_pin) {
+                    currentInput = '';
+                    stepLabel.textContent = 'Enter PIN to check out';
+                    nameStep.classList.add('hidden');
+                    keypad.classList.remove('hidden');
+                    updateDisplay();
+                    showError('PIN required — ask the admin for your PIN');
                 } else {
                     showError(data.error || 'Sign out failed');
                     currentInput = '';

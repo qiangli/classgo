@@ -188,7 +188,7 @@ func scanAttendees(rows *sql.Rows) ([]models.Attendance, error) {
 func SearchStudents(db *sql.DB, query string, limit int) ([]models.Student, error) {
 	like := "%" + query + "%"
 	rows, err := db.Query(
-		`SELECT id, first_name, last_name, grade, school FROM students
+		`SELECT id, first_name, last_name, grade, school, COALESCE(require_pin, 0) FROM students
 		 WHERE active = 1 AND (
 		   LOWER(id) LIKE LOWER(?) OR
 		   LOWER(first_name) LIKE LOWER(?) OR
@@ -207,7 +207,7 @@ func SearchStudents(db *sql.DB, query string, limit int) ([]models.Student, erro
 	for rows.Next() {
 		var s models.Student
 		var grade, school sql.NullString
-		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school); err != nil {
+		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &s.RequirePIN); err != nil {
 			return nil, err
 		}
 		s.Grade = grade.String
