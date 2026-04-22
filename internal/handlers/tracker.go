@@ -807,6 +807,11 @@ func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remove the unassigned template now that it has been assigned
+	if src.StudentID == "" {
+		database.DeleteTaskItem(a.DB, src.ID)
+	}
+
 	// Notify via Memos
 	if a.MemosSyncer != nil {
 		go func() {

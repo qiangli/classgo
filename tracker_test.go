@@ -499,22 +499,18 @@ func TestAssignLibraryItem(t *testing.T) {
 		}
 	}
 
-	// Original library item still exists (unassigned)
+	// Original library item should be removed after assignment (template consumed)
 	req = reqWithSession("GET", "/api/dashboard/teacher-items", "", app, "user", "teacher", "T001")
 	w = doReq(app.HandleDashboardTeacherItems, req)
 	items := mustDecodeArray(t, w)
-	// Should have 3: 1 library + 2 assigned copies
-	if len(items) != 3 {
-		t.Errorf("expected 3 total items (1 library + 2 assigned), got %d", len(items))
+	// Should have 2: only the assigned copies, template is soft-deleted
+	if len(items) != 2 {
+		t.Errorf("expected 2 items (assigned copies only), got %d", len(items))
 	}
-	unassigned := 0
 	for _, it := range items {
 		if it["student_id"] == "" {
-			unassigned++
+			t.Error("expected no unassigned library items after assignment")
 		}
-	}
-	if unassigned != 1 {
-		t.Errorf("expected 1 unassigned library item, got %d", unassigned)
 	}
 }
 
