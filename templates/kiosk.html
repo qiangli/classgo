@@ -435,7 +435,7 @@
             }).join('');
 
             const submitBtn = document.getElementById('tracker-submit-btn');
-            submitBtn.disabled = kioskSignoffKeys.size > 0;
+            submitBtn.disabled = true;
             submitBtn.onclick = () => submitKioskTrackerAndCheckout(name, sid, items);
             overlay.classList.remove('hidden');
         }
@@ -470,9 +470,9 @@
                 if (status === 'done') notesInput.value = '';
             }
 
+            const totalItems = document.getElementById('tracker-items-list').children.length;
             const submitBtn = document.getElementById('tracker-submit-btn');
-            const answeredSignoff = [...kioskSignoffKeys].every(k => kioskTrackerResponses[k]);
-            submitBtn.disabled = !answeredSignoff;
+            submitBtn.disabled = Object.keys(kioskTrackerResponses).length < totalItems;
         }
 
         async function submitKioskTrackerAndCheckout(name, sid, items) {

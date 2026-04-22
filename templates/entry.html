@@ -562,7 +562,7 @@
             }).join('');
 
             const submitBtn = document.getElementById('tracker-submit-btn');
-            submitBtn.disabled = trackerSignoffKeys.size > 0;
+            submitBtn.disabled = true;
             submitBtn.onclick = () => submitTrackerAndCheckout(name, sid, items);
             overlay.classList.remove('hidden');
         }
@@ -598,9 +598,9 @@
                 if (status === 'done') notesInput.value = '';
             }
 
+            const totalItems = document.getElementById('tracker-items-list').children.length;
             const submitBtn = document.getElementById('tracker-submit-btn');
-            const answeredSignoff = [...trackerSignoffKeys].every(k => trackerResponses[k]);
-            submitBtn.disabled = !answeredSignoff;
+            submitBtn.disabled = Object.keys(trackerResponses).length < totalItems;
         }
 
         async function submitTrackerAndCheckout(name, sid, items) {
