@@ -57,7 +57,7 @@ test.describe('Signoff restriction by role', () => {
     const item = await getTaskItem(adminCookie, result.id);
     expect(item).toBeTruthy();
     expect(item.type).toBe('task');
-    expect(item.requires_signoff).toBeFalsy();
+    // type=task means no signoff required (requires_signoff is not a JSON field on TaskItem)
 
     // Clean up
     await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);
@@ -76,7 +76,7 @@ test.describe('Signoff restriction by role', () => {
     const item = await getTaskItem(adminCookie, result.id);
     expect(item).toBeTruthy();
     expect(item.type).toBe('task');
-    expect(item.requires_signoff).toBeFalsy();
+    // type=task means no signoff required (requires_signoff is not a JSON field on TaskItem)
 
     // Clean up
     await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);
@@ -92,8 +92,7 @@ test.describe('Signoff restriction by role', () => {
     // Verify the created item has type=todo (signoff required)
     const item = await getTaskItem(adminCookie, result.id);
     expect(item).toBeTruthy();
-    expect(item.type).toBe('todo');
-    expect(item.requires_signoff).toBe(true);
+    expect(item.type).toBe('todo'); // type=todo means signoff required
 
     // Clean up
     await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);

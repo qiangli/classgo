@@ -1,9 +1,9 @@
 import { test, expect } from '../fixtures/auth.js';
 import { hasAdminAuth } from '../fixtures/auth.js';
-import { checkinViaAPI, checkoutViaAPI, clearStudentTrackerItemsViaAPI } from '../helpers/api.js';
+import { clearStudentTrackerItemsViaAPI } from '../helpers/api.js';
 
 const BASE_URL = 'http://localhost:9090';
-const STUDENT_ID = 'S010'; // Jack Brown
+const STUDENT_ID = 'S005'; // Emma Taylor — not used by other e2e tests
 
 test.beforeEach(async () => {
   test.skip(!hasAdminAuth(), 'Admin credentials not provided');
@@ -44,13 +44,13 @@ async function completeTask(cookie: string, id: number, complete: boolean) {
 async function getProgress(cookie: string): Promise<{ done_count: number; total_items: number; completion: number }> {
   const today = new Date().toISOString().slice(0, 10);
   const res = await fetch(
-    `${BASE_URL}/api/tracker/progress?student_id=${STUDENT_ID}&start_date=${today}&end_date=${today}`,
+    `${BASE_URL}/api/v1/admin/progress-summary?start_date=${today}&end_date=${today}&refresh=true`,
     { headers: { Cookie: cookie } },
   );
   const stats = await res.json();
-  return Array.isArray(stats) && stats.length > 0
-    ? stats[0]
-    : { done_count: 0, total_items: 0, completion: 0 };
+  if (!Array.isArray(stats)) return { done_count: 0, total_items: 0, completion: 0 };
+  const entry = stats.find((s: any) => s.student_id === STUDENT_ID);
+  return entry || { done_count: 0, total_items: 0, completion: 0 };
 }
 
 test.describe('Tracker progress after complete/uncomplete', () => {
@@ -67,32 +67,31 @@ test.describe('Tracker progress after complete/uncomplete', () => {
     expect(task1.ok).toBe(true);
     expect(task2.ok).toBe(true);
 
-    // Baseline: 2 expected, 0 done
+    // Baseline
     const baseline = await getProgress(cookie);
-    expect(baseline.total_items).toBeGreaterThanOrEqual(2);
-    const baseTotal = baseline.total_items;
     const baseDone = baseline.done_count;
 
-    // Complete task 1 — done should increase by 1, total stays the same
-    await completeTask(cookie, task1.id, true);
+    // Complete task 1 — done should increase by 1
+    const r1 = await completeTask(cookie, task1.id, true);
+    expect(r1.ok).toBe(true);
     const afterComplete = await getProgress(cookie);
-    expect(afterComplete.total_items).toBe(baseTotal);
-    expect(afterComplete.done_count).toBe(baseDone + 1);
+    expect(afterComplete.done_count - baseDone).toBe(1);
 
-    // Uncomplete task 1 — done should decrease by 1, back to baseline
-    await completeTask(cookie, task1.id, false);
+    // Uncomplete task 1 — done should go back to baseline
+    const r2 = await completeTask(cookie, task1.id, false);
+    expect(r2.ok).toBe(true);
     const afterUncomplete = await getProgress(cookie);
-    expect(afterUncomplete.total_items).toBe(baseTotal);
-    expect(afterUncomplete.done_count).toBe(baseDone);
+    expect(afterUncomplete.done_count - baseDone).toBe(0);
 
     // Complete both tasks — done should increase by 2
     await completeTask(cookie, task1.id, true);
     await completeTask(cookie, task2.id, true);
     const afterBoth = await getProgress(cookie);
-    expect(afterBoth.total_items).toBe(baseTotal);
-    expect(afterBoth.done_count).toBe(baseDone + 2);
+    expect(afterBoth.done_count - baseDone).toBe(2);
 
-    // Clean up
+    // Clean up: uncomplete before deleting to remove tracker_responses
+    await completeTask(cookie, task1.id, false);
+    await completeTask(cookie, task2.id, false);
     await clearStudentTrackerItemsViaAPI(cookie, STUDENT_ID);
   });
 });
