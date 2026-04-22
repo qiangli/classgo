@@ -180,7 +180,7 @@ func (a *App) HandleStudentFieldValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := a.DB.Query(
-		"SELECT DISTINCT "+col+" FROM students WHERE "+col+" IS NOT NULL AND "+col+" != '' AND active = 1 AND deleted = 0 ORDER BY "+col,
+		"SELECT DISTINCT " + col + " FROM students WHERE " + col + " IS NOT NULL AND " + col + " != '' AND active = 1 AND deleted = 0 ORDER BY " + col,
 	)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
@@ -362,9 +362,12 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 		// Enforce ownership: check session
 		sess := a.GetSession(r)
 		if sess != nil && sess.Role != "admin" {
-			// Students always create items for themselves
+			// Students always create items for themselves; only admins/teachers can require signoff
 			if sess.UserType == "student" {
 				item.StudentID = sess.EntityID
+			}
+			if sess.UserType == "student" || sess.UserType == "parent" {
+				item.Type = models.TaskTypeTask
 			}
 			if item.ID > 0 {
 				// Only owner can update
@@ -538,17 +541,17 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		itemType = models.TaskTypeTask
 	}
 	item := models.StudentTrackerItem{
-		Name:      req.Name,
-		Notes:     req.Notes,
-		StartDate: req.StartDate,
-		EndDate:   req.EndDate,
-		Priority:  req.Priority,
+		Name:       req.Name,
+		Notes:      req.Notes,
+		StartDate:  req.StartDate,
+		EndDate:    req.EndDate,
+		Priority:   req.Priority,
 		Recurrence: req.Recurrence,
-		Category:  req.Category,
-		CreatedBy: createdBy,
-		OwnerType: ownerType,
-		Type:      itemType,
-		Active:    true,
+		Category:   req.Category,
+		CreatedBy:  createdBy,
+		OwnerType:  ownerType,
+		Type:       itemType,
+		Active:     true,
 	}
 	if item.Priority == "" {
 		item.Priority = "medium"

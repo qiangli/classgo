@@ -224,7 +224,7 @@
                                     <th class="pb-2 pr-4">Recurrence</th>
                                     <th class="pb-2 pr-4">End Date</th>
                                     <th class="pb-2 pr-4">Student</th>
-                                    <th class="pb-2 pr-4">Sign-off</th>
+                                    <th class="pb-2 pr-4{{if or (eq .UserType "student") (eq .UserType "parent")}} hidden{{end}}">Sign-off</th>
                                     <th class="pb-2">Actions</th>
                                 </tr>
                             </thead>
@@ -388,7 +388,7 @@
                     <label class="block text-sm text-gray-600 mb-1">Category</label>
                     <input type="text" id="task-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Math, SAT Prep">
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2{{if or (eq .UserType "student") (eq .UserType "parent")}} hidden{{end}}">
                     <input type="checkbox" id="task-requires-signoff" class="rounded" {{if ne .UserType "student"}}checked{{end}}>
                     <label for="task-requires-signoff" class="text-sm text-gray-600">Requires sign-off / check-off</label>
                 </div>
@@ -1095,7 +1095,7 @@
                     <td class="py-2 pr-4">${it.recurrence === 'none' ? '<span class="text-xs text-gray-400">One-time</span>' : recurrenceBadge(it.recurrence)}</td>
                     <td class="py-2 pr-4 text-gray-600">${it.end_date || '-'}</td>
                     <td class="py-2 pr-4">${it.student_id ? `<span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">${esc(it.student_name || it.student_id)}</span>` : '<span class="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded">Unassigned</span>'}</td>
-                    <td class="py-2 pr-4">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
+                    <td class="py-2 pr-4${userType === 'student' || userType === 'parent' ? ' hidden' : ''}">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
                     <td class="py-2 whitespace-nowrap">
                         <button onclick="editMyItem(${it.id})" class="text-indigo-600 hover:text-indigo-800 text-sm mr-2">Edit</button>
                         ${!it.student_id && userType !== 'student' ? `<button onclick="openAssignModal(${it.id})" class="text-green-600 hover:text-green-800 text-sm mr-2">Assign</button>` : ''}

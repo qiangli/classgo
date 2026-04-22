@@ -409,8 +409,8 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 			))
 		)`,
 		date, date,
-		studentID, // scope=2 schedule enrollment check
-		studentID, // scope=3 student_id check
+		studentID,       // scope=2 schedule enrollment check
+		studentID,       // scope=3 student_id check
 		studentID, date, // daily
 		studentID, weekStartStr, // weekly
 		studentID, monthStart, // monthly
@@ -707,7 +707,7 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		stiRows, err := db.Query(`
 			SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
 			FROM task_items
-			WHERE scope = 3 AND student_id = ? AND active = 1 AND deleted = 0 AND completed = 0 AND type = 'todo'`, sid)
+			WHERE scope = 3 AND student_id = ? AND active = 1 AND deleted = 0 AND type = 'todo'`, sid)
 		if err != nil {
 			return nil, err
 		}
@@ -909,7 +909,7 @@ func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.TaskIte
 
 // GetCenterTaskItems returns all active, non-deleted center-scoped items.
 func GetCenterTaskItems(db *sql.DB) ([]models.TaskItem, error) {
-	rows, err := db.Query("SELECT "+taskItemCols+" FROM task_items WHERE scope = 1 AND active = 1 AND deleted = 0 ORDER BY id")
+	rows, err := db.Query("SELECT " + taskItemCols + " FROM task_items WHERE scope = 1 AND active = 1 AND deleted = 0 ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
