@@ -210,6 +210,7 @@ func main() {
 	mux.HandleFunc("/api/tracker/student-items", handlers.NoCache(app.HandleStudentTrackerItems))
 	mux.HandleFunc("/api/tracker/student-items/delete", handlers.NoCache(app.HandleStudentTrackerItemDelete))
 	mux.HandleFunc("/api/tracker/complete", handlers.NoCache(app.HandleTrackerComplete))
+	mux.HandleFunc("/api/tracker/late-signoff", handlers.NoCache(app.RequireAuth(app.HandleLateSignoff)))
 	mux.HandleFunc("/api/student/pin/setup", handlers.NoCache(app.HandleStudentPINSetup))
 	mux.HandleFunc("/api/pin/check", handlers.NoCache(app.HandlePINCheck))
 

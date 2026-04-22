@@ -460,35 +460,35 @@ func TestAutoAssignProfileTasks(t *testing.T) {
 
 	// Check auto-assigned items
 	var count int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND created_by = 'system'").Scan(&count)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND created_by = 'system'").Scan(&count)
 	if count == 0 {
 		t.Fatal("expected auto-assigned tracker items for profile gaps")
 	}
 
 	// Verify grade-aware filtering: PSAT 8/9 should NOT be assigned (grade 10)
 	var psat89Count int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND name LIKE '%PSAT 8/9%'").Scan(&psat89Count)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND name LIKE '%PSAT 8/9%'").Scan(&psat89Count)
 	if psat89Count > 0 {
 		t.Error("PSAT 8/9 should not be assigned to grade 10 student")
 	}
 
 	// PSAT 10 SHOULD be assigned
 	var psat10Count int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND name LIKE '%PSAT 10%'").Scan(&psat10Count)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND name LIKE '%PSAT 10%'").Scan(&psat10Count)
 	if psat10Count == 0 {
 		t.Error("PSAT 10 should be assigned to grade 10 student")
 	}
 
 	// PSAT 11 should NOT be assigned (grade 10 < 11)
 	var psat11Count int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND name LIKE '%PSAT 11%'").Scan(&psat11Count)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND name LIKE '%PSAT 11%'").Scan(&psat11Count)
 	if psat11Count > 0 {
 		t.Error("PSAT 11 should not be assigned to grade 10 student")
 	}
 
 	// GPA items SHOULD be assigned
 	var gpaCount int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND category = 'GPA'").Scan(&gpaCount)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND category = 'GPA'").Scan(&gpaCount)
 	if gpaCount != 2 {
 		t.Errorf("expected 2 GPA items assigned, got %d", gpaCount)
 	}
@@ -502,7 +502,7 @@ func TestAutoAssign_SkipsExistingValues(t *testing.T) {
 
 	// Get the GPA tracker item ID
 	var gpaItemID int
-	app.DB.QueryRow("SELECT id FROM tracker_items WHERE name = 'Weighted GPA Update' AND deleted = 0").Scan(&gpaItemID)
+	app.DB.QueryRow("SELECT id FROM task_items WHERE scope = 1 AND name = 'Weighted GPA Update' AND deleted = 0").Scan(&gpaItemID)
 	if gpaItemID == 0 {
 		t.Fatal("GPA tracker item not found")
 	}
@@ -520,14 +520,14 @@ func TestAutoAssign_SkipsExistingValues(t *testing.T) {
 
 	// Weighted GPA should NOT be auto-assigned (has value)
 	var wgpaCount int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND name = 'Weighted GPA Update' AND created_by = 'system'").Scan(&wgpaCount)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND name = 'Weighted GPA Update' AND created_by = 'system'").Scan(&wgpaCount)
 	if wgpaCount > 0 {
 		t.Error("Weighted GPA should not be auto-assigned when value was provided")
 	}
 
 	// Unweighted GPA SHOULD be auto-assigned (no value)
 	var uwgpaCount int
-	app.DB.QueryRow("SELECT COUNT(*) FROM student_tracker_items WHERE student_id = 'S010' AND name = 'Unweighted GPA Update' AND created_by = 'system'").Scan(&uwgpaCount)
+	app.DB.QueryRow("SELECT COUNT(*) FROM task_items WHERE scope = 3 AND student_id = 'S010' AND name = 'Unweighted GPA Update' AND created_by = 'system'").Scan(&uwgpaCount)
 	if uwgpaCount == 0 {
 		t.Error("Unweighted GPA should be auto-assigned when no value provided")
 	}
@@ -543,8 +543,8 @@ func TestProfileTrackerValues_SaveAndLoad(t *testing.T) {
 
 	// Get tracker item IDs
 	var gpaID, satID int
-	app.DB.QueryRow("SELECT id FROM tracker_items WHERE name = 'Weighted GPA Update' AND deleted = 0").Scan(&gpaID)
-	app.DB.QueryRow("SELECT id FROM tracker_items WHERE name = 'SAT Score (1st Attempt)' AND deleted = 0").Scan(&satID)
+	app.DB.QueryRow("SELECT id FROM task_items WHERE scope = 1 AND name = 'Weighted GPA Update' AND deleted = 0").Scan(&gpaID)
+	app.DB.QueryRow("SELECT id FROM task_items WHERE scope = 1 AND name = 'SAT Score (1st Attempt)' AND deleted = 0").Scan(&satID)
 
 	// Save tracker values via profile
 	trackerJSON := `"` + jsonInt(gpaID) + `":"3.95","` + jsonInt(satID) + `":"E:750 M:780 T:1530"`

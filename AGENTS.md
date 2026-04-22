@@ -15,6 +15,8 @@ make test         # Run all tests: go test -v -count=1 ./...
 make tidy         # Format, vet, tidy modules
 make start        # Build and start server in background (PID tracked at bin/.pid)
 make stop         # Stop running server
+make test-e2e     # Run Playwright E2E tests (builds Go binary, runs headless)
+make test-e2e-headed  # Run E2E tests in headed browser
 ```
 
 **Quick Go-only build** (skip frontend): `go build -o bin/classgo .`
@@ -91,6 +93,10 @@ Integration tests using `httptest` with isolated temp databases. `setupTest(t)` 
 - `tracker_test.go` — Tracker CRUD, role-based access, bulk assign
 - `e2e_test.go` — Full user flows (signup → login → checkin → checkout → signoff)
 - `internal/scheduling/engine_test.go` — Schedule materialization, conflicts
+
+### E2E Tests (Playwright)
+
+Playwright tests in `e2e/` use page objects (`e2e/pages/`) and test against a real server instance. Setup: `make test-e2e-setup` (installs npm deps + Chromium). The test suite auto-starts a Go server with a temp DB via `e2e/global-setup.ts`.
 
 ## Release
 

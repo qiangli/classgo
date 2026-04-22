@@ -19,6 +19,8 @@ func MigrateDB(db *sql.DB) error {
 	migrateTrackerItemType(db)
 	// Add new columns to existing tables
 	addMissingColumns(db)
+	// Migrate to unified task_items table
+	migrateToTaskItems(db)
 
 	schema := `
 	CREATE TABLE IF NOT EXISTS attendance (
@@ -166,6 +168,47 @@ func MigrateDB(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_sti_student ON student_tracker_items(student_id);
 	CREATE INDEX IF NOT EXISTS idx_sti_created_by ON student_tracker_items(created_by);
 
+	CREATE TABLE IF NOT EXISTS task_items (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		scope           INTEGER NOT NULL DEFAULT 1 CHECK(scope IN (1, 2, 3)),
+		schedule_id     TEXT,
+		student_id      TEXT,
+		type            TEXT NOT NULL DEFAULT 'task',
+		name            TEXT NOT NULL,
+		notes           TEXT,
+		start_date      TEXT,
+		end_date        TEXT,
+		priority        TEXT NOT NULL DEFAULT 'medium',
+		recurrence      TEXT NOT NULL DEFAULT 'daily',
+		category        TEXT,
+		criteria        TEXT,
+		group_id        TEXT,
+		group_order     INTEGER,
+		created_by      TEXT NOT NULL DEFAULT 'admin',
+		owner_type      TEXT NOT NULL DEFAULT 'admin',
+		completed       INTEGER NOT NULL DEFAULT 0,
+		completed_at    TEXT,
+		completed_by    TEXT,
+		active          INTEGER NOT NULL DEFAULT 1,
+		deleted         INTEGER NOT NULL DEFAULT 0,
+		created_at      DATETIME DEFAULT (datetime('now','localtime')),
+		updated_at      DATETIME DEFAULT (datetime('now','localtime')),
+		legacy_table    TEXT,
+		legacy_id       INTEGER
+	);
+	CREATE INDEX IF NOT EXISTS idx_task_items_scope ON task_items(scope);
+	CREATE INDEX IF NOT EXISTS idx_task_items_student ON task_items(student_id) WHERE student_id IS NOT NULL;
+	CREATE INDEX IF NOT EXISTS idx_task_items_schedule ON task_items(schedule_id) WHERE schedule_id IS NOT NULL;
+	CREATE INDEX IF NOT EXISTS idx_task_items_created_by ON task_items(created_by);
+	CREATE INDEX IF NOT EXISTS idx_task_items_group ON task_items(group_id) WHERE group_id IS NOT NULL;
+
+	CREATE TABLE IF NOT EXISTS task_groups (
+		id             TEXT PRIMARY KEY,
+		name           TEXT NOT NULL,
+		min_required   INTEGER,
+		enforce_order  INTEGER NOT NULL DEFAULT 0
+	);
+
 	CREATE TABLE IF NOT EXISTS tracker_responses (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
 		student_id    TEXT NOT NULL,
@@ -177,10 +220,13 @@ func MigrateDB(db *sql.DB) error {
 		notes         TEXT,
 		response_date DATE NOT NULL DEFAULT (date('now','localtime')),
 		attendance_id INTEGER,
-		responded_at  DATETIME DEFAULT (datetime('now','localtime'))
+		responded_at  DATETIME DEFAULT (datetime('now','localtime')),
+		due_date      TEXT,
+		is_late       INTEGER NOT NULL DEFAULT 0
 	);
 	CREATE INDEX IF NOT EXISTS idx_tr_student_date ON tracker_responses(student_id, response_date);
 	CREATE INDEX IF NOT EXISTS idx_tr_attendance ON tracker_responses(attendance_id);
+	CREATE INDEX IF NOT EXISTS idx_tr_due_date ON tracker_responses(student_id, due_date);
 
 	CREATE TABLE IF NOT EXISTS checkin_audit (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -333,10 +379,101 @@ func addMissingColumns(db *sql.DB) {
 		// Admin-controlled personal PIN (plaintext, auto-rotated daily)
 		"ALTER TABLE students ADD COLUMN personal_pin TEXT",
 		"ALTER TABLE students ADD COLUMN pin_generated_date TEXT",
+		// Unified task_items extensions
+		"ALTER TABLE task_items ADD COLUMN type TEXT NOT NULL DEFAULT 'task'",
+		"ALTER TABLE task_items ADD COLUMN criteria TEXT",
+		"ALTER TABLE task_items ADD COLUMN group_id TEXT",
+		"ALTER TABLE task_items ADD COLUMN group_order INTEGER",
+		// Late signoff support on tracker_responses
+		"ALTER TABLE tracker_responses ADD COLUMN due_date TEXT",
+		"ALTER TABLE tracker_responses ADD COLUMN is_late INTEGER NOT NULL DEFAULT 0",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors
 	}
+}
+
+// migrateToTaskItems copies data from tracker_items and student_tracker_items into
+// the unified task_items table, then remaps tracker_responses.item_id references.
+// Safe to call multiple times — skips if task_items already has data.
+func migrateToTaskItems(db *sql.DB) {
+	// Check if migration is needed
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM task_items").Scan(&count); err != nil {
+		return // table doesn't exist yet
+	}
+	if count > 0 {
+		return // already migrated
+	}
+
+	// Check if there's data to migrate
+	var oldGlobal, oldStudent int
+	db.QueryRow("SELECT COUNT(*) FROM tracker_items").Scan(&oldGlobal)
+	db.QueryRow("SELECT COUNT(*) FROM student_tracker_items").Scan(&oldStudent)
+	if oldGlobal == 0 && oldStudent == 0 {
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	// Copy global items as scope=1
+	tx.Exec(`INSERT INTO task_items (scope, name, notes, start_date, end_date, priority, recurrence, category,
+		created_by, owner_type, requires_signoff, active, deleted, created_at, updated_at, legacy_table, legacy_id)
+		SELECT 1, name, notes, start_date, end_date, priority, recurrence, category,
+		created_by, 'admin', requires_signoff, active, deleted, created_at, updated_at, 'tracker_items', id
+		FROM tracker_items ORDER BY id`)
+
+	// Copy student items as scope=3
+	tx.Exec(`INSERT INTO task_items (scope, student_id, name, notes, start_date, end_date, priority, recurrence, category,
+		created_by, owner_type, requires_signoff, completed, completed_at, completed_by, active, deleted, created_at, updated_at, legacy_table, legacy_id)
+		SELECT 3, student_id, name, notes, start_date, end_date, priority, recurrence, category,
+		created_by, owner_type, requires_signoff, completed, completed_at, completed_by, active, deleted, created_at, updated_at, 'student_tracker_items', id
+		FROM student_tracker_items ORDER BY id`)
+
+	// Remap tracker_responses.item_id to new task_items IDs
+	tx.Exec(`UPDATE tracker_responses SET item_id = (
+		SELECT ti.id FROM task_items ti
+		WHERE ti.legacy_table = 'tracker_items' AND ti.legacy_id = tracker_responses.item_id
+	) WHERE item_type = 'global' AND EXISTS (
+		SELECT 1 FROM task_items ti
+		WHERE ti.legacy_table = 'tracker_items' AND ti.legacy_id = tracker_responses.item_id
+	)`)
+
+	tx.Exec(`UPDATE tracker_responses SET item_id = (
+		SELECT ti.id FROM task_items ti
+		WHERE ti.legacy_table = 'student_tracker_items' AND ti.legacy_id = tracker_responses.item_id
+	) WHERE item_type = 'personal' AND EXISTS (
+		SELECT 1 FROM task_items ti
+		WHERE ti.legacy_table = 'student_tracker_items' AND ti.legacy_id = tracker_responses.item_id
+	)`)
+
+	// Recreate tracker_responses with updated CHECK constraint to allow 'class'
+	tx.Exec(`CREATE TABLE IF NOT EXISTS tracker_responses_v2 (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		student_id    TEXT NOT NULL,
+		student_name  TEXT NOT NULL,
+		item_type     TEXT NOT NULL CHECK(item_type IN ('global','personal','class')),
+		item_id       INTEGER NOT NULL,
+		item_name     TEXT NOT NULL,
+		status        TEXT NOT NULL CHECK(status IN ('done','not_done')),
+		notes         TEXT,
+		response_date DATE NOT NULL DEFAULT (date('now','localtime')),
+		attendance_id INTEGER,
+		responded_at  DATETIME DEFAULT (datetime('now','localtime'))
+	)`)
+	tx.Exec(`INSERT INTO tracker_responses_v2
+		SELECT id, student_id, student_name, item_type, item_id, item_name, status, notes, response_date, attendance_id, responded_at
+		FROM tracker_responses`)
+	tx.Exec("DROP TABLE tracker_responses")
+	tx.Exec("ALTER TABLE tracker_responses_v2 RENAME TO tracker_responses")
+	tx.Exec("CREATE INDEX IF NOT EXISTS idx_tr_student_date ON tracker_responses(student_id, response_date)")
+	tx.Exec("CREATE INDEX IF NOT EXISTS idx_tr_attendance ON tracker_responses(attendance_id)")
+
+	tx.Commit()
 }
 
 // DropIndexTables drops all spreadsheet-derived index tables for a full rebuild.

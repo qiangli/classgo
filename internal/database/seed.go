@@ -5,17 +5,17 @@ import (
 	"log"
 )
 
-// SeedSampleData inserts sample tracker items and task items for demonstration.
-// It is idempotent — only inserts if the tables are empty.
+// SeedSampleData inserts sample task items for demonstration.
+// It is idempotent — only inserts if task_items is empty.
 func SeedSampleData(db *sql.DB) {
-	// Only seed if no tracker items exist yet
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM tracker_items WHERE deleted = 0").Scan(&count)
+	db.QueryRow("SELECT COUNT(*) FROM task_items WHERE deleted = 0").Scan(&count)
 	if count > 0 {
 		return
 	}
 
-	globalItems := []struct {
+	// Center-scoped items (scope=1): visible to all students
+	centerItems := []struct {
 		name, priority, recurrence, category, notes string
 	}{
 		// GPA tracking
@@ -56,37 +56,36 @@ func SeedSampleData(db *sql.DB) {
 		{"Favorite Subjects", "low", "none", "Personal", "Current favorite subjects"},
 	}
 
-	for _, it := range globalItems {
+	for _, it := range centerItems {
 		db.Exec(
-			`INSERT INTO tracker_items (name, notes, priority, recurrence, category, created_by, requires_signoff, active)
-			 VALUES (?, ?, ?, ?, ?, 'admin', 0, 1)`,
+			`INSERT INTO task_items (scope, type, name, notes, priority, recurrence, category, created_by, owner_type, active)
+			 VALUES (1, 'task', ?, ?, ?, ?, ?, 'admin', 'admin', 1)`,
 			it.name, it.notes, it.priority, it.recurrence, it.category,
 		)
 	}
 
-	// Sample student-specific items (assigned by teachers)
-	studentItems := []struct {
-		studentID, name, priority, recurrence, category, createdBy, ownerType string
-		requiresSignoff                                                       bool
+	// Personal items (scope=3): assigned by teachers to specific students
+	personalItems := []struct {
+		studentID, name, priority, recurrence, category, createdBy, ownerType, itemType string
 	}{
-		{"S001", "Algebra Chapter 5 Homework", "high", "none", "Math", "T01", "teacher", true},
-		{"S001", "Essay Draft: My Summer", "medium", "none", "English", "T02", "teacher", true},
-		{"S002", "Geometry Worksheet", "medium", "weekly", "Math", "T01", "teacher", true},
-		{"S003", "Book Report: Charlotte's Web", "high", "none", "Reading", "T02", "teacher", true},
-		{"S004", "Spelling Practice List 12", "low", "daily", "English", "T02", "teacher", true},
-		{"S005", "Science Fair Proposal", "high", "none", "Science", "T01", "teacher", true},
-		{"S007", "Python Coding Challenge", "medium", "weekly", "Computer Science", "T03", "teacher", true},
+		{"S001", "Algebra Chapter 5 Homework", "high", "none", "Math", "T01", "teacher", "todo"},
+		{"S001", "Essay Draft: My Summer", "medium", "none", "English", "T02", "teacher", "todo"},
+		{"S002", "Geometry Worksheet", "medium", "weekly", "Math", "T01", "teacher", "todo"},
+		{"S003", "Book Report: Charlotte's Web", "high", "none", "Reading", "T02", "teacher", "todo"},
+		{"S004", "Spelling Practice List 12", "low", "daily", "English", "T02", "teacher", "todo"},
+		{"S005", "Science Fair Proposal", "high", "none", "Science", "T01", "teacher", "todo"},
+		{"S007", "Python Coding Challenge", "medium", "weekly", "Computer Science", "T03", "teacher", "todo"},
 	}
 
-	for _, it := range studentItems {
+	for _, it := range personalItems {
 		db.Exec(
-			`INSERT INTO student_tracker_items (student_id, name, priority, recurrence, category, created_by, owner_type, requires_signoff, active)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-			it.studentID, it.name, it.priority, it.recurrence, it.category, it.createdBy, it.ownerType, it.requiresSignoff,
+			`INSERT INTO task_items (scope, student_id, type, name, priority, recurrence, category, created_by, owner_type, active)
+			 VALUES (3, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			it.studentID, it.itemType, it.name, it.priority, it.recurrence, it.category, it.createdBy, it.ownerType,
 		)
 	}
 
-	// Sample library items (unassigned templates)
+	// Library items (scope=3, empty student_id): reusable templates
 	libraryItems := []struct {
 		name, priority, recurrence, category, createdBy, ownerType string
 	}{
@@ -97,12 +96,12 @@ func SeedSampleData(db *sql.DB) {
 
 	for _, it := range libraryItems {
 		db.Exec(
-			`INSERT INTO student_tracker_items (student_id, name, priority, recurrence, category, created_by, owner_type, requires_signoff, active)
-			 VALUES ('', ?, ?, ?, ?, ?, ?, 1, 1)`,
+			`INSERT INTO task_items (scope, student_id, type, name, priority, recurrence, category, created_by, owner_type, active)
+			 VALUES (3, '', 'task', ?, ?, ?, ?, ?, ?, 1)`,
 			it.name, it.priority, it.recurrence, it.category, it.createdBy, it.ownerType,
 		)
 	}
 
-	log.Printf("Seeded sample data: %d global items, %d student items, %d library templates",
-		len(globalItems), len(studentItems), len(libraryItems))
+	log.Printf("Seeded sample data: %d center items, %d personal items, %d library templates",
+		len(centerItems), len(personalItems), len(libraryItems))
 }

@@ -127,6 +127,44 @@ func (a *App) HandleTrackerRespond(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Goodbye, " + req.StudentName + "!"})
 }
 
+// HandleLateSignoff records a late signoff for a task item (admin/teacher only).
+func (a *App) HandleLateSignoff(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sess := a.GetSession(r)
+	if sess == nil || (sess.UserType != "teacher" && sess.UserType != "admin" && sess.Role != "admin") {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only teachers and admins can record late signoffs"})
+		return
+	}
+
+	var req struct {
+		StudentID string `json:"student_id"`
+		ItemID    int    `json:"item_id"`
+		DueDate   string `json:"due_date"`
+		Status    string `json:"status"`
+		Notes     string `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
+		return
+	}
+	if req.StudentID == "" || req.ItemID == 0 || req.DueDate == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "student_id, item_id, and due_date are required"})
+		return
+	}
+	if req.Status == "" {
+		req.Status = "done"
+	}
+	if err := database.SaveLateSignoff(a.DB, req.StudentID, req.DueDate, req.ItemID, req.Status, req.Notes); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	a.InvalidateProgressCache(req.StudentID)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 // HandleTrackerItems handles CRUD for global tracker items (admin only).
 func (a *App) HandleTrackerItems(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -152,10 +190,15 @@ func (a *App) HandleTrackerItems(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		item := req.TrackerItem
-		if req.RequiresSignoff != nil {
-			item.RequiresSignoff = *req.RequiresSignoff
-		} else {
-			item.RequiresSignoff = true // default for new items
+		// Map requires_signoff to type for backward compat
+		if item.Type == "" {
+			if req.RequiresSignoff != nil && *req.RequiresSignoff {
+				item.Type = models.TaskTypeTodo
+			} else if req.RequiresSignoff != nil {
+				item.Type = models.TaskTypeTask
+			} else {
+				item.Type = models.TaskTypeTodo // default for center items
+			}
 		}
 		if item.Name == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Name is required"})
@@ -252,11 +295,15 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusOK, items)
 
 	case http.MethodPost:
-		var item models.StudentTrackerItem
-		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		var req struct {
+			models.StudentTrackerItem
+			RequiresSignoff *bool `json:"requires_signoff"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
 			return
 		}
+		item := req.StudentTrackerItem
 		if item.Name == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "name is required"})
 			return
@@ -266,6 +313,14 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 		}
 		if item.Recurrence == "" {
 			item.Recurrence = "none"
+		}
+		// Map requires_signoff to type for backward compat
+		if item.Type == "" {
+			if req.RequiresSignoff != nil && *req.RequiresSignoff {
+				item.Type = models.TaskTypeTodo
+			} else {
+				item.Type = models.TaskTypeTask
+			}
 		}
 		if item.ID == 0 {
 			item.Active = true // default for new items
@@ -280,7 +335,7 @@ func (a *App) HandleStudentTrackerItems(w http.ResponseWriter, r *http.Request) 
 			if item.ID > 0 {
 				// Only owner can update
 				var createdBy string
-				a.DB.QueryRow("SELECT COALESCE(created_by,'') FROM student_tracker_items WHERE id = ?", item.ID).Scan(&createdBy)
+				a.DB.QueryRow("SELECT COALESCE(created_by,'') FROM task_items WHERE id = ?", item.ID).Scan(&createdBy)
 				if createdBy != sess.EntityID {
 					writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only the owner can edit this item"})
 					return
@@ -332,7 +387,7 @@ func (a *App) HandleStudentTrackerItemDelete(w http.ResponseWriter, r *http.Requ
 	sess := a.GetSession(r)
 	if sess != nil && sess.Role != "admin" {
 		var createdBy string
-		err := a.DB.QueryRow("SELECT COALESCE(created_by,'') FROM student_tracker_items WHERE id = ?", req.ID).Scan(&createdBy)
+		err := a.DB.QueryRow("SELECT COALESCE(created_by,'') FROM task_items WHERE id = ?", req.ID).Scan(&createdBy)
 		if err == nil && createdBy != sess.EntityID {
 			writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only the owner can delete this item"})
 			return
@@ -361,10 +416,18 @@ func (a *App) HandleTrackerComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess := a.GetSession(r)
-	completedBy := req.EntityID
-	if sess != nil {
-		completedBy = sess.EntityID
+	if sess == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Not authenticated"})
+		return
 	}
+	// Access control: verify caller can access the item's student
+	if sid, err := database.GetStudentIDForItem(a.DB, req.ID); err == nil && sid != "" {
+		if !a.canAccessStudent(sess, sid) {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "Access denied"})
+			return
+		}
+	}
+	completedBy := sess.EntityID
 	var err error
 	if req.Complete {
 		err = database.CompleteStudentTrackerItem(a.DB, req.ID, completedBy)
@@ -408,6 +471,15 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sess := a.GetSession(r)
+
+	// Only teachers and admins can bulk-assign
+	isTeacherOrAdmin := sess != nil && (sess.UserType == "teacher" || sess.UserType == "admin" || sess.Role == "admin")
+	if !isTeacherOrAdmin {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "Only teachers and admins can bulk-assign"})
+		return
+	}
+
 	// If schedule_id provided, get student IDs from that schedule
 	studentIDs := req.StudentIDs
 	if req.ScheduleID != "" && len(studentIDs) == 0 {
@@ -424,33 +496,25 @@ func (a *App) HandleTrackerBulkAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess := a.GetSession(r)
-	createdBy := "admin"
-	ownerType := "admin"
-	if sess != nil {
-		createdBy = sess.EntityID
-		ownerType = sess.UserType
-		if sess.Role == "admin" {
-			ownerType = "admin"
-		}
-	}
+	createdBy := sess.EntityID
+	ownerType := sess.UserType
 
-	requiresSignoff := true
-	if req.RequiresSignoff != nil {
-		requiresSignoff = *req.RequiresSignoff
+	itemType := models.TaskTypeTodo
+	if req.RequiresSignoff != nil && !*req.RequiresSignoff {
+		itemType = models.TaskTypeTask
 	}
 	item := models.StudentTrackerItem{
-		Name:            req.Name,
-		Notes:           req.Notes,
-		StartDate:       req.StartDate,
-		EndDate:         req.EndDate,
-		Priority:        req.Priority,
-		Recurrence:      req.Recurrence,
-		Category:        req.Category,
-		CreatedBy:       createdBy,
-		OwnerType:       ownerType,
-		RequiresSignoff: requiresSignoff,
-		Active:          true,
+		Name:      req.Name,
+		Notes:     req.Notes,
+		StartDate: req.StartDate,
+		EndDate:   req.EndDate,
+		Priority:  req.Priority,
+		Recurrence: req.Recurrence,
+		Category:  req.Category,
+		CreatedBy: createdBy,
+		OwnerType: ownerType,
+		Type:      itemType,
+		Active:    true,
 	}
 	if item.Priority == "" {
 		item.Priority = "medium"
@@ -671,7 +735,7 @@ func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
 
 	// Load the source item
 	var src models.StudentTrackerItem
-	row := a.DB.QueryRow("SELECT "+database.StudentItemCols+" FROM student_tracker_items WHERE id = ? AND deleted = 0", req.ItemID)
+	row := a.DB.QueryRow("SELECT "+database.StudentItemCols+" FROM task_items WHERE id = ? AND deleted = 0", req.ItemID)
 	var err error
 	src, err = database.ScanStudentItemRow(row)
 	if err != nil {
@@ -688,17 +752,17 @@ func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
 
 	// Copy item properties into a new template for bulk creation
 	item := models.StudentTrackerItem{
-		Name:            src.Name,
-		Notes:           src.Notes,
-		StartDate:       src.StartDate,
-		EndDate:         src.EndDate,
-		Priority:        src.Priority,
-		Recurrence:      src.Recurrence,
-		Category:        src.Category,
-		CreatedBy:       src.CreatedBy,
-		OwnerType:       src.OwnerType,
-		RequiresSignoff: src.RequiresSignoff,
-		Active:          true,
+		Name:       src.Name,
+		Notes:      src.Notes,
+		StartDate:  src.StartDate,
+		EndDate:    src.EndDate,
+		Priority:   src.Priority,
+		Recurrence: src.Recurrence,
+		Category:   src.Category,
+		CreatedBy:  src.CreatedBy,
+		OwnerType:  src.OwnerType,
+		Type:       src.Type,
+		Active:     true,
 	}
 
 	if err := database.BulkCreateStudentItems(a.DB, req.StudentIDs, item); err != nil {

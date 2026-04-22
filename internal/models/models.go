@@ -137,44 +137,71 @@ type CheckInPageData struct {
 	ServerURLMDNS string
 }
 
-type TrackerItem struct {
-	ID              int    `json:"id"`
-	Name            string `json:"name"`
-	Notes           string `json:"notes"`
-	StartDate       string `json:"start_date"`
-	EndDate         string `json:"end_date"`
-	Priority        string `json:"priority"`
-	Recurrence      string `json:"recurrence"`
-	Category        string `json:"category"`
-	CreatedBy       string `json:"created_by"`
-	RequiresSignoff bool   `json:"requires_signoff"`
-	Active          bool   `json:"active"`
-	Deleted         bool   `json:"deleted"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+// Scope constants for task items.
+const (
+	ScopeCenter   = 1 // center-wide: applies to all students
+	ScopeClass    = 2 // class-scoped: applies to students in a schedule
+	ScopePersonal = 3 // personal: applies to one student
+)
+
+// Task type constants.
+const (
+	TaskTypeTodo     = "todo"     // required signoff at checkout (done/undone, must pick)
+	TaskTypeTask     = "task"     // optional completion checkbox, won't block checkout
+	TaskTypeReminder = "reminder" // info only, no action needed
+)
+
+// TaskItem is the unified task/tracker item model.
+type TaskItem struct {
+	ID          int    `json:"id"`
+	Scope       int    `json:"scope"`
+	ScheduleID  string `json:"schedule_id"`
+	StudentID   string `json:"student_id"`
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Notes       string `json:"notes"`
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
+	Priority    string `json:"priority"`
+	Recurrence  string `json:"recurrence"`
+	Category    string `json:"category"`
+	Criteria    string `json:"criteria,omitempty"`
+	GroupID     string `json:"group_id,omitempty"`
+	GroupOrder  int    `json:"group_order,omitempty"`
+	CreatedBy   string `json:"created_by"`
+	OwnerType   string `json:"owner_type"`
+	Completed   bool   `json:"completed"`
+	CompletedAt string `json:"completed_at"`
+	CompletedBy string `json:"completed_by"`
+	Active      bool   `json:"active"`
+	Deleted     bool   `json:"deleted"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
-type StudentTrackerItem struct {
-	ID              int    `json:"id"`
-	StudentID       string `json:"student_id"`
-	Name            string `json:"name"`
-	Notes           string `json:"notes"`
-	StartDate       string `json:"start_date"`
-	EndDate         string `json:"end_date"`
-	Priority        string `json:"priority"`
-	Recurrence      string `json:"recurrence"`
-	Category        string `json:"category"`
-	CreatedBy       string `json:"created_by"`
-	OwnerType       string `json:"owner_type"`
-	Completed       bool   `json:"completed"`
-	CompletedAt     string `json:"completed_at"`
-	CompletedBy     string `json:"completed_by"`
-	RequiresSignoff bool   `json:"requires_signoff"`
-	Active          bool   `json:"active"`
-	Deleted         bool   `json:"deleted"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+// RequiresSignoff returns true if this item type blocks checkout.
+func (t TaskItem) RequiresSignoff() bool {
+	return t.Type == TaskTypeTodo
 }
+
+// ScopeLabel returns a human-readable label for the item's scope.
+func (t TaskItem) ScopeLabel() string {
+	switch t.Scope {
+	case ScopeCenter:
+		return "center"
+	case ScopeClass:
+		return "class"
+	case ScopePersonal:
+		return "personal"
+	}
+	return "unknown"
+}
+
+// TrackerItem is a backward-compatible alias for center-scoped TaskItem.
+type TrackerItem = TaskItem
+
+// StudentTrackerItem is a backward-compatible alias for personal-scoped TaskItem.
+type StudentTrackerItem = TaskItem
 
 type TrackerResponse struct {
 	ID           int    `json:"id"`
@@ -188,17 +215,32 @@ type TrackerResponse struct {
 	ResponseDate string `json:"response_date"`
 	AttendanceID int    `json:"attendance_id"`
 	RespondedAt  string `json:"responded_at"`
+	DueDate      string `json:"due_date,omitempty"`
+	IsLate       bool   `json:"is_late,omitempty"`
 }
 
 type DueItem struct {
+	Scope           int    `json:"scope"`
 	ItemType        string `json:"item_type"`
 	ItemID          int    `json:"item_id"`
+	Type            string `json:"type"`
 	Name            string `json:"name"`
 	Priority        string `json:"priority"`
 	Category        string `json:"category"`
 	EndDate         string `json:"end_date"`
 	Recurrence      string `json:"recurrence"`
 	RequiresSignoff bool   `json:"requires_signoff"`
+	GroupID         string `json:"group_id,omitempty"`
+	GroupOrder      int    `json:"group_order,omitempty"`
+	Blocked         bool   `json:"blocked,omitempty"`
+}
+
+// TaskGroup holds metadata for a group of related task items.
+type TaskGroup struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	MinRequired  *int   `json:"min_required"` // nil=all required
+	EnforceOrder bool   `json:"enforce_order"`
 }
 
 type ProgressStats struct {

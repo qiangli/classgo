@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"classgo/internal/auth"
 	"classgo/internal/database"
@@ -245,7 +246,7 @@ func TestPhase2_CheckoutAllowedWhenNoSignoffTasks(t *testing.T) {
 	// Create a student task WITHOUT requires_signoff
 	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
 		StudentID: "S001", Name: "Optional Reading", Priority: "low",
-		Recurrence: "none", Active: true, RequiresSignoff: false,
+		Recurrence: "none", Active: true, Type: models.TaskTypeTask,
 	})
 
 	// Check in
@@ -272,7 +273,7 @@ func TestPhase2_CheckoutBlockedUntilSignoffComplete(t *testing.T) {
 	// Create a signoff-required task
 	itemID, _ := database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
 		StudentID: "S001", Name: "Required Essay", Priority: "high",
-		Recurrence: "none", Active: true, RequiresSignoff: true,
+		Recurrence: "none", Active: true, Type: models.TaskTypeTodo,
 	})
 
 	// Check in
@@ -320,7 +321,7 @@ func TestPhase2_UserLoginSeesDueTasks(t *testing.T) {
 	// Create a signoff task for the student
 	database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
 		StudentID: "S010", Name: "Complete Profile", Priority: "high",
-		Recurrence: "none", Active: true, RequiresSignoff: true, CreatedBy: "admin",
+		Recurrence: "none", Active: true, Type: models.TaskTypeTodo, CreatedBy: "admin",
 	})
 
 	// Signup
@@ -346,7 +347,7 @@ func TestPhase2_UserLoginSeesDueTasks(t *testing.T) {
 		m, _ := item.(map[string]any)
 		if m["name"] == "Complete Profile" {
 			found = true
-			if m["requires_signoff"] != true {
+			if m["type"] != "todo" {
 				t.Error("expected requires_signoff=true for the assigned task")
 			}
 		}
@@ -388,7 +389,7 @@ func TestPhase2_BulkAssignFromLibrary(t *testing.T) {
 		items, _ := database.ListStudentTrackerItems(app.DB, sid)
 		found := false
 		for _, it := range items {
-			if it.Name == "Weekly Progress Report" && it.RequiresSignoff {
+			if it.Name == "Weekly Progress Report" && it.RequiresSignoff() {
 				found = true
 			}
 		}
@@ -601,5 +602,397 @@ func TestColumnPreferences_Unauthenticated(t *testing.T) {
 	w := doReq(app.HandlePreferences, req)
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401 for unauthenticated request, got %d", w.Code)
+	}
+}
+
+// ====================================================================================
+// Unified Task Items E2E: center, class, and personal scoped items
+// ====================================================================================
+
+func TestTaskItems_CenterScope_DueForAllStudents(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a center-scoped signoff item
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Daily Homework Check",
+		Priority: "high", Recurrence: "daily", Type: models.TaskTypeTodo, Active: true,
+		CreatedBy: "admin", OwnerType: "admin",
+	})
+
+	// Both students should see it
+	for _, sid := range []string{"S001", "S002"} {
+		items, err := database.GetDueItems(app.DB, sid, today())
+		if err != nil {
+			t.Fatalf("GetDueItems(%s): %v", sid, err)
+		}
+		found := false
+		for _, it := range items {
+			if it.Name == "Daily Homework Check" && it.Scope == models.ScopeCenter && it.ItemType == "global" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("student %s should see center-scoped item 'Daily Homework Check'", sid)
+		}
+	}
+}
+
+func TestTaskItems_ClassScope_OnlyEnrolledStudents(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a schedule with S001 enrolled, S002 NOT enrolled
+	app.DB.Exec(`INSERT INTO schedules (id, day_of_week, start_time, end_time, teacher_id, subject, student_ids, deleted)
+		VALUES ('SCH_TEST', 'Monday', '15:00', '16:00', 'T01', 'Math', 'S001', 0)`)
+
+	// Create a class-scoped signoff item for that schedule
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeClass, ScheduleID: "SCH_TEST",
+		Name: "Math Class Worksheet", Priority: "high", Recurrence: "daily",
+		Type: models.TaskTypeTodo, Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+
+	// S001 (enrolled) should see it
+	items, _ := database.GetDueItems(app.DB, "S001", today())
+	found := false
+	for _, it := range items {
+		if it.Name == "Math Class Worksheet" && it.Scope == models.ScopeClass {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("enrolled student S001 should see class-scoped item")
+	}
+
+	// S002 (not enrolled) should NOT see it
+	items, _ = database.GetDueItems(app.DB, "S002", today())
+	for _, it := range items {
+		if it.Name == "Math Class Worksheet" {
+			t.Error("unenrolled student S002 should NOT see class-scoped item")
+		}
+	}
+}
+
+func TestTaskItems_PersonalScope_OnlyAssignedStudent(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "Alice Homework", Priority: "high", Recurrence: "none",
+		Type: models.TaskTypeTodo, Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+
+	// S001 should see it
+	items, _ := database.GetDueItems(app.DB, "S001", today())
+	found := false
+	for _, it := range items {
+		if it.Name == "Alice Homework" && it.Scope == models.ScopePersonal {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("S001 should see personal item 'Alice Homework'")
+	}
+
+	// S002 should NOT see it
+	items, _ = database.GetDueItems(app.DB, "S002", today())
+	for _, it := range items {
+		if it.Name == "Alice Homework" {
+			t.Error("S002 should NOT see S001's personal item")
+		}
+	}
+}
+
+func TestTaskItems_MixedScopeCheckout(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+	app.PinMode = "off"
+	app.SetRequirePIN(false)
+
+	// Create schedule with S001 enrolled
+	app.DB.Exec(`INSERT INTO schedules (id, day_of_week, start_time, end_time, teacher_id, subject, student_ids, deleted)
+		VALUES ('SCH_MIX', 'Monday', '15:00', '16:00', 'T01', 'Math', 'S001', 0)`)
+
+	// Center item (signoff)
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Center Task",
+		Priority: "high", Recurrence: "daily", Type: models.TaskTypeTodo, Active: true,
+		CreatedBy: "admin", OwnerType: "admin",
+	})
+	// Class item (signoff)
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeClass, ScheduleID: "SCH_MIX",
+		Name: "Class Task", Priority: "high", Recurrence: "daily",
+		Type: models.TaskTypeTodo, Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+	// Personal item (signoff)
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "Personal Task", Priority: "high", Recurrence: "none",
+		Type: models.TaskTypeTodo, Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+
+	// Check in S001
+	postJSON(app.HandleCheckIn, `{"student_name":"Alice","device_type":"mobile"}`)
+
+	// Checkout should be blocked by signoff items
+	w := postJSON(app.HandleCheckOut, `{"student_name":"Alice","student_id":"S001"}`)
+	resp := decodeResp(t, w)
+	if resp["ok"] == true {
+		t.Fatal("checkout should be blocked by 3 signoff items")
+	}
+	if resp["pending_tasks"] != true {
+		t.Error("expected pending_tasks=true")
+	}
+
+	// Check that pending items include all 3 scopes
+	pending, _ := database.PendingSignoffItems(app.DB, "S001")
+	names := map[string]bool{}
+	for _, p := range pending {
+		names[p.Name] = true
+	}
+	for _, expected := range []string{"Center Task", "Class Task", "Personal Task"} {
+		if !names[expected] {
+			t.Errorf("expected pending item '%s' not found", expected)
+		}
+	}
+}
+
+func TestTaskItems_AccessControl_CompleteItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a personal item for S001
+	itemID, _ := database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "S001 Only Task", Priority: "medium", Recurrence: "none",
+		Type: models.TaskTypeTodo, Active: true, CreatedBy: "admin", OwnerType: "admin",
+	})
+
+	// S002 should NOT be able to complete S001's item
+	req := reqWithSession("POST", "/api/tracker/complete",
+		`{"id":`+jsonNum(float64(itemID))+`,"complete":true}`,
+		app, "user", "student", "S002")
+	w := doReq(app.HandleTrackerComplete, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] == true {
+		t.Error("S002 should not be able to complete S001's item")
+	}
+
+	// S001 should be able to complete their own item
+	req = reqWithSession("POST", "/api/tracker/complete",
+		`{"id":`+jsonNum(float64(itemID))+`,"complete":true}`,
+		app, "user", "student", "S001")
+	w = doReq(app.HandleTrackerComplete, req)
+	resp = mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("S001 should be able to complete own item: %v", resp)
+	}
+}
+
+func TestTaskItems_BulkAssign_ParentBlocked(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Parent should NOT be able to bulk-assign
+	req := reqWithSession("POST", "/api/dashboard/bulk-assign",
+		`{"student_ids":["S001"],"name":"Parent Assigned Task"}`,
+		app, "user", "parent", "P001")
+	w := doReq(app.HandleTrackerBulkAssign, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] == true {
+		t.Error("parent should not be able to bulk-assign")
+	}
+}
+
+func today() string {
+	return time.Now().Format("2006-01-02")
+}
+
+func TestTaskItems_CriteriaFiltering(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// S001 is grade 6, S002 is grade 7 (from seed data)
+	// Update S001 to grade 10 for this test
+	app.DB.Exec("UPDATE students SET grade = '10' WHERE id = 'S001'")
+	app.DB.Exec("UPDATE students SET grade = '6' WHERE id = 'S002'")
+
+	// Create a center item with grade_min=9 criteria
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "AP Prep Item",
+		Type: models.TaskTypeTodo, Priority: "high", Recurrence: "daily",
+		Criteria: `{"grade_min": 9}`, Active: true,
+		CreatedBy: "admin", OwnerType: "admin",
+	})
+
+	// S001 (grade 10) should see it
+	items, _ := database.GetDueItems(app.DB, "S001", today())
+	found := false
+	for _, it := range items {
+		if it.Name == "AP Prep Item" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("grade 10 student should see item with grade_min=9")
+	}
+
+	// S002 (grade 6) should NOT see it
+	items, _ = database.GetDueItems(app.DB, "S002", today())
+	for _, it := range items {
+		if it.Name == "AP Prep Item" {
+			t.Error("grade 6 student should NOT see item with grade_min=9")
+		}
+	}
+}
+
+func TestTaskItems_TypeFiltering_CheckoutOnlyTodo(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create one of each type
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Required Todo",
+		Type: models.TaskTypeTodo, Priority: "high", Recurrence: "daily",
+		Active: true, CreatedBy: "admin", OwnerType: "admin",
+	})
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Optional Task",
+		Type: models.TaskTypeTask, Priority: "medium", Recurrence: "daily",
+		Active: true, CreatedBy: "admin", OwnerType: "admin",
+	})
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Info Reminder",
+		Type: models.TaskTypeReminder, Priority: "low", Recurrence: "daily",
+		Active: true, CreatedBy: "admin", OwnerType: "admin",
+	})
+
+	// All three should appear in GetDueItems
+	allDue, _ := database.GetDueItems(app.DB, "S001", today())
+	if len(allDue) != 3 {
+		t.Fatalf("expected 3 due items, got %d", len(allDue))
+	}
+
+	// PendingSignoffItems should only return the todo
+	pending, _ := database.PendingSignoffItems(app.DB, "S001")
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending signoff item, got %d", len(pending))
+	}
+	if pending[0].Name != "Required Todo" {
+		t.Errorf("expected 'Required Todo', got %q", pending[0].Name)
+	}
+	if pending[0].Type != models.TaskTypeTodo {
+		t.Errorf("expected type=todo, got %q", pending[0].Type)
+	}
+}
+
+func TestTaskItems_LateSignoff(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a daily todo item
+	itemID, _ := database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopeCenter, Name: "Daily Check",
+		Type: models.TaskTypeTodo, Priority: "high", Recurrence: "daily",
+		Active: true, CreatedBy: "admin", OwnerType: "admin",
+	})
+
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+	// Record late signoff for yesterday
+	req := reqWithSession("POST", "/api/tracker/late-signoff",
+		`{"student_id":"S001","item_id":`+jsonNum(float64(itemID))+`,"due_date":"`+yesterday+`","status":"done","notes":"completed late"}`,
+		app, "admin", "admin", "admin")
+	w := doReq(app.HandleLateSignoff, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("late signoff failed: %v", resp)
+	}
+
+	// Verify the response was recorded with is_late=1
+	var isLate int
+	var dueDate string
+	app.DB.QueryRow("SELECT is_late, due_date FROM tracker_responses WHERE student_id = 'S001' AND item_name = 'Daily Check'").Scan(&isLate, &dueDate)
+	if isLate != 1 {
+		t.Errorf("expected is_late=1, got %d", isLate)
+	}
+	if dueDate != yesterday {
+		t.Errorf("expected due_date=%s, got %s", yesterday, dueDate)
+	}
+
+	// The item should no longer be due for yesterday (late signoff covers it)
+	items, _ := database.GetDueItems(app.DB, "S001", yesterday)
+	for _, it := range items {
+		if it.Name == "Daily Check" {
+			t.Error("item should not be due for yesterday after late signoff")
+		}
+	}
+
+	// But should still be due for today
+	items, _ = database.GetDueItems(app.DB, "S001", today())
+	found := false
+	for _, it := range items {
+		if it.Name == "Daily Check" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("item should still be due for today")
+	}
+}
+
+func TestTaskItems_TaskGroups(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a task group
+	app.DB.Exec(`INSERT INTO task_groups (id, name, min_required, enforce_order) VALUES ('essay-s001', 'College Essay', NULL, 1)`)
+
+	// Create grouped items
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "First Draft", Type: models.TaskTypeTodo,
+		Priority: "high", Recurrence: "none",
+		GroupID: "essay-s001", GroupOrder: 1,
+		Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "Second Draft", Type: models.TaskTypeTodo,
+		Priority: "high", Recurrence: "none",
+		GroupID: "essay-s001", GroupOrder: 2,
+		Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+	database.SaveTaskItem(app.DB, models.TaskItem{
+		Scope: models.ScopePersonal, StudentID: "S001",
+		Name: "Final Submission", Type: models.TaskTypeTodo,
+		Priority: "high", Recurrence: "none",
+		GroupID: "essay-s001", GroupOrder: 3,
+		Active: true, CreatedBy: "T01", OwnerType: "teacher",
+	})
+
+	// All three should show as due
+	items, _ := database.GetDueItems(app.DB, "S001", today())
+	groupItems := []models.DueItem{}
+	for _, it := range items {
+		if it.GroupID == "essay-s001" {
+			groupItems = append(groupItems, it)
+		}
+	}
+	if len(groupItems) != 3 {
+		t.Fatalf("expected 3 group items, got %d", len(groupItems))
+	}
+
+	// Verify group_id and group_order are populated
+	for _, it := range groupItems {
+		if it.GroupID != "essay-s001" {
+			t.Errorf("expected group_id=essay-s001, got %s", it.GroupID)
+		}
+		if it.GroupOrder == 0 {
+			t.Error("expected non-zero group_order")
+		}
 	}
 }

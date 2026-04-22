@@ -486,6 +486,7 @@
                 const params = new URLSearchParams();
                 if (sid) params.set('student_id', sid);
                 params.set('student_name', name);
+                params.set('signoff_only', 'true');
                 const dueRes = await fetch('/api/tracker/due?' + params);
                 const dueItems = await dueRes.json();
                 if (dueItems && dueItems.length > 0) {

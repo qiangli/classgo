@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -9,55 +10,72 @@ import (
 	"classgo/internal/models"
 )
 
-const trackerItemCols = `id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(end_date,''),
-	priority, recurrence, COALESCE(category,''), COALESCE(created_by,'admin'),
-	requires_signoff, active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
-
-func scanTrackerItem(s interface{ Scan(...any) error }) (models.TrackerItem, error) {
-	var it models.TrackerItem
-	err := s.Scan(&it.ID, &it.Name, &it.Notes, &it.StartDate, &it.EndDate,
-		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy,
-		&it.RequiresSignoff, &it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
-	return it, err
-}
-
-// StudentItemCols is the column list for student_tracker_items queries.
-const StudentItemCols = `id, student_id, name, COALESCE(notes,''), COALESCE(start_date,''), COALESCE(end_date,''),
-	priority, recurrence, COALESCE(category,''), COALESCE(created_by,''), COALESCE(owner_type,'admin'),
-	completed, COALESCE(completed_at,''), COALESCE(completed_by,''), requires_signoff,
+// taskItemCols is the column list for task_items queries.
+const taskItemCols = `id, scope, COALESCE(schedule_id,''), COALESCE(student_id,''),
+	COALESCE(type,'task'), name, COALESCE(notes,''),
+	COALESCE(start_date,''), COALESCE(end_date,''), priority, recurrence, COALESCE(category,''),
+	COALESCE(criteria,''), COALESCE(group_id,''), COALESCE(group_order,0),
+	COALESCE(created_by,'admin'), COALESCE(owner_type,'admin'),
+	completed, COALESCE(completed_at,''), COALESCE(completed_by,''),
 	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
 
-// ScanStudentItemRow scans a single row into a StudentTrackerItem.
-func ScanStudentItemRow(s interface{ Scan(...any) error }) (models.StudentTrackerItem, error) {
-	return scanStudentItem(s)
-}
-
-func scanStudentItem(s interface{ Scan(...any) error }) (models.StudentTrackerItem, error) {
-	var it models.StudentTrackerItem
-	err := s.Scan(&it.ID, &it.StudentID, &it.Name, &it.Notes, &it.StartDate, &it.EndDate,
-		&it.Priority, &it.Recurrence, &it.Category, &it.CreatedBy, &it.OwnerType,
-		&it.Completed, &it.CompletedAt, &it.CompletedBy, &it.RequiresSignoff,
+func scanTaskItem(s interface{ Scan(...any) error }) (models.TaskItem, error) {
+	var it models.TaskItem
+	err := s.Scan(&it.ID, &it.Scope, &it.ScheduleID, &it.StudentID,
+		&it.Type, &it.Name, &it.Notes,
+		&it.StartDate, &it.EndDate, &it.Priority, &it.Recurrence, &it.Category,
+		&it.Criteria, &it.GroupID, &it.GroupOrder,
+		&it.CreatedBy, &it.OwnerType,
+		&it.Completed, &it.CompletedAt, &it.CompletedBy,
 		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
 	return it, err
 }
 
-// ListTrackerItems returns global tracker items.
-func ListTrackerItems(db *sql.DB, includeDeleted bool) ([]models.TrackerItem, error) {
-	q := "SELECT " + trackerItemCols + " FROM tracker_items"
+// scopeToItemType maps scope to the item_type string used in tracker_responses.
+func scopeToItemType(scope int) string {
+	switch scope {
+	case models.ScopeCenter:
+		return "global"
+	case models.ScopeClass:
+		return "class"
+	case models.ScopePersonal:
+		return "personal"
+	}
+	return "personal"
+}
+
+// itemTypeToScope maps an item_type string to a scope constant.
+func itemTypeToScope(itemType string) int {
+	switch itemType {
+	case "global":
+		return models.ScopeCenter
+	case "class":
+		return models.ScopeClass
+	case "personal":
+		return models.ScopePersonal
+	}
+	return models.ScopePersonal
+}
+
+// --- List functions ---
+
+// ListTaskItems returns task items filtered by scope.
+func ListTaskItems(db *sql.DB, scope int, includeDeleted bool) ([]models.TaskItem, error) {
+	q := "SELECT " + taskItemCols + " FROM task_items WHERE scope = ?"
 	if !includeDeleted {
-		q += " WHERE deleted = 0"
+		q += " AND deleted = 0"
 	}
 	q += " ORDER BY priority = 'high' DESC, priority = 'medium' DESC, id"
 
-	rows, err := db.Query(q)
+	rows, err := db.Query(q, scope)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var items []models.TrackerItem
+	var items []models.TaskItem
 	for rows.Next() {
-		it, err := scanTrackerItem(rows)
+		it, err := scanTaskItem(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -66,50 +84,25 @@ func ListTrackerItems(db *sql.DB, includeDeleted bool) ([]models.TrackerItem, er
 	return items, rows.Err()
 }
 
-// SaveTrackerItem inserts or updates a global tracker item.
-func SaveTrackerItem(db *sql.DB, item models.TrackerItem) (int64, error) {
-	if item.ID > 0 {
-		_, err := db.Exec(
-			`UPDATE tracker_items SET name=?, notes=?, start_date=?, end_date=?,
-			 priority=?, recurrence=?, category=?, requires_signoff=?, active=?,
-			 updated_at=datetime('now','localtime') WHERE id=?`,
-			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.RequiresSignoff, item.Active, item.ID,
-		)
-		return int64(item.ID), err
-	}
-	result, err := db.Exec(
-		`INSERT INTO tracker_items (name, notes, start_date, end_date, priority, recurrence, category, created_by, requires_signoff, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.RequiresSignoff, item.Active,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+// ListTrackerItems returns center-scoped (global) items. Backward-compat wrapper.
+func ListTrackerItems(db *sql.DB, includeDeleted bool) ([]models.TaskItem, error) {
+	return ListTaskItems(db, models.ScopeCenter, includeDeleted)
 }
 
-// DeleteTrackerItem soft-deletes a global tracker item.
-func DeleteTrackerItem(db *sql.DB, id int) error {
-	_, err := db.Exec("UPDATE tracker_items SET deleted = 1 WHERE id = ?", id)
-	return err
-}
-
-// ListStudentTrackerItems returns ad hoc tracker items for a specific student.
-func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrackerItem, error) {
+// ListStudentTrackerItems returns personal items for a specific student.
+func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.TaskItem, error) {
 	rows, err := db.Query(
-		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, end_date, id",
-		studentID,
+		"SELECT "+taskItemCols+" FROM task_items WHERE scope = ? AND student_id = ? AND deleted = 0 ORDER BY priority = 'high' DESC, end_date, id",
+		models.ScopePersonal, studentID,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var items []models.StudentTrackerItem
+	var items []models.TaskItem
 	for rows.Next() {
-		it, err := scanStudentItem(rows)
+		it, err := scanTaskItem(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -119,9 +112,9 @@ func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.StudentTrac
 }
 
 // ListStudentTrackerItemsByCreator returns items created by a specific user.
-func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.StudentTrackerItem, error) {
+func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.TaskItem, error) {
 	rows, err := db.Query(
-		"SELECT "+StudentItemCols+" FROM student_tracker_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, end_date, id",
+		"SELECT "+taskItemCols+" FROM task_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, end_date, id",
 		createdBy,
 	)
 	if err != nil {
@@ -129,9 +122,9 @@ func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.St
 	}
 	defer rows.Close()
 
-	var items []models.StudentTrackerItem
+	var items []models.TaskItem
 	for rows.Next() {
-		it, err := scanStudentItem(rows)
+		it, err := scanTaskItem(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -140,24 +133,34 @@ func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.St
 	return items, rows.Err()
 }
 
-// SaveStudentTrackerItem inserts or updates a per-student ad hoc tracker item.
-func SaveStudentTrackerItem(db *sql.DB, item models.StudentTrackerItem) (int64, error) {
+// --- Save / Delete ---
+
+// SaveTaskItem inserts or updates a task item.
+func SaveTaskItem(db *sql.DB, item models.TaskItem) (int64, error) {
+	if item.Type == "" {
+		item.Type = models.TaskTypeTask
+	}
 	if item.ID > 0 {
 		_, err := db.Exec(
-			`UPDATE student_tracker_items SET name=?, notes=?, start_date=?, end_date=?,
-			 priority=?, recurrence=?, category=?, requires_signoff=?, active=?,
+			`UPDATE task_items SET type=?, name=?, notes=?, start_date=?, end_date=?,
+			 priority=?, recurrence=?, category=?, criteria=?, group_id=?, group_order=?, active=?,
 			 updated_at=datetime('now','localtime') WHERE id=?`,
-			item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.RequiresSignoff, item.Active, item.ID,
+			item.Type, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
+			item.Priority, item.Recurrence, nullStr(item.Category),
+			nullStr(item.Criteria), nullStr(item.GroupID), nullInt(item.GroupOrder),
+			item.Active, item.ID,
 		)
 		return int64(item.ID), err
 	}
 	result, err := db.Exec(
-		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, end_date,
-		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.StudentID, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-		item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active,
+		`INSERT INTO task_items (scope, schedule_id, student_id, type, name, notes, start_date, end_date,
+		 priority, recurrence, category, criteria, group_id, group_order, created_by, owner_type, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.Scope, nullStr(item.ScheduleID), nullStr(item.StudentID),
+		item.Type, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
+		item.Priority, item.Recurrence, nullStr(item.Category),
+		nullStr(item.Criteria), nullStr(item.GroupID), nullInt(item.GroupOrder),
+		item.CreatedBy, item.OwnerType, item.Active,
 	)
 	if err != nil {
 		return 0, err
@@ -165,15 +168,38 @@ func SaveStudentTrackerItem(db *sql.DB, item models.StudentTrackerItem) (int64, 
 	return result.LastInsertId()
 }
 
-// DeleteStudentTrackerItem soft-deletes a per-student ad hoc tracker item.
-func DeleteStudentTrackerItem(db *sql.DB, id int) error {
-	_, err := db.Exec("UPDATE student_tracker_items SET deleted = 1 WHERE id = ?", id)
+// SaveTrackerItem inserts or updates a center-scoped item. Backward-compat wrapper.
+func SaveTrackerItem(db *sql.DB, item models.TaskItem) (int64, error) {
+	item.Scope = models.ScopeCenter
+	return SaveTaskItem(db, item)
+}
+
+// SaveStudentTrackerItem inserts or updates a personal-scoped item. Backward-compat wrapper.
+func SaveStudentTrackerItem(db *sql.DB, item models.TaskItem) (int64, error) {
+	item.Scope = models.ScopePersonal
+	return SaveTaskItem(db, item)
+}
+
+// DeleteTaskItem soft-deletes a task item.
+func DeleteTaskItem(db *sql.DB, id int) error {
+	_, err := db.Exec("UPDATE task_items SET deleted = 1 WHERE id = ?", id)
 	return err
 }
 
-// CompleteStudentTrackerItem marks a one-time task as completed and records a
-// tracker_response so the completion counts toward progress stats.
-func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
+// DeleteTrackerItem soft-deletes a task item. Backward-compat wrapper.
+func DeleteTrackerItem(db *sql.DB, id int) error {
+	return DeleteTaskItem(db, id)
+}
+
+// DeleteStudentTrackerItem soft-deletes a task item. Backward-compat wrapper.
+func DeleteStudentTrackerItem(db *sql.DB, id int) error {
+	return DeleteTaskItem(db, id)
+}
+
+// --- Complete / Uncomplete ---
+
+// CompleteTaskItem marks a one-time task as completed and records a tracker_response.
+func CompleteTaskItem(db *sql.DB, id int, completedBy string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -181,23 +207,23 @@ func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(
-		"UPDATE student_tracker_items SET completed = 1, completed_at = datetime('now','localtime'), completed_by = ? WHERE id = ?",
+		"UPDATE task_items SET completed = 1, completed_at = datetime('now','localtime'), completed_by = ? WHERE id = ?",
 		completedBy, id,
 	); err != nil {
 		return err
 	}
 
-	// Look up item details to create a tracker_response row
 	var studentID, itemName string
-	if err := tx.QueryRow("SELECT student_id, name FROM student_tracker_items WHERE id = ?", id).Scan(&studentID, &itemName); err != nil {
+	var scope int
+	if err := tx.QueryRow("SELECT student_id, name, scope FROM task_items WHERE id = ?", id).Scan(&studentID, &itemName, &scope); err != nil {
 		return err
 	}
 	var studentName string
 	tx.QueryRow("SELECT COALESCE(first_name,'')||' '||COALESCE(last_name,'') FROM students WHERE id = ?", studentID).Scan(&studentName)
 
 	if _, err := tx.Exec(
-		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, attendance_id) VALUES (?, ?, 'personal', ?, ?, 'done', 0)",
-		studentID, strings.TrimSpace(studentName), id, itemName,
+		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, attendance_id) VALUES (?, ?, ?, ?, ?, 'done', 0)",
+		studentID, strings.TrimSpace(studentName), scopeToItemType(scope), id, itemName,
 	); err != nil {
 		return err
 	}
@@ -205,9 +231,13 @@ func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
 	return tx.Commit()
 }
 
-// UncompleteStudentTrackerItem marks a completed task as not completed and
-// removes the dashboard-created tracker_response.
-func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
+// CompleteStudentTrackerItem is a backward-compat wrapper.
+func CompleteStudentTrackerItem(db *sql.DB, id int, completedBy string) error {
+	return CompleteTaskItem(db, id, completedBy)
+}
+
+// UncompleteTaskItem marks a completed task as not completed and removes dashboard-created responses.
+func UncompleteTaskItem(db *sql.DB, id int) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -215,14 +245,14 @@ func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(
-		"UPDATE student_tracker_items SET completed = 0, completed_at = NULL, completed_by = NULL WHERE id = ?",
+		"UPDATE task_items SET completed = 0, completed_at = NULL, completed_by = NULL WHERE id = ?",
 		id,
 	); err != nil {
 		return err
 	}
 	// Only remove dashboard-created responses (attendance_id=0), not checkout responses
 	if _, err := tx.Exec(
-		"DELETE FROM tracker_responses WHERE item_type = 'personal' AND item_id = ? AND status = 'done' AND attendance_id = 0",
+		"DELETE FROM tracker_responses WHERE item_id = ? AND status = 'done' AND attendance_id = 0",
 		id,
 	); err != nil {
 		return err
@@ -231,8 +261,90 @@ func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
 	return tx.Commit()
 }
 
-// PendingSignoffItems returns due items that require signoff and haven't been responded to today.
-// Used by checkout to block until the student signs off on required tasks.
+// UncompleteStudentTrackerItem is a backward-compat wrapper.
+func UncompleteStudentTrackerItem(db *sql.DB, id int) error {
+	return UncompleteTaskItem(db, id)
+}
+
+// --- Criteria Matching ---
+
+// StudentAttributes holds student fields used for criteria filtering.
+type StudentAttributes struct {
+	Grade         int
+	Birthplace    string
+	FirstLanguage string
+	School        string
+}
+
+// Criteria is the JSON structure for attribute-based filtering on scope=1 items.
+type Criteria struct {
+	GradeMin      *int     `json:"grade_min,omitempty"`
+	GradeMax      *int     `json:"grade_max,omitempty"`
+	Birthplace    []string `json:"birthplace,omitempty"`
+	FirstLanguage []string `json:"first_language,omitempty"`
+	School        []string `json:"school,omitempty"`
+}
+
+// loadStudentAttributes loads the fields needed for criteria matching.
+func loadStudentAttributes(db *sql.DB, studentID string) StudentAttributes {
+	var grade, birthplace, firstLang, school sql.NullString
+	db.QueryRow(`SELECT COALESCE(grade,''), COALESCE(birthplace,''), COALESCE(first_language,''), COALESCE(school,'')
+		FROM students WHERE id = ?`, studentID).Scan(&grade, &birthplace, &firstLang, &school)
+	return StudentAttributes{
+		Grade:         parseGradeNum(grade.String),
+		Birthplace:    birthplace.String,
+		FirstLanguage: firstLang.String,
+		School:        school.String,
+	}
+}
+
+// matchesCriteria returns true if the student matches the criteria JSON.
+// Empty or invalid criteria matches all students.
+func matchesCriteria(criteriaJSON string, student StudentAttributes) bool {
+	if criteriaJSON == "" {
+		return true
+	}
+	var c Criteria
+	if err := json.Unmarshal([]byte(criteriaJSON), &c); err != nil {
+		return true // invalid JSON matches all
+	}
+	if c.GradeMin != nil && student.Grade > 0 && student.Grade < *c.GradeMin {
+		return false
+	}
+	if c.GradeMax != nil && student.Grade > 0 && student.Grade > *c.GradeMax {
+		return false
+	}
+	if len(c.Birthplace) > 0 && student.Birthplace != "" {
+		if !containsIgnoreCase(c.Birthplace, student.Birthplace) {
+			return false
+		}
+	}
+	if len(c.FirstLanguage) > 0 && student.FirstLanguage != "" {
+		if !containsIgnoreCase(c.FirstLanguage, student.FirstLanguage) {
+			return false
+		}
+	}
+	if len(c.School) > 0 && student.School != "" {
+		if !containsIgnoreCase(c.School, student.School) {
+			return false
+		}
+	}
+	return true
+}
+
+func containsIgnoreCase(list []string, val string) bool {
+	lower := strings.ToLower(val)
+	for _, s := range list {
+		if strings.ToLower(s) == lower {
+			return true
+		}
+	}
+	return false
+}
+
+// --- Due Items ---
+
+// PendingSignoffItems returns due items that require signoff for checkout blocking.
 func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error) {
 	today := time.Now().Format("2006-01-02")
 	allDue, err := GetDueItems(db, studentID, today)
@@ -242,21 +354,15 @@ func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error)
 
 	var pending []models.DueItem
 	for _, it := range allDue {
-		if it.RequiresSignoff {
+		if it.Type == models.TaskTypeTodo {
 			pending = append(pending, it)
 		}
 	}
 	return pending, nil
 }
 
-// GetDueItems returns items due today for a student, respecting dates and recurrence.
-// Recurrence logic:
-//   - daily: due every day, check if responded today
-//   - weekly: due once per week, check if responded this week (Mon-Sun)
-//   - monthly: due once per month, check if responded this month
-//   - none (one-time): due until completed or past end_date
+// GetDueItems returns items due today for a student, respecting scope, dates, and recurrence.
 func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, error) {
-	// Parse date for period calculations
 	t, err := time.ParseInLocation("2006-01-02", date, time.Local)
 	if err != nil {
 		t = time.Now()
@@ -269,56 +375,42 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 	weekStartStr := weekStart.Format("2006-01-02")
 	monthStart := t.Format("2006-01")
 
+	// Load student attributes once for criteria filtering
+	studentAttrs := loadStudentAttributes(db, studentID)
+
 	rows, err := db.Query(`
-		-- Global items (daily recurrence by default)
-		SELECT 'global' AS item_type, ti.id AS item_id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence, ti.requires_signoff
-		FROM tracker_items ti
+		SELECT ti.scope, ti.id, COALESCE(ti.type,'task'), ti.name, ti.priority, COALESCE(ti.category,''),
+		       COALESCE(ti.end_date,''), ti.recurrence,
+		       COALESCE(ti.criteria,''), COALESCE(ti.group_id,''), COALESCE(ti.group_order,0)
+		FROM task_items ti
 		WHERE ti.active = 1 AND ti.deleted = 0
 		AND (ti.start_date IS NULL OR ti.start_date <= ?)
 		AND (ti.end_date IS NULL OR ti.end_date >= ?)
 		AND (
+			(ti.scope = 1)
+			OR (ti.scope = 2 AND EXISTS (
+				SELECT 1 FROM schedules s WHERE s.id = ti.schedule_id AND s.deleted = 0
+				AND (';' || REPLACE(s.student_ids, ',', ';') || ';') LIKE ('%;' || ? || ';%')
+			))
+			OR (ti.scope = 3 AND ti.student_id = ? AND ti.completed = 0)
+		)
+		AND (
 			(ti.recurrence = 'daily' AND ti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'global' AND tr.response_date = ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND COALESCE(tr.due_date, tr.response_date) = ?
 			))
 			OR (ti.recurrence = 'weekly' AND ti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'global' AND tr.response_date >= ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND COALESCE(tr.due_date, tr.response_date) >= ?
 			))
 			OR (ti.recurrence = 'monthly' AND ti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'global' AND strftime('%Y-%m', tr.response_date) = ?
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND strftime('%Y-%m', COALESCE(tr.due_date, tr.response_date)) = ?
 			))
 			OR (ti.recurrence = 'none' AND ti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'global' AND tr.status = 'done'
-			))
-		)
-		UNION ALL
-		-- Student-specific items (one-time by default)
-		SELECT 'personal' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence, sti.requires_signoff
-		FROM student_tracker_items sti
-		WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0 AND sti.completed = 0
-		AND (sti.start_date IS NULL OR sti.start_date <= ?)
-		AND (sti.end_date IS NULL OR sti.end_date >= ?)
-		AND (
-			(sti.recurrence = 'daily' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.response_date = ?
-			))
-			OR (sti.recurrence = 'weekly' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.response_date >= ?
-			))
-			OR (sti.recurrence = 'monthly' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND strftime('%Y-%m', tr.response_date) = ?
-			))
-			OR (sti.recurrence = 'none' AND sti.id NOT IN (
-				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.item_type = 'personal' AND tr.status = 'done'
+				SELECT tr.item_id FROM tracker_responses tr WHERE tr.student_id = ? AND tr.status = 'done'
 			))
 		)`,
-		// Global params
 		date, date,
-		studentID, date, // daily
-		studentID, weekStartStr, // weekly
-		studentID, monthStart, // monthly
-		studentID, // none
-		// Student params
-		studentID, date, date,
+		studentID, // scope=2 schedule enrollment check
+		studentID, // scope=3 student_id check
 		studentID, date, // daily
 		studentID, weekStartStr, // weekly
 		studentID, monthStart, // monthly
@@ -332,13 +424,22 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 	var items []models.DueItem
 	for rows.Next() {
 		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &it.RequiresSignoff); err != nil {
+		var criteriaJSON string
+		if err := rows.Scan(&it.Scope, &it.ItemID, &it.Type, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &criteriaJSON, &it.GroupID, &it.GroupOrder); err != nil {
 			return nil, err
 		}
+		// Filter scope=1 items by criteria
+		if it.Scope == models.ScopeCenter && !matchesCriteria(criteriaJSON, studentAttrs) {
+			continue
+		}
+		it.ItemType = scopeToItemType(it.Scope)
+		it.RequiresSignoff = it.Type == models.TaskTypeTodo
 		items = append(items, it)
 	}
 	return items, rows.Err()
 }
+
+// --- Responses ---
 
 // SaveTrackerResponses saves responses and performs checkout in a single transaction.
 func SaveTrackerResponses(db *sql.DB, studentID, studentName string, responses []models.TrackerResponse) (int64, error) {
@@ -348,7 +449,6 @@ func SaveTrackerResponses(db *sql.DB, studentID, studentName string, responses [
 	}
 	defer tx.Rollback()
 
-	// Perform checkout
 	result, err := tx.Exec(
 		"UPDATE attendance SET check_out_time = datetime('now','localtime') WHERE student_name = ? AND date(check_in_time) = date('now','localtime') AND check_out_time IS NULL",
 		studentName,
@@ -356,12 +456,11 @@ func SaveTrackerResponses(db *sql.DB, studentID, studentName string, responses [
 	if err != nil {
 		return 0, err
 	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	affectedRows, _ := result.RowsAffected()
+	if affectedRows == 0 {
 		return 0, nil
 	}
 
-	// Get the attendance ID for linking
 	var attendanceID int64
 	err = tx.QueryRow(
 		"SELECT id FROM attendance WHERE student_name = ? AND date(check_in_time) = date('now','localtime') ORDER BY check_in_time DESC LIMIT 1",
@@ -371,7 +470,6 @@ func SaveTrackerResponses(db *sql.DB, studentID, studentName string, responses [
 		return 0, err
 	}
 
-	// Insert responses
 	stmt, err := tx.Prepare(
 		"INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, notes, attendance_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 	)
@@ -381,13 +479,23 @@ func SaveTrackerResponses(db *sql.DB, studentID, studentName string, responses [
 	defer stmt.Close()
 
 	for _, r := range responses {
-		_, err = stmt.Exec(studentID, studentName, r.ItemType, r.ItemID, r.ItemName, r.Status, r.Notes, attendanceID)
+		itemType := r.ItemType
+		if itemType == "" {
+			// Derive item_type from task_items.scope if not provided
+			var scope int
+			if tx.QueryRow("SELECT scope FROM task_items WHERE id = ?", r.ItemID).Scan(&scope) == nil {
+				itemType = scopeToItemType(scope)
+			} else {
+				itemType = "personal"
+			}
+		}
+		_, err = stmt.Exec(studentID, studentName, itemType, r.ItemID, r.ItemName, r.Status, r.Notes, attendanceID)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	return rows, tx.Commit()
+	return affectedRows, tx.Commit()
 }
 
 // GetTrackerResponsesForDate returns all tracker responses for a student on a given date.
@@ -414,14 +522,32 @@ func GetTrackerResponsesForDate(db *sql.DB, studentID, date string) ([]models.Tr
 	return responses, rows.Err()
 }
 
-// trackerItemDates holds date/recurrence info for expected-count calculation.
+// SaveLateSignoff records a late signoff for a task item.
+func SaveLateSignoff(db *sql.DB, studentID, dueDate string, itemID int, status, notes string) error {
+	var studentName string
+	db.QueryRow("SELECT COALESCE(first_name,'')||' '||COALESCE(last_name,'') FROM students WHERE id = ?", studentID).Scan(&studentName)
+	studentName = strings.TrimSpace(studentName)
+
+	var itemName string
+	var scope int
+	db.QueryRow("SELECT name, scope FROM task_items WHERE id = ?", itemID).Scan(&itemName, &scope)
+
+	_, err := db.Exec(
+		`INSERT INTO tracker_responses (student_id, student_name, item_type, item_id, item_name, status, notes, due_date, is_late, attendance_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+		studentID, studentName, scopeToItemType(scope), itemID, itemName, status, notes, dueDate,
+	)
+	return err
+}
+
+// --- Progress ---
+
 type trackerItemDates struct {
 	StartDate  string
 	EndDate    string
 	Recurrence string
 }
 
-// isActiveOnDate returns true if an item with the given start/end dates is active on date d.
 func isActiveOnDate(it trackerItemDates, d time.Time) bool {
 	ds := d.Format("2006-01-02")
 	if it.StartDate != "" && it.StartDate > ds {
@@ -433,7 +559,6 @@ func isActiveOnDate(it trackerItemDates, d time.Time) bool {
 	return true
 }
 
-// countExpectedForItem returns how many times an item is expected within the date range.
 func countExpectedForItem(it trackerItemDates, rangeStart, rangeEnd time.Time) int {
 	switch it.Recurrence {
 	case "daily":
@@ -446,7 +571,6 @@ func countExpectedForItem(it trackerItemDates, rangeStart, rangeEnd time.Time) i
 		return count
 	case "weekly":
 		count := 0
-		// Count one per ISO week the item is active in
 		seen := make(map[string]bool)
 		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
 			yr, wk := d.ISOWeek()
@@ -469,7 +593,6 @@ func countExpectedForItem(it trackerItemDates, rangeStart, rangeEnd time.Time) i
 		}
 		return count
 	case "none":
-		// One-time: expected once if the item's date window overlaps the range
 		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
 			if isActiveOnDate(it, d) {
 				return 1
@@ -482,8 +605,6 @@ func countExpectedForItem(it trackerItemDates, rangeStart, rangeEnd time.Time) i
 }
 
 // GetProgressStats returns expected-based completion statistics for students over a date range.
-// Expected count is computed from all active tracker items' recurrence and date windows.
-// Done count is the actual "done" responses within the range.
 func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string) ([]models.ProgressStats, error) {
 	if len(studentIDs) == 0 {
 		return nil, nil
@@ -498,10 +619,10 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		return nil, fmt.Errorf("invalid end date: %w", err)
 	}
 
-	// 1. Get all active global items
+	// Get all active center-scoped items (same expected count for all students)
 	globalRows, err := db.Query(`
 		SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
-		FROM tracker_items WHERE active = 1 AND deleted = 0 AND requires_signoff = 1`)
+		FROM task_items WHERE scope = 1 AND active = 1 AND deleted = 0 AND type = 'todo'`)
 	if err != nil {
 		return nil, err
 	}
@@ -516,17 +637,15 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	}
 	globalRows.Close()
 
-	// Pre-compute global expected count (same for all students)
 	globalExpected := 0
 	for _, it := range globalItems {
 		globalExpected += countExpectedForItem(it, rangeStart, rangeEnd)
 	}
 
-	// 2. For each student, get their student-specific items and done counts
+	// Student name lookup
 	placeholders := strings.Repeat("?,", len(studentIDs))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	// Query student names from responses (fallback) or students table
 	nameArgs := make([]any, len(studentIDs))
 	for i, id := range studentIDs {
 		nameArgs[i] = id
@@ -544,7 +663,7 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		nameRows.Close()
 	}
 
-	// Query done counts per student from tracker_responses
+	// Done counts per student from tracker_responses
 	doneArgs := make([]any, 0, len(studentIDs)+2)
 	for _, id := range studentIDs {
 		doneArgs = append(doneArgs, id)
@@ -554,14 +673,10 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		SELECT tr.student_id, COALESCE(tr.student_name,''),
 			SUM(CASE WHEN tr.status = 'done' THEN 1 ELSE 0 END) as done_count
 		FROM tracker_responses tr
-		LEFT JOIN tracker_items ti ON tr.item_type = 'global' AND tr.item_id = ti.id
-		LEFT JOIN student_tracker_items sti ON tr.item_type = 'personal' AND tr.item_id = sti.id
+		LEFT JOIN task_items ti ON tr.item_id = ti.id
 		WHERE tr.student_id IN (`+placeholders+`)
 		AND tr.response_date >= ? AND tr.response_date <= ?
-		AND (
-			(tr.item_type = 'global' AND COALESCE(ti.requires_signoff, 1) = 1)
-			OR (tr.item_type = 'personal' AND COALESCE(sti.requires_signoff, 1) = 1)
-		)
+		AND COALESCE(ti.type, 'task') = 'todo'
 		GROUP BY tr.student_id`,
 		doneArgs...,
 	)
@@ -584,15 +699,15 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	}
 	doneRows.Close()
 
-	// 3. Build stats per student
+	// Build stats per student
 	var stats []models.ProgressStats
 	for _, sid := range studentIDs {
-		// Student-specific items expected count
+		// Student-specific items expected count (scope=3 personal items)
 		studentExpected := 0
 		stiRows, err := db.Query(`
 			SELECT COALESCE(start_date,''), COALESCE(end_date,''), recurrence
-			FROM student_tracker_items
-			WHERE student_id = ? AND active = 1 AND deleted = 0 AND completed = 0 AND requires_signoff = 1`, sid)
+			FROM task_items
+			WHERE scope = 3 AND student_id = ? AND active = 1 AND deleted = 0 AND completed = 0 AND type = 'todo'`, sid)
 		if err != nil {
 			return nil, err
 		}
@@ -606,10 +721,12 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 		}
 		stiRows.Close()
 
+		// TODO: Add scope=2 class items expected count (for enrolled students)
+
 		total := globalExpected + studentExpected
 		done := doneMap[sid]
 		if done > total {
-			done = total // cap at expected
+			done = total
 		}
 		name := nameMap[sid]
 		if name == "" {
@@ -631,7 +748,47 @@ func GetProgressStats(db *sql.DB, studentIDs []string, startDate, endDate string
 	return stats, nil
 }
 
-// GetAllActiveStudentIDs returns all active student IDs from the students table.
+// --- All tasks for calendar/list ---
+
+// GetAllTasksForStudent returns all active items visible to a student (all scopes).
+func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, error) {
+	rows, err := db.Query(`
+		SELECT ti.scope, ti.id, COALESCE(ti.type,'task'), ti.name, ti.priority, COALESCE(ti.category,''),
+		       COALESCE(ti.end_date,''), ti.recurrence,
+		       COALESCE(ti.group_id,''), COALESCE(ti.group_order,0)
+		FROM task_items ti
+		WHERE ti.active = 1 AND ti.deleted = 0
+		AND (
+			(ti.scope = 1)
+			OR (ti.scope = 2 AND EXISTS (
+				SELECT 1 FROM schedules s WHERE s.id = ti.schedule_id AND s.deleted = 0
+				AND (';' || REPLACE(s.student_ids, ',', ';') || ';') LIKE ('%;' || ? || ';%')
+			))
+			OR (ti.scope = 3 AND ti.student_id = ?)
+		)`,
+		studentID, studentID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []models.DueItem
+	for rows.Next() {
+		var it models.DueItem
+		if err := rows.Scan(&it.Scope, &it.ItemID, &it.Type, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &it.GroupID, &it.GroupOrder); err != nil {
+			return nil, err
+		}
+		it.ItemType = scopeToItemType(it.Scope)
+		it.RequiresSignoff = it.Type == models.TaskTypeTodo
+		items = append(items, it)
+	}
+	return items, rows.Err()
+}
+
+// --- Student/Teacher/Parent ID lookups (unchanged) ---
+
+// GetAllActiveStudentIDs returns all active student IDs.
 func GetAllActiveStudentIDs(db *sql.DB) ([]string, error) {
 	rows, err := db.Query("SELECT id FROM students WHERE deleted = 0 ORDER BY id")
 	if err != nil {
@@ -649,39 +806,11 @@ func GetAllActiveStudentIDs(db *sql.DB) ([]string, error) {
 	return ids, rows.Err()
 }
 
-// GetStudentIDForItem returns the student_id for a student_tracker_items row.
+// GetStudentIDForItem returns the student_id for a task item.
 func GetStudentIDForItem(db *sql.DB, itemID int) (string, error) {
 	var studentID string
-	err := db.QueryRow("SELECT student_id FROM student_tracker_items WHERE id = ?", itemID).Scan(&studentID)
+	err := db.QueryRow("SELECT COALESCE(student_id,'') FROM task_items WHERE id = ?", itemID).Scan(&studentID)
 	return studentID, err
-}
-
-// BulkCreateStudentItems creates the same tracker item for multiple students.
-func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.StudentTrackerItem) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	stmt, err := tx.Prepare(
-		`INSERT INTO student_tracker_items (student_id, name, notes, start_date, end_date,
-		 priority, recurrence, category, created_by, owner_type, requires_signoff, active)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-	)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for _, sid := range studentIDs {
-		_, err = stmt.Exec(sid, item.Name, item.Notes, nullStr(item.StartDate), nullStr(item.EndDate),
-			item.Priority, item.Recurrence, nullStr(item.Category), item.CreatedBy, item.OwnerType, item.RequiresSignoff, item.Active)
-		if err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
 }
 
 // GetTeacherStudentIDs returns all student IDs assigned to a teacher through schedules.
@@ -735,68 +864,59 @@ func GetParentStudentIDs(db *sql.DB, parentID string) ([]string, error) {
 	return ids, rows.Err()
 }
 
-// GetAllTasksForStudent returns both global and student-specific items for calendar/list views.
-func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, error) {
-	rows, err := db.Query(`
-		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence, ti.requires_signoff
-		FROM tracker_items ti WHERE ti.active = 1 AND ti.deleted = 0
-		UNION ALL
-		SELECT 'personal', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence, sti.requires_signoff
-		FROM student_tracker_items sti WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0`,
-		studentID,
+// --- Bulk operations ---
+
+// BulkCreateTaskItems creates the same task item for multiple students (scope=3).
+func BulkCreateTaskItems(db *sql.DB, studentIDs []string, item models.TaskItem) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	itemType := item.Type
+	if itemType == "" {
+		itemType = models.TaskTypeTask
+	}
+	stmt, err := tx.Prepare(
+		`INSERT INTO task_items (scope, student_id, type, name, notes, start_date, end_date,
+		 priority, recurrence, category, created_by, owner_type, active)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer rows.Close()
+	defer stmt.Close()
 
-	var items []models.DueItem
-	for rows.Next() {
-		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &it.RequiresSignoff); err != nil {
-			return nil, err
-		}
-		items = append(items, it)
-	}
-	return items, rows.Err()
-}
-
-func splitIDs(s string) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	sep := ";"
-	if !strings.Contains(s, ";") {
-		sep = ","
-	}
-	var ids []string
-	for _, id := range strings.Split(s, sep) {
-		id = strings.TrimSpace(id)
-		if id != "" {
-			ids = append(ids, id)
+	for _, sid := range studentIDs {
+		_, err = stmt.Exec(models.ScopePersonal, sid, itemType, item.Name, item.Notes,
+			nullStr(item.StartDate), nullStr(item.EndDate),
+			item.Priority, item.Recurrence, nullStr(item.Category),
+			item.CreatedBy, item.OwnerType, item.Active)
+		if err != nil {
+			return err
 		}
 	}
-	return ids
+	return tx.Commit()
 }
 
-func nullStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
+// BulkCreateStudentItems is a backward-compat wrapper.
+func BulkCreateStudentItems(db *sql.DB, studentIDs []string, item models.TaskItem) error {
+	return BulkCreateTaskItems(db, studentIDs, item)
 }
 
-// GetGlobalTrackerItems returns all active, non-deleted global tracker items.
-func GetGlobalTrackerItems(db *sql.DB) ([]models.TrackerItem, error) {
-	rows, err := db.Query(`SELECT ` + trackerItemCols + ` FROM tracker_items WHERE active = 1 AND deleted = 0 ORDER BY id`)
+// --- Profile tracker values ---
+
+// GetCenterTaskItems returns all active, non-deleted center-scoped items.
+func GetCenterTaskItems(db *sql.DB) ([]models.TaskItem, error) {
+	rows, err := db.Query("SELECT "+taskItemCols+" FROM task_items WHERE scope = 1 AND active = 1 AND deleted = 0 ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []models.TrackerItem
+	var items []models.TaskItem
 	for rows.Next() {
-		it, err := scanTrackerItem(rows)
+		it, err := scanTaskItem(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -805,12 +925,18 @@ func GetGlobalTrackerItems(db *sql.DB) ([]models.TrackerItem, error) {
 	return items, rows.Err()
 }
 
-// GetLatestTrackerValues returns the latest tracker response notes per global item for a student.
+// GetGlobalTrackerItems is a backward-compat wrapper.
+func GetGlobalTrackerItems(db *sql.DB) ([]models.TaskItem, error) {
+	return GetCenterTaskItems(db)
+}
+
+// GetLatestTrackerValues returns the latest tracker response notes per center item for a student.
 func GetLatestTrackerValues(db *sql.DB, studentID string) (map[int]string, error) {
-	rows, err := db.Query(`SELECT item_id, notes FROM tracker_responses
-		WHERE student_id = ? AND item_type = 'global'
-		AND id IN (SELECT MAX(id) FROM tracker_responses
-		           WHERE student_id = ? AND item_type = 'global' GROUP BY item_id)`,
+	rows, err := db.Query(`SELECT tr.item_id, tr.notes FROM tracker_responses tr
+		INNER JOIN task_items ti ON ti.id = tr.item_id AND ti.scope = 1
+		WHERE tr.student_id = ?
+		AND tr.id IN (SELECT MAX(id) FROM tracker_responses
+		              WHERE student_id = ? GROUP BY item_id)`,
 		studentID, studentID)
 	if err != nil {
 		return nil, err
@@ -833,8 +959,7 @@ func SaveProfileTrackerValues(db *sql.DB, studentID, studentName string, values 
 	if len(values) == 0 {
 		return nil
 	}
-	// Build item name lookup
-	items, err := GetGlobalTrackerItems(db)
+	items, err := GetCenterTaskItems(db)
 	if err != nil {
 		return err
 	}
@@ -868,23 +993,24 @@ func SaveProfileTrackerValues(db *sql.DB, studentID, studentName string, values 
 	return tx.Commit()
 }
 
-// AutoAssignProfileTasks creates student_tracker_items for global tracker items that the student
-// has not yet responded to and does not already have assigned. Grade-aware filtering is applied.
+// --- Auto-assign ---
+
+// AutoAssignProfileTasks creates personal task items for center items that the student
+// has not yet responded to. Grade-aware filtering is applied.
 func AutoAssignProfileTasks(db *sql.DB, studentID, grade string) error {
-	items, err := GetGlobalTrackerItems(db)
+	items, err := GetCenterTaskItems(db)
 	if err != nil {
 		return err
 	}
 
-	// Get existing responses
 	existingValues, err := GetLatestTrackerValues(db, studentID)
 	if err != nil {
 		return err
 	}
 
-	// Get existing student_tracker_items by name
+	// Get existing personal items by name for this student
 	existingItems := make(map[string]bool)
-	rows, err := db.Query(`SELECT name FROM student_tracker_items WHERE student_id = ? AND deleted = 0`, studentID)
+	rows, err := db.Query(`SELECT name FROM task_items WHERE scope = 3 AND student_id = ? AND deleted = 0`, studentID)
 	if err != nil {
 		return err
 	}
@@ -898,16 +1024,20 @@ func AutoAssignProfileTasks(db *sql.DB, studentID, grade string) error {
 	gradeNum := parseGradeNum(grade)
 
 	for _, it := range items {
-		// Skip if already has a value or assignment
 		if existingValues[it.ID] != "" || existingItems[it.Name] {
 			continue
 		}
-		// Grade-aware filtering
-		if !shouldAssignForGrade(it.Name, it.Category, gradeNum) {
+		// Use criteria if set, otherwise fall back to grade-based rules
+		studentAttrs := StudentAttributes{Grade: gradeNum}
+		if it.Criteria != "" {
+			if !matchesCriteria(it.Criteria, studentAttrs) {
+				continue
+			}
+		} else if !shouldAssignForGrade(it.Name, it.Category, gradeNum) {
 			continue
 		}
-		db.Exec(`INSERT INTO student_tracker_items (student_id, name, priority, recurrence, category, created_by, owner_type, requires_signoff, active)
-			VALUES (?, ?, ?, 'none', ?, 'system', 'admin', 0, 1)`,
+		db.Exec(`INSERT INTO task_items (scope, student_id, type, name, priority, recurrence, category, created_by, owner_type, active)
+			VALUES (3, ?, 'task', ?, ?, 'none', ?, 'system', 'admin', 1)`,
 			studentID, it.Name, it.Priority, it.Category)
 	}
 	return nil
@@ -925,7 +1055,7 @@ func parseGradeNum(grade string) int {
 
 func shouldAssignForGrade(name, category string, grade int) bool {
 	if grade == 0 {
-		return true // unknown grade, assign all
+		return true
 	}
 	switch {
 	case strings.Contains(name, "PSAT 8/9"):
@@ -940,4 +1070,46 @@ func shouldAssignForGrade(name, category string, grade int) bool {
 		return grade >= 9
 	}
 	return true
+}
+
+// --- Helpers ---
+
+func splitIDs(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	sep := ";"
+	if !strings.Contains(s, ";") {
+		sep = ","
+	}
+	var ids []string
+	for _, id := range strings.Split(s, sep) {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func nullStr(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func nullInt(n int) any {
+	if n == 0 {
+		return nil
+	}
+	return n
+}
+
+// Backward-compat exports used by handlers
+var StudentItemCols = taskItemCols
+
+func ScanStudentItemRow(s interface{ Scan(...any) error }) (models.TaskItem, error) {
+	return scanTaskItem(s)
 }
