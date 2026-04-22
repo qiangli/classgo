@@ -155,6 +155,12 @@
 
                 <!-- List View -->
                 <div id="task-list-view">
+                    <div class="flex gap-1 mb-3">
+                        <button onclick="setTaskFilter('today')" data-filter="today" class="task-filter-btn px-3 py-1 text-xs font-medium rounded-lg border transition">Today</button>
+                        <button onclick="setTaskFilter('week')" data-filter="week" class="task-filter-btn px-3 py-1 text-xs font-medium rounded-lg border transition">This Week</button>
+                        <button onclick="setTaskFilter('month')" data-filter="month" class="task-filter-btn px-3 py-1 text-xs font-medium rounded-lg border transition">This Month</button>
+                        <button onclick="setTaskFilter('all')" data-filter="all" class="task-filter-btn px-3 py-1 text-xs font-medium rounded-lg border transition">All</button>
+                    </div>
                     <div id="task-list-container" class="space-y-2"></div>
                     <p id="task-list-empty" class="hidden text-center text-gray-400 py-12">No tasks found.</p>
                 </div>
@@ -604,6 +610,7 @@
 
         // ==================== TASK LIST + CALENDAR ====================
         let taskView = 'list';
+        let taskFilter = userType === 'student' ? 'today' : 'week';
         let allTasks = { global_items: [], student_items: [], due_items: [] };
         let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
         let myStudents = [];
@@ -621,6 +628,50 @@
             active.classList.add('bg-indigo-600', 'text-white');
             active.classList.remove('text-gray-600');
             if (view === 'calendar') renderCalendar();
+        }
+
+        function setTaskFilter(filter) {
+            taskFilter = filter;
+            document.querySelectorAll('.task-filter-btn').forEach(b => {
+                const isActive = b.dataset.filter === filter;
+                b.classList.toggle('bg-indigo-600', isActive);
+                b.classList.toggle('text-white', isActive);
+                b.classList.toggle('border-indigo-600', isActive);
+                b.classList.toggle('text-gray-600', !isActive);
+                b.classList.toggle('dark:text-gray-400', !isActive);
+                b.classList.toggle('border-gray-300', !isActive);
+                b.classList.toggle('dark:border-gray-600', !isActive);
+            });
+            renderTaskList();
+        }
+
+        function taskInFilterRange(it, today) {
+            if (taskFilter === 'all') return true;
+            // Items with no end_date: show in all filters (always relevant)
+            // Recurring items with no end_date: show in all filters
+            // Completed one-time items: always show (so user sees them grayed out)
+            if (it.recurrence !== 'none') {
+                // Recurring items are always relevant
+                return true;
+            }
+            if (it.completed) return true;
+            const d = it.end_date;
+            if (!d) return true; // no date = always show
+            // Overdue items always show
+            if (d < today) return true;
+            const todayDate = new Date(today + 'T12:00:00');
+            const itemDate = new Date(d + 'T12:00:00');
+            if (taskFilter === 'today') {
+                return d === today;
+            } else if (taskFilter === 'week') {
+                // End of this week (Sunday)
+                const endOfWeek = new Date(todayDate);
+                endOfWeek.setDate(todayDate.getDate() + (7 - todayDate.getDay()));
+                return itemDate <= endOfWeek;
+            } else if (taskFilter === 'month') {
+                return d.substring(0, 7) === today.substring(0, 7);
+            }
+            return true;
         }
 
         function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -656,17 +707,22 @@
             const container = document.getElementById('task-list-container');
             const empty = document.getElementById('task-list-empty');
             const items = [];
+            const isStudent = userType === 'student';
 
             // Global items
             for (const g of (allTasks.global_items || [])) {
-                items.push({ type: 'global', id: g.id, name: g.name, notes: g.notes, priority: g.priority, end_date: g.end_date, recurrence: g.recurrence, category: g.category, owner: 'admin', completed: false });
+                items.push({ scope: 'global', task_type: g.type || 'todo', id: g.id, name: g.name, notes: g.notes, priority: g.priority, end_date: g.end_date, recurrence: g.recurrence, category: g.category, owner: 'admin', completed: false });
             }
             // Student items
             for (const s of (allTasks.student_items || [])) {
-                items.push({ type: 'personal', id: s.id, name: s.name, notes: s.notes, priority: s.priority, end_date: s.end_date, recurrence: s.recurrence, category: s.category, owner: s.created_by, owner_type: s.owner_type, completed: s.completed, completed_by: s.completed_by });
+                items.push({ scope: 'personal', task_type: s.type || 'task', id: s.id, name: s.name, notes: s.notes, priority: s.priority, end_date: s.end_date, recurrence: s.recurrence, category: s.category, owner: s.created_by, owner_type: s.owner_type, completed: s.completed, completed_by: s.completed_by });
             }
 
-            if (items.length === 0) {
+            // Apply time filter
+            const today = localDate(new Date());
+            const filtered = items.filter(it => taskInFilterRange(it, today));
+
+            if (filtered.length === 0) {
                 container.innerHTML = '';
                 empty.classList.remove('hidden');
                 return;
@@ -675,7 +731,7 @@
 
             // Sort: incomplete first, then by priority, then by due date
             const pOrder = { high: 0, medium: 1, low: 2 };
-            items.sort((a, b) => {
+            filtered.sort((a, b) => {
                 if (a.completed !== b.completed) return a.completed ? 1 : -1;
                 if (pOrder[a.priority] !== pOrder[b.priority]) return (pOrder[a.priority] || 1) - (pOrder[b.priority] || 1);
                 if (a.end_date && b.end_date) return a.end_date.localeCompare(b.end_date);
@@ -684,36 +740,75 @@
                 return 0;
             });
 
-            const today = localDate(new Date());
-            container.innerHTML = items.map(it => {
+            container.innerHTML = filtered.map(it => {
                 const overdue = it.end_date && it.end_date < today && !it.completed;
-                const canEdit = it.type === 'personal' && (it.owner === entityID || userType === 'admin');
-                const canComplete = it.type === 'personal' && it.recurrence === 'none';
+                const canDelete = it.scope === 'personal' && (it.owner === entityID || userType === 'admin');
+                const isOneTime = it.scope === 'personal' && it.recurrence === 'none';
+                const isTodo = it.task_type === 'todo';
+                const isTask = it.task_type === 'task';
+
+                // Action controls: only students can interact
+                let actionHTML = '<div class="w-5 flex-shrink-0"></div>';
+                if (isOneTime && isStudent) {
+                    if (isTodo) {
+                        if (it.completed) {
+                            // Completed todo — no uncheck, show badge
+                            actionHTML = '<span class="flex-shrink-0 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">Done</span>';
+                        } else {
+                            // Pending todo — Done / Not Done buttons
+                            actionHTML = `<div class="flex gap-2 flex-shrink-0">
+                                <button onclick="toggleComplete(${it.id}, true)" class="px-3 py-1 text-sm rounded-lg border-2 border-green-300 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/30 transition">Done</button>
+                                <button onclick="showNotDone(this, ${it.id})" class="px-3 py-1 text-sm rounded-lg border-2 border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-700 transition">Not Done</button>
+                            </div>`;
+                        }
+                    } else if (isTask) {
+                        // Optional task — checkbox
+                        actionHTML = `<input type="checkbox" onclick="toggleComplete(${it.id}, this.checked)" ${it.completed ? 'checked' : ''}
+                            class="mt-1 w-4 h-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-500 dark:bg-gray-700 text-green-500 focus:ring-green-400 cursor-pointer">`;
+                    }
+                } else if (isOneTime && !isStudent && it.completed) {
+                    actionHTML = '<span class="flex-shrink-0 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">Done</span>';
+                }
+
                 return `
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-start gap-3 priority-${it.priority} ${it.completed ? 'opacity-60' : ''} ${overdue ? 'border-r-4 border-red-400' : ''}">
-                    ${canComplete ? `<button onclick="toggleComplete(${it.id}, ${!it.completed})" class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition ${it.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'}">
-                        ${it.completed ? '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>' : ''}
-                    </button>` : '<div class="w-5 flex-shrink-0"></div>'}
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="font-medium text-gray-800 ${it.completed ? 'line-through' : ''}">${esc(it.name)}</span>
-                            ${priorityBadge(it.priority)}
-                            ${recurrenceBadge(it.recurrence)}
-                            ${it.category ? `<span class="text-xs text-gray-400">${esc(it.category)}</span>` : ''}
-                            ${overdue ? '<span class="text-xs text-red-500 font-medium">OVERDUE</span>' : ''}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 priority-${it.priority} ${it.completed ? 'opacity-60' : ''} ${overdue ? 'border-r-4 border-red-400' : ''}">
+                    <div class="flex items-start gap-3">
+                        ${actionHTML}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-medium text-gray-800 dark:text-gray-100 ${it.completed ? 'line-through' : ''}">${esc(it.name)}</span>
+                                ${priorityBadge(it.priority)}
+                                ${recurrenceBadge(it.recurrence)}
+                                ${it.category ? `<span class="text-xs text-gray-400">${esc(it.category)}</span>` : ''}
+                                ${overdue ? '<span class="text-xs text-red-500 font-medium">OVERDUE</span>' : ''}
+                            </div>
+                            ${it.notes ? `<p class="text-sm text-gray-500 mt-1">${esc(it.notes)}</p>` : ''}
+                            <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                ${it.end_date ? `<span>Ends: ${it.end_date}</span>` : ''}
+                                <span class="px-1.5 py-0.5 rounded ${it.scope === 'global' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-purple-50 text-purple-500 dark:bg-purple-900/30 dark:text-purple-400'}">${it.scope === 'global' ? 'Global' : it.owner_type || 'custom'}</span>
+                                ${it.completed && it.completed_by ? `<span class="text-green-600 dark:text-green-400">Completed by ${esc(it.completed_by)}</span>` : ''}
+                            </div>
                         </div>
-                        ${it.notes ? `<p class="text-sm text-gray-500 mt-1">${esc(it.notes)}</p>` : ''}
-                        <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                            ${it.end_date ? `<span>Ends: ${it.end_date}</span>` : ''}
-                            <span class="px-1.5 py-0.5 rounded ${it.type === 'global' ? 'bg-indigo-50 text-indigo-500' : 'bg-purple-50 text-purple-500'}">${it.type === 'global' ? 'Global' : it.owner_type || 'custom'}</span>
-                            ${it.completed ? `<span class="text-green-600">Completed by ${esc(it.completed_by || '')}</span>` : ''}
-                        </div>
+                        ${canDelete ? `<button onclick="deleteTask(${it.id})" class="text-gray-300 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition" title="Delete">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>` : ''}
                     </div>
-                    ${canEdit ? `<button onclick="deleteTask(${it.id})" class="text-gray-300 hover:text-red-500 transition" title="Delete">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>` : ''}
+                    <div id="notdone-reason-${it.id}" class="hidden mt-2 ml-8">
+                        <input type="text" id="notdone-notes-${it.id}" class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-300"
+                            placeholder="Reason (optional)">
+                    </div>
                 </div>`;
             }).join('');
+        }
+
+        function showNotDone(btn, id) {
+            const reasonDiv = document.getElementById('notdone-reason-' + id);
+            if (reasonDiv) {
+                reasonDiv.classList.toggle('hidden');
+                if (!reasonDiv.classList.contains('hidden')) {
+                    reasonDiv.querySelector('input').focus();
+                }
+            }
         }
 
         // ==================== CALENDAR ====================
@@ -1554,6 +1649,7 @@
             if (userType === 'teacher') loadClasses();
 
             switchTaskView('list');
+            setTaskFilter(taskFilter);
             const hash = location.hash.replace('#', '');
             navigate(sections.includes(hash) ? hash : 'tasks');
         }
