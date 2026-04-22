@@ -197,4 +197,66 @@ test.describe('Task list actions by role', () => {
 
     await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);
   });
+
+  test('items created by different roles have correct owner_type for sort', async ({ adminPage }) => {
+    const adminCookie = await getAdminCookie(adminPage);
+    await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);
+
+    // Admin creates a task
+    const adminTask = await createTask(adminCookie, 'Admin Task');
+    expect(adminTask.ok).toBe(true);
+
+    // Teacher creates a task
+    const teacherCookie = await userLogin('T01', PASSWORD);
+    expect(teacherCookie).toBeTruthy();
+    const teacherRes = await fetch(`${BASE_URL}/api/tracker/student-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: teacherCookie! },
+      body: JSON.stringify({
+        student_id: STUDENT_ID,
+        name: 'Teacher Task',
+        priority: 'high',
+        recurrence: 'none',
+        active: true,
+      }),
+    });
+    const teacherTask = await teacherRes.json();
+    expect(teacherTask.ok).toBe(true);
+
+    // Student creates a task
+    const studentCookie = await userLogin(STUDENT_ID, PASSWORD);
+    expect(studentCookie).toBeTruthy();
+    const studentRes = await fetch(`${BASE_URL}/api/tracker/student-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: studentCookie! },
+      body: JSON.stringify({
+        name: 'Student Task',
+        priority: 'low',
+        recurrence: 'none',
+        active: true,
+      }),
+    });
+    const studentTask = await studentRes.json();
+    expect(studentTask.ok).toBe(true);
+
+    // Verify all items have correct owner_type and priority
+    const tasks = await getAllTasks(adminCookie);
+
+    const adminItem = findItem(tasks, adminTask.id);
+    expect(adminItem).toBeTruthy();
+    expect(adminItem.owner_type).toBe('admin');
+
+    const teacherItem = findItem(tasks, teacherTask.id);
+    expect(teacherItem).toBeTruthy();
+    expect(teacherItem.owner_type).toBe('teacher');
+    expect(teacherItem.priority).toBe('high');
+
+    const studentItem = findItem(tasks, studentTask.id);
+    expect(studentItem).toBeTruthy();
+    expect(studentItem.owner_type).toBe('student');
+    expect(studentItem.priority).toBe('low');
+    expect(studentItem.type).toBe('task'); // student-created always type=task
+
+    await clearStudentTrackerItemsViaAPI(adminCookie, STUDENT_ID);
+  });
 });
