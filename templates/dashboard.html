@@ -254,10 +254,36 @@
             <!-- ==================== PROFILE SECTION ==================== -->
             <section id="section-profile" class="hidden">
                 <div id="profile-status-msg" class="hidden mb-4 px-4 py-2 rounded-lg text-sm"></div>
+
+                {{if eq .UserType "parent"}}
+                <!-- ===== PARENT LAYOUT: parent section first, then child section ===== -->
+                <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+                    <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Parent / Guardian</h2>
+                        <div class="flex items-center gap-2">
+                            <button onclick="parentToggleEdit()" id="parent-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
+                            <button onclick="parentCancelEdit()" id="parent-cancel-btn" class="hidden text-sm text-gray-600 hover:text-gray-800 border border-gray-300 px-3 py-1.5 rounded-lg">Cancel</button>
+                            <button onclick="parentSave()" id="parent-save-btn" class="hidden text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+                        </div>
+                    </div>
+                    <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-parent">
+                        <div data-pfield="p-first_name" data-label="First Name"></div>
+                        <div data-pfield="p-last_name" data-label="Last Name"></div>
+                        <div data-pfield="p-email" data-label="Email" data-type="email"></div>
+                        <div data-pfield="p-phone" data-label="Phone" data-type="tel"></div>
+                        <div data-pfield="p-email2" data-label="Email (2nd)" data-type="email"></div>
+                        <div data-pfield="p-phone2" data-label="Phone (2nd)" data-type="tel"></div>
+                        <div data-pfield="p-address" data-label="Address" data-span="2"></div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-3">
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Child</h2>
+                        <select id="profile-child-select" class="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5"></select>
                         <span id="profile-status-badge" class="hidden text-xs px-2 py-1 rounded-full font-medium"></span>
-                        <select id="profile-child-select" class="hidden text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5"></select>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="profileToggleEdit()" id="profile-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
@@ -266,9 +292,23 @@
                     </div>
                 </div>
 
+                {{else}}
+                <!-- ===== STUDENT LAYOUT: original order ===== -->
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <span id="profile-status-badge" class="hidden text-xs px-2 py-1 rounded-full font-medium"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="profileToggleEdit()" id="profile-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
+                        <button onclick="profileCancelEdit()" id="profile-cancel-btn" class="hidden text-sm text-gray-600 hover:text-gray-800 border border-gray-300 px-3 py-1.5 rounded-lg">Cancel</button>
+                        <button onclick="profileSave()" id="profile-save-btn" class="hidden text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+                    </div>
+                </div>
+                {{end}}
+
                 <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
                     <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-base font-semibold text-gray-800">Personal Information</h2>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Personal Information</h2>
                     </div>
                     <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-personal">
                         <div data-pfield="s-first_name" data-label="First Name" data-required="true"></div>
@@ -282,9 +322,10 @@
                         <div data-pfield="s-address" data-label="Home Address" data-span="2"></div>
                     </div>
                 </div>
+                {{if ne .UserType "parent"}}
                 <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
                     <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-base font-semibold text-gray-800">Parent / Guardian Information</h2>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Parent / Guardian Information</h2>
                     </div>
                     <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-parent">
                         <div data-pfield="p-first_name" data-label="Parent First Name"></div>
@@ -296,9 +337,10 @@
                         <div data-pfield="p-address" data-label="Parent Address" data-span="2"></div>
                     </div>
                 </div>
+                {{end}}
                 <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
                     <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-base font-semibold text-gray-800">High School Education</h2>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">High School Education</h2>
                     </div>
                     <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-education">
                         <div data-pfield="s-school" data-label="Current High School"></div>
@@ -310,7 +352,7 @@
                 <div id="profile-tracker-sections"></div>
                 <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
                     <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="text-base font-semibold text-gray-800">Notes</h2>
+                        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Notes</h2>
                     </div>
                     <div class="px-5 py-4">
                         <div data-pfield="s-notes" data-label="" data-type="textarea" data-placeholder="Additional notes"></div>
@@ -527,7 +569,7 @@
             students:   { title: 'My Students', subtitle: 'Student & Parent Information' },
             {{end}}
             progress:   { title: 'Progress', subtitle: 'Completion Statistics' },
-            profile:    { title: 'My Profile', subtitle: '' },
+            profile:    { title: userType === 'parent' ? 'Profile' : 'My Profile', subtitle: '' },
             memos:      { title: 'Memos', subtitle: 'Notes & Communication' }
         };
 
@@ -1198,6 +1240,7 @@
         // ==================== PROFILE ====================
         let profileData = null;
         let profileEditMode = false;
+        let parentEditMode = false;
         let profileFieldValues = {};
         let profileTrackerFieldMap = {};
         let profileStudentID = userType === 'parent' ? '' : entityID; // parents resolve via backend
@@ -1252,13 +1295,17 @@
                 buildProfileTrackerSections(data.tracker_items || [], data.tracker_values || {});
 
                 // Child selector for parents
-                if (userType === 'parent' && data.children && data.children.length > 1) {
+                if (userType === 'parent' && data.children && data.children.length > 0) {
                     const sel = document.getElementById('profile-child-select');
                     sel.innerHTML = data.children.map(c =>
                         `<option value="${c.id}" ${c.id === profileStudentID ? 'selected' : ''}>${esc(c.name)}</option>`
                     ).join('');
-                    sel.classList.remove('hidden');
                     sel.onchange = () => { profileStudentID = sel.value; profileLoaded = false; loadProfileData(); };
+                }
+
+                // For parents, render parent section separately
+                if (userType === 'parent') {
+                    setParentEditMode(parentEditMode);
                 }
 
                 if (data.is_empty_profile) {
@@ -1324,9 +1371,68 @@
         function profileToggleEdit() { setProfileEditMode(true); }
         function profileCancelEdit() { setProfileEditMode(false); }
 
+        // Parent section edit controls (parent layout only)
+        function setParentEditMode(on) {
+            parentEditMode = on;
+            const editBtn = document.getElementById('parent-edit-btn');
+            const saveBtn = document.getElementById('parent-save-btn');
+            const cancelBtn = document.getElementById('parent-cancel-btn');
+            if (editBtn) editBtn.classList.toggle('hidden', on);
+            if (saveBtn) saveBtn.classList.toggle('hidden', !on);
+            if (cancelBtn) cancelBtn.classList.toggle('hidden', !on);
+            renderProfileFieldsInScope('p-');
+        }
+        function parentToggleEdit() { setParentEditMode(true); }
+        function parentCancelEdit() { setParentEditMode(false); }
+        async function parentSave() {
+            const parent = {};
+            if (profileData && profileData.parent) parent.id = profileData.parent.id || '';
+            ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                const el = document.getElementById('p-' + f);
+                if (el) parent[f] = el.value;
+            });
+            // Send with minimal student to satisfy backend (id required)
+            const student = { id: profileStudentID };
+            if (profileData && profileData.student) student.parent_id = profileData.student.parent_id || '';
+
+            const btn = document.getElementById('parent-save-btn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const res = await fetch('/api/v1/user/profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student, parent, tracker_values: {} })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showProfileStatus('Parent info saved.', 'success');
+                    ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                        const el = document.getElementById('p-' + f);
+                        if (el) profileFieldValues['p-' + f] = el.value;
+                    });
+                    setParentEditMode(false);
+                } else {
+                    showProfileStatus(data.error || 'Save failed.', 'error');
+                }
+            } catch(e) {
+                showProfileStatus('Save failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Save';
+            }
+        }
+
         function renderProfileFields() {
+            renderProfileFieldsInScope(null);
+        }
+        function renderProfileFieldsInScope(scopePrefix) {
             document.querySelectorAll('[data-pfield]').forEach(div => {
                 const fieldId = div.dataset.pfield;
+                // If scoped, only render fields matching the prefix
+                if (scopePrefix !== null) {
+                    const isParent = fieldId.startsWith('p-');
+                    if (scopePrefix === 'p-' && !isParent) return;
+                    if (scopePrefix === 's-' && isParent) return;
+                }
                 const label = div.dataset.label;
                 const type = div.dataset.type || 'text';
                 const placeholder = div.dataset.placeholder || '';
@@ -1336,7 +1442,11 @@
 
                 if (span === '2') div.className = 'md:col-span-2';
 
-                if (profileEditMode) {
+                // Determine edit mode: parent fields use parentEditMode, child fields use profileEditMode
+                const isParentField = fieldId.startsWith('p-');
+                const editing = isParentField ? parentEditMode : profileEditMode;
+
+                if (editing) {
                     const reqMark = required ? ' <span class="text-red-400">*</span>' : '';
                     if (type === 'textarea') {
                         div.innerHTML = `<label class="block text-xs text-gray-500 mb-1">${label}${reqMark}</label>
@@ -1347,8 +1457,8 @@
                     }
                 } else {
                     div.innerHTML = label
-                        ? `<label class="block text-xs text-gray-500 mb-1">${label}</label><div class="view-val text-sm text-gray-800" style="min-height:1.5em">${val ? esc(val) : '<span class="text-gray-300">-</span>'}</div>`
-                        : `<div class="view-val text-sm text-gray-800" style="min-height:1.5em">${val ? esc(val) : ''}</div>`;
+                        ? `<label class="block text-xs text-gray-500 mb-1">${label}</label><div class="view-val text-sm text-gray-800 dark:text-gray-200" style="min-height:1.5em">${val ? esc(val) : '<span class="text-gray-300">-</span>'}</div>`
+                        : `<div class="view-val text-sm text-gray-800 dark:text-gray-200" style="min-height:1.5em">${val ? esc(val) : ''}</div>`;
                 }
             });
         }
@@ -1366,12 +1476,15 @@
             if (notesEl) student.notes = notesEl.value;
             if (profileData && profileData.student) student.parent_id = profileData.student.parent_id || '';
 
+            // For parents, parent fields are saved separately via parentSave()
             const parent = {};
-            if (profileData && profileData.parent) parent.id = profileData.parent.id || '';
-            ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
-                const el = document.getElementById('p-' + f);
-                if (el) parent[f] = el.value;
-            });
+            if (userType !== 'parent') {
+                if (profileData && profileData.parent) parent.id = profileData.parent.id || '';
+                ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                    const el = document.getElementById('p-' + f);
+                    if (el) parent[f] = el.value;
+                });
+            }
 
             const tracker_values = {};
             for (const [itemId, fieldId] of Object.entries(profileTrackerFieldMap)) {
