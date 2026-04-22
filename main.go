@@ -256,6 +256,7 @@ func main() {
 	mux.HandleFunc("/api/v1/password-reset", handlers.NoCache(app.RequireAdminAPI(app.HandlePasswordReset)))
 	mux.HandleFunc("/api/v1/memos/sync", handlers.NoCache(app.RequireAdminAPI(app.HandleMemosSync)))
 	mux.HandleFunc("/api/v1/tracker/items", handlers.NoCache(app.RequireAdminAPI(app.HandleTrackerItems)))
+	mux.HandleFunc("/api/v1/tracker/field-values", handlers.NoCache(app.RequireAdminAPI(app.HandleStudentFieldValues)))
 	mux.HandleFunc("/api/v1/admin/progress-summary", handlers.NoCache(app.RequireAdminAPI(app.HandleAdminProgressSummary)))
 	mux.HandleFunc("/api/v1/tracker/items/delete", handlers.NoCache(app.RequireAdminAPI(app.HandleTrackerItemDelete)))
 	mux.HandleFunc("/api/v1/tracker/responses", handlers.NoCache(app.RequireAdminAPI(app.HandleTrackerResponses)))

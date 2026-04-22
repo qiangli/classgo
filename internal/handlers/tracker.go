@@ -165,6 +165,40 @@ func (a *App) HandleLateSignoff(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// HandleStudentFieldValues returns distinct values for a student field (for criteria dropdowns).
+func (a *App) HandleStudentFieldValues(w http.ResponseWriter, r *http.Request) {
+	field := r.URL.Query().Get("field")
+	allowed := map[string]string{
+		"grade":          "grade",
+		"birthplace":     "birthplace",
+		"school":         "school",
+		"first_language": "first_language",
+	}
+	col, ok := allowed[field]
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid field"})
+		return
+	}
+	rows, err := a.DB.Query(
+		"SELECT DISTINCT "+col+" FROM students WHERE "+col+" IS NOT NULL AND "+col+" != '' AND active = 1 AND deleted = 0 ORDER BY "+col,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
+		return
+	}
+	defer rows.Close()
+	var values []string
+	for rows.Next() {
+		var v string
+		rows.Scan(&v)
+		values = append(values, v)
+	}
+	if values == nil {
+		values = []string{}
+	}
+	writeJSON(w, http.StatusOK, values)
+}
+
 // HandleTrackerItems handles CRUD for global tracker items (admin only).
 func (a *App) HandleTrackerItems(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {

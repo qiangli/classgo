@@ -376,7 +376,8 @@
                                     <th class="pb-2 font-medium text-center">Priority</th>
                                     <th class="pb-2 font-medium text-center">Recurrence</th>
                                     <th class="pb-2 font-medium text-center">End Date</th>
-                                    <th class="pb-2 font-medium text-center">Sign-off</th>
+                                    <th class="pb-2 font-medium text-center">Type</th>
+                                    <th class="pb-2 font-medium text-center">Target</th>
                                     <th class="pb-2 font-medium text-center">Active</th>
                                     <th class="pb-2 font-medium text-right">Actions</th>
                                 </tr></thead>
@@ -680,15 +681,62 @@
                     <label class="block text-sm text-gray-600 mb-1">Category</label>
                     <input type="text" id="tracker-item-category" class="w-full px-3 py-2 border rounded-lg text-sm outline-none" placeholder="e.g. Math, SAT Prep">
                 </div>
-                <div class="flex items-center gap-6">
-                    <label class="flex items-center gap-2 text-sm text-gray-600">
-                        <input type="checkbox" id="tracker-item-requires-signoff" checked class="rounded">
-                        Requires sign-off at checkout
-                    </label>
-                    <label class="flex items-center gap-2 text-sm text-gray-600">
-                        <input type="checkbox" id="tracker-item-active" checked class="rounded">
-                        Active
-                    </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Type</label>
+                        <select id="tracker-item-type" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                            <option value="todo">Todo (checkout signoff)</option>
+                            <option value="task" selected>Task (optional)</option>
+                            <option value="reminder">Reminder (info only)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end pb-1">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" id="tracker-item-active" checked class="rounded">
+                            Active
+                        </label>
+                    </div>
+                </div>
+                <!-- Criteria: Target Students -->
+                <div>
+                    <button type="button" onclick="toggleCriteriaSection()" class="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800">
+                        <span id="criteria-arrow" class="inline-block transition-transform duration-200 text-xs">&#9656;</span>
+                        Target Students (optional filter)
+                    </button>
+                    <div id="criteria-section" class="hidden mt-2 space-y-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">Leave empty to apply to all students</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-0.5">Grade Min</label>
+                                <input type="number" id="criteria-grade-min" min="1" max="12" class="w-full px-2 py-1 border rounded text-sm outline-none" placeholder="e.g. 9">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-0.5">Grade Max</label>
+                                <input type="number" id="criteria-grade-max" min="1" max="12" class="w-full px-2 py-1 border rounded text-sm outline-none" placeholder="e.g. 12">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-0.5">Birthplace</label>
+                            <div id="criteria-birthplace-list" class="flex flex-wrap gap-1 mb-1"></div>
+                            <select id="criteria-birthplace" onchange="addCriteriaTag('birthplace', this)" class="w-full px-2 py-1 border rounded text-sm outline-none">
+                                <option value="">-- select --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-0.5">School</label>
+                            <div id="criteria-school-list" class="flex flex-wrap gap-1 mb-1"></div>
+                            <select id="criteria-school" onchange="addCriteriaTag('school', this)" class="w-full px-2 py-1 border rounded text-sm outline-none">
+                                <option value="">-- select --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-0.5">First Language</label>
+                            <div id="criteria-first_language-list" class="flex flex-wrap gap-1 mb-1"></div>
+                            <select id="criteria-first_language" onchange="addCriteriaTag('first_language', this)" class="w-full px-2 py-1 border rounded text-sm outline-none">
+                                <option value="">-- select --</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
@@ -1292,7 +1340,22 @@
             }
             empty.classList.add('hidden');
             const pColors = { high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-gray-100 text-gray-500' };
-            tbody.innerHTML = trackerItems.map(it => `
+            const typeLabels = { todo: 'Todo', task: 'Task', reminder: 'Info' };
+            const typeColors = { todo: 'bg-amber-50 text-amber-600', task: 'bg-blue-50 text-blue-600', reminder: 'bg-gray-100 text-gray-500' };
+            tbody.innerHTML = trackerItems.map(it => {
+                let targetLabel = 'All';
+                if (it.criteria) {
+                    try {
+                        const c = JSON.parse(it.criteria);
+                        const parts = [];
+                        if (c.grade_min || c.grade_max) parts.push('Grade ' + (c.grade_min||'') + '-' + (c.grade_max||''));
+                        if (c.birthplace) parts.push(c.birthplace.join(', '));
+                        if (c.school) parts.push(c.school.join(', '));
+                        if (c.first_language) parts.push(c.first_language.join(', '));
+                        if (parts.length) targetLabel = parts.join('; ');
+                    } catch(e) {}
+                }
+                return `
                 <tr class="border-b hover:bg-gray-50 ${it.deleted ? 'opacity-40' : ''}">
                     <td class="py-2 text-sm text-gray-700">${esc(it.name)}${it.category ? ` <span class="text-xs text-gray-400">(${esc(it.category)})</span>` : ''}</td>
                     <td class="py-2 text-sm text-gray-500">${esc(it.notes || '')}</td>
@@ -1301,7 +1364,8 @@
                     </td>
                     <td class="py-2 text-center text-xs text-gray-500">${it.recurrence}</td>
                     <td class="py-2 text-center text-xs text-gray-500">${it.end_date || '-'}</td>
-                    <td class="py-2 text-center">${it.requires_signoff ? '<span class="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded">Yes</span>' : '<span class="text-xs text-gray-400">No</span>'}</td>
+                    <td class="py-2 text-center"><span class="text-xs px-2 py-0.5 rounded ${typeColors[it.type] || typeColors.task}">${typeLabels[it.type] || it.type}</span></td>
+                    <td class="py-2 text-center text-xs text-gray-500" title="${esc(it.criteria || '')}">${esc(targetLabel)}</td>
                     <td class="py-2 text-center">
                         <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${it.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${it.active ? 'Yes' : 'No'}</span>
                     </td>
@@ -1309,13 +1373,16 @@
                         <button onclick="editTrackerItem(${it.id})" class="text-indigo-600 hover:text-indigo-800 text-sm">Edit</button>
                         <button onclick="deleteTrackerItem(${it.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-        function openTrackerItemModal(item) {
+        // Criteria tag state
+        let criteriaSelected = { birthplace: [], school: [], first_language: [] };
+
+        async function openTrackerItemModal(item) {
             document.getElementById('tracker-item-id').value = item ? item.id : 0;
             document.getElementById('tracker-item-name').value = item ? item.name : '';
             document.getElementById('tracker-item-notes').value = item ? (item.notes || '') : '';
@@ -1324,9 +1391,34 @@
             document.getElementById('tracker-item-priority').value = item ? (item.priority || 'medium') : 'medium';
             document.getElementById('tracker-item-recurrence').value = item ? (item.recurrence || 'daily') : 'daily';
             document.getElementById('tracker-item-category').value = item ? (item.category || '') : '';
-            document.getElementById('tracker-item-requires-signoff').checked = item ? (item.requires_signoff !== false) : true;
+            document.getElementById('tracker-item-type').value = item ? (item.type || 'task') : 'task';
             document.getElementById('tracker-item-active').checked = item ? item.active : true;
             document.getElementById('tracker-modal-title').textContent = item ? 'Edit Tracker Item' : 'Add Tracker Item';
+
+            // Parse and populate criteria
+            criteriaSelected = { birthplace: [], school: [], first_language: [] };
+            document.getElementById('criteria-grade-min').value = '';
+            document.getElementById('criteria-grade-max').value = '';
+            if (item && item.criteria) {
+                try {
+                    const c = JSON.parse(item.criteria);
+                    if (c.grade_min) document.getElementById('criteria-grade-min').value = c.grade_min;
+                    if (c.grade_max) document.getElementById('criteria-grade-max').value = c.grade_max;
+                    if (c.birthplace) criteriaSelected.birthplace = [...c.birthplace];
+                    if (c.school) criteriaSelected.school = [...c.school];
+                    if (c.first_language) criteriaSelected.first_language = [...c.first_language];
+                } catch(e) {}
+            }
+            renderCriteriaTags();
+
+            // Show criteria section if criteria is set
+            const hasAnyCriteria = item && item.criteria && item.criteria !== '{}';
+            document.getElementById('criteria-section').classList.toggle('hidden', !hasAnyCriteria);
+            document.getElementById('criteria-arrow').style.transform = hasAnyCriteria ? 'rotate(90deg)' : '';
+
+            // Load dropdown options
+            await loadCriteriaDropdowns();
+
             document.getElementById('tracker-modal').classList.remove('hidden');
         }
 
@@ -1345,18 +1437,31 @@
             const notes = document.getElementById('tracker-item-notes').value.trim();
             const active = document.getElementById('tracker-item-active').checked;
             if (!name) { showToast('Name is required', 'error'); return; }
+
+            // Build criteria JSON
+            const criteria = {};
+            const gmin = parseInt(document.getElementById('criteria-grade-min').value);
+            const gmax = parseInt(document.getElementById('criteria-grade-max').value);
+            if (gmin) criteria.grade_min = gmin;
+            if (gmax) criteria.grade_max = gmax;
+            if (criteriaSelected.birthplace.length) criteria.birthplace = criteriaSelected.birthplace;
+            if (criteriaSelected.school.length) criteria.school = criteriaSelected.school;
+            if (criteriaSelected.first_language.length) criteria.first_language = criteriaSelected.first_language;
+            const criteriaStr = Object.keys(criteria).length > 0 ? JSON.stringify(criteria) : '';
+
             try {
                 await fetch('/api/v1/tracker/items', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         id: id || undefined, name, notes, active,
+                        type: document.getElementById('tracker-item-type').value || 'task',
                         start_date: document.getElementById('tracker-item-start-date').value || '',
                         end_date: document.getElementById('tracker-item-end-date').value || '',
                         priority: document.getElementById('tracker-item-priority').value || 'medium',
                         recurrence: document.getElementById('tracker-item-recurrence').value || 'daily',
                         category: document.getElementById('tracker-item-category').value.trim() || '',
-                        requires_signoff: document.getElementById('tracker-item-requires-signoff').checked
+                        criteria: criteriaStr
                     })
                 });
                 closeTrackerModal();
@@ -1374,6 +1479,51 @@
                 });
                 loadTrackerItems();
             } catch(e) { showToast('Failed to delete', 'error'); }
+        }
+
+        // Criteria helpers
+        function toggleCriteriaSection() {
+            const sec = document.getElementById('criteria-section');
+            const arrow = document.getElementById('criteria-arrow');
+            sec.classList.toggle('hidden');
+            arrow.style.transform = sec.classList.contains('hidden') ? '' : 'rotate(90deg)';
+        }
+
+        async function loadCriteriaDropdowns() {
+            for (const field of ['birthplace', 'school', 'first_language']) {
+                try {
+                    const res = await fetch('/api/v1/tracker/field-values?field=' + field);
+                    const values = await res.json();
+                    const sel = document.getElementById('criteria-' + field);
+                    sel.innerHTML = '<option value="">-- select --</option>' +
+                        values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+                } catch(e) {}
+            }
+        }
+
+        function addCriteriaTag(field, selectEl) {
+            const val = selectEl.value;
+            if (!val || criteriaSelected[field].includes(val)) { selectEl.value = ''; return; }
+            criteriaSelected[field].push(val);
+            selectEl.value = '';
+            renderCriteriaTags();
+        }
+
+        function removeCriteriaTag(field, val) {
+            criteriaSelected[field] = criteriaSelected[field].filter(v => v !== val);
+            renderCriteriaTags();
+        }
+
+        function renderCriteriaTags() {
+            for (const field of ['birthplace', 'school', 'first_language']) {
+                const container = document.getElementById('criteria-' + field + '-list');
+                container.innerHTML = criteriaSelected[field].map(v =>
+                    `<span class="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">
+                        ${esc(v)}
+                        <button type="button" onclick="removeCriteriaTag('${field}','${esc(v)}')" class="text-indigo-400 hover:text-indigo-700">&times;</button>
+                    </span>`
+                ).join('');
+            }
         }
 
         // Student Ad Hoc Items
