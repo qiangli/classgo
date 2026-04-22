@@ -88,6 +88,32 @@ export async function clearStudentTrackerItemsViaAPI(cookie: string, studentId: 
   }
 }
 
+export async function userLogin(entityId: string, password: string): Promise<string | null> {
+  // Setup (first-time) then login
+  const setup = await fetch(`${BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entity_id: entityId, password, action: 'setup' }),
+    redirect: 'manual',
+  });
+  const setupCookie = setup.headers.get('set-cookie');
+  if (setupCookie) {
+    const match = setupCookie.match(/classgo_session=([^;]+)/);
+    if (match) return `classgo_session=${match[1]}`;
+  }
+  // Already set up — do a regular login
+  const login = await fetch(`${BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entity_id: entityId, password, action: 'login' }),
+    redirect: 'manual',
+  });
+  const loginCookie = login.headers.get('set-cookie');
+  if (!loginCookie) return null;
+  const match = loginCookie.match(/classgo_session=([^;]+)/);
+  return match ? `classgo_session=${match[1]}` : null;
+}
+
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   const res = await fetch(`${BASE_URL}/admin/api/login`, {
     method: 'POST',
