@@ -845,6 +845,7 @@
         }
 
         // ==================== ATTENDANCE ====================
+        function localDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
         let attendeesData = [], sortColumn = 'check_in', sortAsc = false;
 
         function updateSortArrows() { document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = ''); const el = document.getElementById('sort-' + sortColumn); if (el) el.textContent = sortAsc ? ' \u25B2' : ' \u25BC'; }
@@ -854,7 +855,7 @@
 
         // Initialize date pickers to today
         (function() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = localDate(new Date());
             document.getElementById('att-from').value = today;
             document.getElementById('att-to').value = today;
         })();
@@ -945,8 +946,8 @@
                     from.setDate(today.getDate() - 29);
                     break;
             }
-            document.getElementById('att-from').value = from.toISOString().split('T')[0];
-            document.getElementById('att-to').value = to.toISOString().split('T')[0];
+            document.getElementById('att-from').value = localDate(from);
+            document.getElementById('att-to').value = localDate(to);
             // Highlight active button
             document.querySelectorAll('.att-quick').forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-700'));
             event.target.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-700');
@@ -1037,7 +1038,7 @@
         let currentPinMode = 'off';
 
         (function initAudit() {
-            document.getElementById('audit-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('audit-date').value = localDate(new Date());
             fetch('/api/settings').then(r => r.json()).then(s => {
                 currentPinMode = s.pin_mode || 'off';
                 updatePinModeButtons();

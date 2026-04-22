@@ -191,13 +191,14 @@ type TrackerResponse struct {
 }
 
 type DueItem struct {
-	ItemType   string `json:"item_type"`
-	ItemID     int    `json:"item_id"`
-	Name       string `json:"name"`
-	Priority   string `json:"priority"`
-	Category   string `json:"category"`
-	EndDate    string `json:"end_date"`
-	Recurrence string `json:"recurrence"`
+	ItemType        string `json:"item_type"`
+	ItemID          int    `json:"item_id"`
+	Name            string `json:"name"`
+	Priority        string `json:"priority"`
+	Category        string `json:"category"`
+	EndDate         string `json:"end_date"`
+	Recurrence      string `json:"recurrence"`
+	RequiresSignoff bool   `json:"requires_signoff"`
 }
 
 type ProgressStats struct {

@@ -240,17 +240,9 @@ func PendingSignoffItems(db *sql.DB, studentID string) ([]models.DueItem, error)
 		return nil, err
 	}
 
-	// Filter: only items with requires_signoff=true (both global and personal)
 	var pending []models.DueItem
 	for _, it := range allDue {
-		var reqSignoff bool
-		switch it.ItemType {
-		case "personal":
-			db.QueryRow("SELECT requires_signoff FROM student_tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
-		case "global":
-			db.QueryRow("SELECT requires_signoff FROM tracker_items WHERE id = ? AND deleted = 0", it.ItemID).Scan(&reqSignoff)
-		}
-		if reqSignoff {
+		if it.RequiresSignoff {
 			pending = append(pending, it)
 		}
 	}
@@ -279,7 +271,7 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 
 	rows, err := db.Query(`
 		-- Global items (daily recurrence by default)
-		SELECT 'global' AS item_type, ti.id AS item_id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence
+		SELECT 'global' AS item_type, ti.id AS item_id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence, ti.requires_signoff
 		FROM tracker_items ti
 		WHERE ti.active = 1 AND ti.deleted = 0
 		AND (ti.start_date IS NULL OR ti.start_date <= ?)
@@ -300,7 +292,7 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 		)
 		UNION ALL
 		-- Student-specific items (one-time by default)
-		SELECT 'personal' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
+		SELECT 'personal' AS item_type, sti.id AS item_id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence, sti.requires_signoff
 		FROM student_tracker_items sti
 		WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0 AND sti.completed = 0
 		AND (sti.start_date IS NULL OR sti.start_date <= ?)
@@ -340,7 +332,7 @@ func GetDueItems(db *sql.DB, studentID string, date string) ([]models.DueItem, e
 	var items []models.DueItem
 	for rows.Next() {
 		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence); err != nil {
+		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &it.RequiresSignoff); err != nil {
 			return nil, err
 		}
 		items = append(items, it)
@@ -746,10 +738,10 @@ func GetParentStudentIDs(db *sql.DB, parentID string) ([]string, error) {
 // GetAllTasksForStudent returns both global and student-specific items for calendar/list views.
 func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, error) {
 	rows, err := db.Query(`
-		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence
+		SELECT 'global', ti.id, ti.name, ti.priority, COALESCE(ti.category,''), COALESCE(ti.end_date,''), ti.recurrence, ti.requires_signoff
 		FROM tracker_items ti WHERE ti.active = 1 AND ti.deleted = 0
 		UNION ALL
-		SELECT 'personal', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence
+		SELECT 'personal', sti.id, sti.name, sti.priority, COALESCE(sti.category,''), COALESCE(sti.end_date,''), sti.recurrence, sti.requires_signoff
 		FROM student_tracker_items sti WHERE sti.student_id = ? AND sti.active = 1 AND sti.deleted = 0`,
 		studentID,
 	)
@@ -761,7 +753,7 @@ func GetAllTasksForStudent(db *sql.DB, studentID string) ([]models.DueItem, erro
 	var items []models.DueItem
 	for rows.Next() {
 		var it models.DueItem
-		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence); err != nil {
+		if err := rows.Scan(&it.ItemType, &it.ItemID, &it.Name, &it.Priority, &it.Category, &it.EndDate, &it.Recurrence, &it.RequiresSignoff); err != nil {
 			return nil, err
 		}
 		items = append(items, it)

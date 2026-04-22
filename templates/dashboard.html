@@ -514,6 +514,7 @@
         const userType = '{{.UserType}}';
         const entityID = '{{.EntityID}}';
         const userName = '{{.UserName}}';
+        function localDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
         // ==================== NAVIGATION ====================
         let currentSection = 'tasks';
@@ -641,7 +642,7 @@
                 return 0;
             });
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = localDate(new Date());
             container.innerHTML = items.map(it => {
                 const overdue = it.end_date && it.end_date < today && !it.completed;
                 const canEdit = it.type === 'personal' && (it.owner === entityID || userType === 'admin');
@@ -688,7 +689,7 @@
             for (const g of (allTasks.global_items || [])) allItems.push(g);
             for (const s of (allTasks.student_items || [])) allItems.push(s);
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = localDate(new Date());
             let html = '';
             for (let i = 0; i < startDay; i++) html += '<div class="bg-gray-50 cal-day p-1"></div>';
 
@@ -1421,8 +1422,8 @@
             // Set default progress dates
             const today = new Date();
             const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
-            document.getElementById('progress-start').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('progress-end').value = today.toISOString().split('T')[0];
+            document.getElementById('progress-start').value = localDate(weekAgo);
+            document.getElementById('progress-end').value = localDate(today);
 
             // Load student list for teacher/parent
             if (userType === 'teacher' || userType === 'parent') {
