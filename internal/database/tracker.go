@@ -17,7 +17,8 @@ const taskItemCols = `id, scope, COALESCE(schedule_id,''), COALESCE(student_id,'
 	COALESCE(criteria,''), COALESCE(group_id,''), COALESCE(group_order,0),
 	COALESCE(created_by,'admin'), COALESCE(owner_type,'admin'),
 	completed, COALESCE(completed_at,''), COALESCE(completed_by,''),
-	active, deleted, COALESCE(created_at,''), COALESCE(updated_at,'')`
+	active, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,''),
+	COALESCE(created_at,''), COALESCE(updated_at,'')`
 
 func scanTaskItem(s interface{ Scan(...any) error }) (models.TaskItem, error) {
 	var it models.TaskItem
@@ -27,7 +28,8 @@ func scanTaskItem(s interface{ Scan(...any) error }) (models.TaskItem, error) {
 		&it.Criteria, &it.GroupID, &it.GroupOrder,
 		&it.CreatedBy, &it.OwnerType,
 		&it.Completed, &it.CompletedAt, &it.CompletedBy,
-		&it.Active, &it.Deleted, &it.CreatedAt, &it.UpdatedAt)
+		&it.Active, &it.Deleted, &it.DeletedAt, &it.DeletedBy,
+		&it.CreatedAt, &it.UpdatedAt)
 	return it, err
 }
 
@@ -180,20 +182,20 @@ func SaveStudentTrackerItem(db *sql.DB, item models.TaskItem) (int64, error) {
 	return SaveTaskItem(db, item)
 }
 
-// DeleteTaskItem soft-deletes a task item.
-func DeleteTaskItem(db *sql.DB, id int) error {
-	_, err := db.Exec("UPDATE task_items SET deleted = 1 WHERE id = ?", id)
+// DeleteTaskItem soft-deletes a task item with audit info.
+func DeleteTaskItem(db *sql.DB, id int, deletedBy string) error {
+	_, err := db.Exec("UPDATE task_items SET deleted = 1, deleted_at = datetime('now','localtime'), deleted_by = ? WHERE id = ?", deletedBy, id)
 	return err
 }
 
 // DeleteTrackerItem soft-deletes a task item. Backward-compat wrapper.
-func DeleteTrackerItem(db *sql.DB, id int) error {
-	return DeleteTaskItem(db, id)
+func DeleteTrackerItem(db *sql.DB, id int, deletedBy string) error {
+	return DeleteTaskItem(db, id, deletedBy)
 }
 
 // DeleteStudentTrackerItem soft-deletes a task item. Backward-compat wrapper.
-func DeleteStudentTrackerItem(db *sql.DB, id int) error {
-	return DeleteTaskItem(db, id)
+func DeleteStudentTrackerItem(db *sql.DB, id int, deletedBy string) error {
+	return DeleteTaskItem(db, id, deletedBy)
 }
 
 // --- Complete / Uncomplete ---

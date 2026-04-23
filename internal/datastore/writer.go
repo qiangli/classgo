@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -190,13 +191,13 @@ func writeScheduleSheet(f *excelize.File, schedules []models.Schedule) {
 func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 	sheet := "Attendance"
 	f.NewSheet(sheet)
-	headers := []string{"ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"}
+	headers := []string{"Student ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 
-	rows, err := db.Query("SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC")
+	rows, err := db.Query("SELECT student_id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC")
 	if err != nil {
 		return err
 	}
@@ -204,10 +205,9 @@ func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 
 	r := 2
 	for rows.Next() {
-		var id int
-		var studentName, deviceType, checkIn string
+		var studentID, studentName, deviceType, checkIn string
 		var checkOut sql.NullString
-		if err := rows.Scan(&id, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
+		if err := rows.Scan(&studentID, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
 			continue
 		}
 		inTime, _ := models.ParseTimestamp(checkIn)
@@ -220,7 +220,7 @@ func writeAttendanceSheet(f *excelize.File, db *sql.DB) error {
 			durationStr = models.FormatDuration(outTime.Sub(inTime))
 		}
 
-		f.SetCellValue(sheet, cellName(1, r), id)
+		f.SetCellValue(sheet, cellName(1, r), studentID)
 		f.SetCellValue(sheet, cellName(2, r), studentName)
 		f.SetCellValue(sheet, cellName(3, r), deviceType)
 		f.SetCellValue(sheet, cellName(4, r), checkInFmt)
@@ -272,7 +272,8 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 	q := `SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
 	      COALESCE(dob,''), COALESCE(birthplace,''), COALESCE(years_in_us,''), COALESCE(first_language,''),
 	      COALESCE(previous_schools,''), COALESCE(courses_outside,''), COALESCE(profile_status,''),
-	      active, deleted, COALESCE(require_pin, 0), COALESCE(personal_pin, '') FROM students`
+	      active, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,''),
+	      COALESCE(require_pin, 0), COALESCE(personal_pin, '') FROM students`
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -290,7 +291,7 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 		var personalPIN string
 		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes,
 			&s.DOB, &s.Birthplace, &s.YearsInUS, &s.FirstLanguage, &s.PreviousSchools, &s.CoursesOutside, &s.ProfileStatus,
-			&active, &deleted, &requirePIN, &personalPIN); err != nil {
+			&active, &deleted, &s.DeletedAt, &s.DeletedBy, &requirePIN, &personalPIN); err != nil {
 			return nil, err
 		}
 		s.Grade = grade.String
@@ -312,7 +313,7 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 }
 
 func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
-	q := "SELECT id, first_name, last_name, email, phone, COALESCE(email2,''), COALESCE(phone2,''), address, notes, deleted FROM parents"
+	q := "SELECT id, first_name, last_name, email, phone, COALESCE(email2,''), COALESCE(phone2,''), address, notes, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM parents"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -327,7 +328,7 @@ func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
 		var p models.Parent
 		var email, phone, address, notes sql.NullString
 		var deleted int
-		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &p.Email2, &p.Phone2, &address, &notes, &deleted); err != nil {
+		if err := rows.Scan(&p.ID, &p.FirstName, &p.LastName, &email, &phone, &p.Email2, &p.Phone2, &address, &notes, &deleted, &p.DeletedAt, &p.DeletedBy); err != nil {
 			return nil, err
 		}
 		p.Email = email.String
@@ -341,7 +342,7 @@ func queryParents(db *sql.DB, includeDeleted bool) ([]models.Parent, error) {
 }
 
 func queryTeachers(db *sql.DB, includeDeleted bool) ([]models.Teacher, error) {
-	q := "SELECT id, first_name, last_name, email, phone, address, subjects, active, deleted FROM teachers"
+	q := "SELECT id, first_name, last_name, email, phone, address, subjects, active, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM teachers"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -356,7 +357,7 @@ func queryTeachers(db *sql.DB, includeDeleted bool) ([]models.Teacher, error) {
 		var t models.Teacher
 		var email, phone, address, subjects sql.NullString
 		var active, deleted int
-		if err := rows.Scan(&t.ID, &t.FirstName, &t.LastName, &email, &phone, &address, &subjects, &active, &deleted); err != nil {
+		if err := rows.Scan(&t.ID, &t.FirstName, &t.LastName, &email, &phone, &address, &subjects, &active, &deleted, &t.DeletedAt, &t.DeletedBy); err != nil {
 			return nil, err
 		}
 		t.Email = email.String
@@ -371,7 +372,7 @@ func queryTeachers(db *sql.DB, includeDeleted bool) ([]models.Teacher, error) {
 }
 
 func queryRooms(db *sql.DB, includeDeleted bool) ([]models.Room, error) {
-	q := "SELECT id, name, capacity, notes, deleted FROM rooms"
+	q := "SELECT id, name, capacity, notes, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM rooms"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -387,7 +388,7 @@ func queryRooms(db *sql.DB, includeDeleted bool) ([]models.Room, error) {
 		var capacity sql.NullInt64
 		var notes sql.NullString
 		var deleted int
-		if err := rows.Scan(&r.ID, &r.Name, &capacity, &notes, &deleted); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &capacity, &notes, &deleted, &r.DeletedAt, &r.DeletedBy); err != nil {
 			return nil, err
 		}
 		r.Capacity = int(capacity.Int64)
@@ -399,7 +400,7 @@ func queryRooms(db *sql.DB, includeDeleted bool) ([]models.Room, error) {
 }
 
 func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) {
-	q := "SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted FROM schedules"
+	q := "SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM schedules"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -414,7 +415,7 @@ func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) 
 		var s models.Schedule
 		var teacherID, roomID, subject, studentIDs, effectiveFrom, effectiveUntil sql.NullString
 		var deleted int
-		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil, &deleted); err != nil {
+		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil, &deleted, &s.DeletedAt, &s.DeletedBy); err != nil {
 			return nil, err
 		}
 		s.TeacherID = teacherID.String
@@ -427,6 +428,65 @@ func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) 
 		result = append(result, s)
 	}
 	return result, rows.Err()
+}
+
+// ExportDailyAttendanceXLSX writes today's attendance records to an XLSX file
+// in the attendances/ subdirectory of dir. The filename includes the date:
+// attendance-YYYY-MM-DD.xlsx.
+func ExportDailyAttendanceXLSX(db *sql.DB, dir string) error {
+	outDir := filepath.Join(dir, "attendances")
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	today := time.Now().Format("2006-01-02")
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Attendance"
+	f.SetSheetName("Sheet1", sheet)
+	headers := []string{"Student ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"}
+	for i, h := range headers {
+		f.SetCellValue(sheet, cellName(i+1, 1), h)
+	}
+
+	rows, err := db.Query(
+		"SELECT student_id, student_name, device_type, check_in_time, check_out_time FROM attendance WHERE date(check_in_time) = ? ORDER BY check_in_time DESC",
+		today,
+	)
+	if err != nil {
+		return fmt.Errorf("query attendance: %w", err)
+	}
+	defer rows.Close()
+
+	r := 2
+	for rows.Next() {
+		var studentID, studentName, deviceType, checkIn string
+		var checkOut sql.NullString
+		if err := rows.Scan(&studentID, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
+			continue
+		}
+		inTime, _ := models.ParseTimestamp(checkIn)
+		checkInFmt := inTime.Format("2006-01-02 3:04 PM")
+		checkOutFmt := ""
+		durationStr := ""
+		if checkOut.Valid {
+			outTime, _ := models.ParseTimestamp(checkOut.String)
+			checkOutFmt = outTime.Format("2006-01-02 3:04 PM")
+			durationStr = models.FormatDuration(outTime.Sub(inTime))
+		}
+
+		f.SetCellValue(sheet, cellName(1, r), studentID)
+		f.SetCellValue(sheet, cellName(2, r), studentName)
+		f.SetCellValue(sheet, cellName(3, r), deviceType)
+		f.SetCellValue(sheet, cellName(4, r), checkInFmt)
+		f.SetCellValue(sheet, cellName(5, r), checkOutFmt)
+		f.SetCellValue(sheet, cellName(6, r), durationStr)
+		r++
+	}
+
+	filename := filepath.Join(outDir, fmt.Sprintf("attendance-%s.xlsx", today))
+	return f.SaveAs(filename)
 }
 
 func cellName(col, row int) string {

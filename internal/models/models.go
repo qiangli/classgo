@@ -7,12 +7,18 @@ import (
 	"time"
 )
 
+type Administrator struct {
+	Username string `json:"username"`
+	Role     string `json:"role"` // "admin" or "superadmin"
+}
+
 type Config struct {
-	AppName string `json:"app_name"`
-	DataDir string `json:"data_dir"`
-	PinMode string `json:"pin_mode"` // "off", "center", "per-student"
-	Port    int    `json:"port,omitempty"`
-	DBPath  string `json:"db_path,omitempty"`
+	AppName        string          `json:"app_name"`
+	DataDir        string          `json:"data_dir"`
+	PinMode        string          `json:"pin_mode"` // "off", "center", "per-student"
+	Port           int             `json:"port,omitempty"`
+	DBPath         string          `json:"db_path,omitempty"`
+	Administrators []Administrator `json:"administrators,omitempty"`
 }
 
 type CheckinAudit struct {
@@ -50,6 +56,8 @@ type Student struct {
 	ProfileStatus   string `json:"profile_status"`
 	Active          bool   `json:"active"`
 	Deleted         bool   `json:"deleted"`
+	DeletedAt       string `json:"deleted_at,omitempty"`
+	DeletedBy       string `json:"deleted_by,omitempty"`
 	RequirePIN      bool   `json:"require_pin"`
 	PersonalPIN     string `json:"personal_pin,omitempty"`
 }
@@ -65,6 +73,8 @@ type Parent struct {
 	Address   string `json:"address"`
 	Notes     string `json:"notes"`
 	Deleted   bool   `json:"deleted"`
+	DeletedAt string `json:"deleted_at,omitempty"`
+	DeletedBy string `json:"deleted_by,omitempty"`
 }
 
 type Teacher struct {
@@ -77,14 +87,18 @@ type Teacher struct {
 	Subjects  []string `json:"subjects"`
 	Active    bool     `json:"active"`
 	Deleted   bool     `json:"deleted"`
+	DeletedAt string   `json:"deleted_at,omitempty"`
+	DeletedBy string   `json:"deleted_by,omitempty"`
 }
 
 type Room struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Capacity int    `json:"capacity"`
-	Notes    string `json:"notes"`
-	Deleted  bool   `json:"deleted"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Capacity  int    `json:"capacity"`
+	Notes     string `json:"notes"`
+	Deleted   bool   `json:"deleted"`
+	DeletedAt string `json:"deleted_at,omitempty"`
+	DeletedBy string `json:"deleted_by,omitempty"`
 }
 
 type Schedule struct {
@@ -99,10 +113,13 @@ type Schedule struct {
 	EffectiveFrom  string   `json:"effective_from"`
 	EffectiveUntil string   `json:"effective_until"`
 	Deleted        bool     `json:"deleted"`
+	DeletedAt      string   `json:"deleted_at,omitempty"`
+	DeletedBy      string   `json:"deleted_by,omitempty"`
 }
 
 type Attendance struct {
 	ID              int        `json:"id"`
+	StudentID       string     `json:"student_id"`
 	StudentName     string     `json:"student_name"`
 	DeviceType      string     `json:"device_type"`
 	CheckInTime     time.Time  `json:"-"`
@@ -127,6 +144,7 @@ type AdminData struct {
 	Attendees     []Attendance
 	Count         int
 	Date          string
+	IsSuperAdmin  bool
 }
 
 type CheckInPageData struct {
@@ -175,6 +193,8 @@ type TaskItem struct {
 	CompletedBy string `json:"completed_by"`
 	Active      bool   `json:"active"`
 	Deleted     bool   `json:"deleted"`
+	DeletedAt   string `json:"deleted_at,omitempty"`
+	DeletedBy   string `json:"deleted_by,omitempty"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
 }

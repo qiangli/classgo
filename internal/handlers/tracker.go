@@ -272,7 +272,14 @@ func (a *App) HandleTrackerItemDelete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
 		return
 	}
-	if err := database.DeleteTrackerItem(a.DB, req.ID); err != nil {
+	deletedBy := "admin"
+	if sess := a.GetSession(r); sess != nil {
+		deletedBy = sess.EntityID
+		if deletedBy == "" {
+			deletedBy = sess.Username
+		}
+	}
+	if err := database.DeleteTrackerItem(a.DB, req.ID, deletedBy); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return
 	}
@@ -430,7 +437,14 @@ func (a *App) HandleStudentTrackerItemDelete(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	}
-	if err := database.DeleteStudentTrackerItem(a.DB, req.ID); err != nil {
+	deletedBy := "admin"
+	if sess != nil {
+		deletedBy = sess.EntityID
+		if deletedBy == "" {
+			deletedBy = sess.Username
+		}
+	}
+	if err := database.DeleteStudentTrackerItem(a.DB, req.ID, deletedBy); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return
 	}
@@ -809,7 +823,14 @@ func (a *App) HandleAssignLibraryItem(w http.ResponseWriter, r *http.Request) {
 
 	// Remove the unassigned template now that it has been assigned
 	if src.StudentID == "" {
-		database.DeleteTaskItem(a.DB, src.ID)
+		assignedBy := "system"
+		if sess := a.GetSession(r); sess != nil {
+			assignedBy = sess.EntityID
+			if assignedBy == "" {
+				assignedBy = sess.Username
+			}
+		}
+		database.DeleteTaskItem(a.DB, src.ID, assignedBy)
 	}
 
 	// Notify via Memos

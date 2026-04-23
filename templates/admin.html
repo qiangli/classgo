@@ -7,6 +7,8 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <script src="/static/js/toast.js"></script>
+    <script src="/static/js/confirm.js"></script>
+    {{if .IsSuperAdmin}}<script src="/static/scheduler/app.js"></script>{{end}}
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||localStorage.getItem('admin-theme')||'system';
@@ -100,6 +102,12 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Data</span>
             </a>
+            {{if .IsSuperAdmin}}
+            <a href="#scheduler" onclick="navigate('scheduler'); return false" id="nav-scheduler" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Scheduler">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Scheduler</span>
+            </a>
+            {{end}}
         </div>
 
         <div class="flex flex-col gap-1 w-full mt-auto">
@@ -257,6 +265,7 @@
                             <thead>
                                 <tr class="border-b text-sm text-gray-400">
                                     <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('date')">Date <span id="sort-date" class="sort-arrow"></span></th>
+                                    <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('student_id')">ID <span id="sort-student_id" class="sort-arrow"></span></th>
                                     <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('student_name')">Name <span id="sort-student_name" class="sort-arrow"></span></th>
                                     <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('device_type')">Device <span id="sort-device_type" class="sort-arrow"></span></th>
                                     <th class="py-2 px-3 cursor-pointer hover:text-gray-600 select-none" onclick="sortBy('check_in')">Check In <span id="sort-check_in" class="sort-arrow"></span></th>
@@ -606,6 +615,27 @@
                     </div>
                 </div>
             </section>
+
+            {{if .IsSuperAdmin}}
+            <!-- Scheduler Section -->
+            <section id="section-scheduler" class="hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Monitoring <strong id="scheduler-job-count">0</strong> scheduled jobs</span>
+                        <span id="scheduler-connection-status" class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                            <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Disconnected
+                        </span>
+                    </div>
+                </div>
+                <div id="scheduler-error-banner" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg flex justify-between items-center">
+                    <span id="scheduler-error-message"></span>
+                    <button onclick="hideSchedulerError()" class="text-red-400 hover:text-red-600 text-xl">&times;</button>
+                </div>
+                <div id="scheduler-jobs-container">
+                    <div class="text-center py-12 text-gray-400">Loading scheduler...</div>
+                </div>
+            </section>
+            {{end}}
         </div>
     </main>
 
@@ -817,14 +847,15 @@
     <script>
         // ==================== NAVIGATION ====================
         let currentSection = 'checkin';
-        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'data'];
+        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'data'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
         const sectionMeta = {
             checkin:    { title: 'Check In / Out', subtitle: '{{.Date}}' },
             attendance: { title: 'Attendance', subtitle: '{{.Date}}' },
             schedule:   { title: 'Schedule', subtitle: 'Weekly Schedule' },
             progress:   { title: 'Progress', subtitle: 'Student completion overview & task management' },
             audit:      { title: 'Audit', subtitle: 'Anti-fraud monitoring & PIN settings' },
-            data:       { title: 'Data', subtitle: 'Manage entity data' }
+            data:       { title: 'Data', subtitle: 'Manage entity data' }{{if .IsSuperAdmin}},
+            scheduler:  { title: 'Scheduler', subtitle: 'Cron job monitoring & management' }{{end}}
         };
 
         function navigate(section) {
@@ -852,6 +883,7 @@
             if (section === 'checkin') loadPinOverrideList();
             if (section === 'audit') loadAuditData();
             if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
+            if (section === 'scheduler') initSchedulerUI();
 
             history.replaceState(null, '', '#' + section);
         }
@@ -897,8 +929,8 @@
         let attendeesData = [], sortColumn = 'check_in', sortAsc = false;
 
         function updateSortArrows() { document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = ''); const el = document.getElementById('sort-' + sortColumn); if (el) el.textContent = sortAsc ? ' \u25B2' : ' \u25BC'; }
-        function sortBy(col) { if (sortColumn === col) sortAsc = !sortAsc; else { sortColumn = col; sortAsc = (col === 'student_name' || col === 'device_type' || col === 'date'); } renderAttendees(); }
-        function getSortValue(a, col) { switch(col) { case 'date': return a.date||''; case 'student_name': return (a.student_name||'').toLowerCase(); case 'device_type': return a.device_type||''; case 'check_in': return a.check_in_raw||''; case 'check_out': return a.check_out_raw||''; case 'duration': return a.duration_minutes||0; } return ''; }
+        function sortBy(col) { if (sortColumn === col) sortAsc = !sortAsc; else { sortColumn = col; sortAsc = (col === 'student_id' || col === 'student_name' || col === 'device_type' || col === 'date'); } renderAttendees(); }
+        function getSortValue(a, col) { switch(col) { case 'date': return a.date||''; case 'student_id': return (a.student_id||'').toLowerCase(); case 'student_name': return (a.student_name||'').toLowerCase(); case 'device_type': return a.device_type||''; case 'check_in': return a.check_in_raw||''; case 'check_out': return a.check_out_raw||''; case 'duration': return a.duration_minutes||0; } return ''; }
         function getSortedAttendees() { return [...attendeesData].sort((a,b) => { let va = getSortValue(a,sortColumn), vb = getSortValue(b,sortColumn); if (typeof va === 'number') return sortAsc ? va-vb : vb-va; return sortAsc ? (va<vb?-1:va>vb?1:0) : (va>vb?-1:va<vb?1:0); }); }
 
         // Initialize date pickers to today
@@ -1014,6 +1046,7 @@
                 const badge = a.device_type === 'mobile' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600';
                 return `<tr class="border-b hover:bg-gray-50">
                     <td class="py-2 px-3 text-sm text-gray-500">${a.date || ''}</td>
+                    <td class="py-2 px-3 text-sm text-gray-500 font-mono">${a.student_id || ''}</td>
                     <td class="py-2 px-3 font-medium">${a.student_name}</td>
                     <td class="py-2 px-3"><span class="text-xs px-2 py-1 rounded-full ${badge}">${a.device_type}</span></td>
                     <td class="py-2 px-3 text-sm text-gray-500">${a.check_in_time}</td>
@@ -1072,8 +1105,8 @@
         }
 
         function exportCSV() {
-            const rows = [['Date','Name','Device','Check In','Check Out','Duration']];
-            getSortedAttendees().forEach(a => rows.push([a.date||'', a.student_name, a.device_type, a.check_in_time, a.check_out_time||'', a.duration||'']));
+            const rows = [['Date','Student ID','Name','Device','Check In','Check Out','Duration']];
+            getSortedAttendees().forEach(a => rows.push([a.date||'', a.student_id||'', a.student_name, a.device_type, a.check_in_time, a.check_out_time||'', a.duration||'']));
             const csv = rows.map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
             const from = document.getElementById('att-from').value || 'all';
             const to = document.getElementById('att-to').value || '';
@@ -1149,7 +1182,7 @@
         }
 
         async function resetStudentPinFromAudit(studentId) {
-            if (!confirm('Regenerate PIN for this student?')) return;
+            if (!await showConfirm('Regenerate PIN for this student?')) return;
             try {
                 const resp = await fetch('/api/v1/student/pin/reset', {
                     method: 'POST',
@@ -1470,7 +1503,7 @@
         }
 
         async function deleteTrackerItem(id) {
-            if (!confirm('Delete this tracker item?')) return;
+            if (!await showConfirm('Delete this tracker item?')) return;
             try {
                 await fetch('/api/v1/tracker/items/delete', {
                     method: 'POST',
@@ -1613,7 +1646,7 @@
         }
 
         async function deleteAdhocItem(id) {
-            if (!confirm('Delete this item?')) return;
+            if (!await showConfirm('Delete this item?')) return;
             try {
                 await fetch('/api/tracker/student-items/delete', {
                     method: 'POST',
@@ -2138,7 +2171,7 @@
         }
 
         async function deleteRecord(id) {
-            if (!confirm(`Delete this record? (ID: ${id})`)) return;
+            if (!await showConfirm(`Delete this record? (ID: ${id})`)) return;
             try {
                 const res = await fetch('/api/v1/data', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},

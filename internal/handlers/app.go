@@ -27,15 +27,17 @@ import (
 )
 
 type App struct {
-	DB          *sql.DB
-	Tmpl        *template.Template
-	AppName     string
-	DataDir     string
-	PinMode     string // "off", "center", "per-student"
-	MemosSyncer *memos.Syncer
-	MemosStore  *memosstore.Store
-	Sessions    *auth.SessionStore
-	RateLimiter *RateLimiter
+	DB             *sql.DB
+	Tmpl           *template.Template
+	AppName        string
+	DataDir        string
+	PinMode        string // "off", "center", "per-student"
+	MemosSyncer    *memos.Syncer
+	MemosStore     *memosstore.Store
+	Sessions       *auth.SessionStore
+	RateLimiter    *RateLimiter
+	Administrators []models.Administrator // from config.json
+	ProcessUser    string                 // OS user who started this process (always superadmin)
 
 	dailyPIN   string
 	pinDate    string
@@ -117,6 +119,45 @@ func (a *App) RequireAdminAPI(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// RequireSuperAdminAPI wraps an API handler to require superadmin role.
+func (a *App) RequireSuperAdminAPI(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := auth.GetSessionToken(r)
+		if token == "" {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Authentication required"})
+			return
+		}
+		sess, ok := a.Sessions.Get(token)
+		if !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "Session expired"})
+			return
+		}
+		if sess.Role != "admin" || !sess.IsSuperAdmin {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "Superadmin access required"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+// getAdminRole returns the admin role for the given OS username.
+// The process owner is always "superadmin". Other users are looked up
+// in the Administrators config list. Returns "" if the user is not authorized.
+func (a *App) getAdminRole(username string) string {
+	if username == a.ProcessUser {
+		return "superadmin"
+	}
+	for _, admin := range a.Administrators {
+		if admin.Username == username {
+			if admin.Role == "superadmin" || admin.Role == "admin" {
+				return admin.Role
+			}
+			return "admin" // default to admin if role is empty/invalid
+		}
+	}
+	return ""
+}
+
 // HandleLogin redirects to the unified entry page with mode=login.
 func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
@@ -177,10 +218,22 @@ func (a *App) HandleAdminLoginAPI(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
 		return
 	}
+
+	// Determine admin role: process owner is always superadmin
+	adminRole := a.getAdminRole(req.Username)
+	if adminRole == "" {
+		log.Printf("Admin login blocked for %q: not in administrators list", req.Username)
+		writeJSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "Access denied. User not authorized as administrator."})
+		return
+	}
+
 	a.clearExistingSession(r)
 	token := a.Sessions.Create(req.Username, "admin", "", "")
+	if adminRole == "superadmin" {
+		a.Sessions.SetSuperAdmin(token)
+	}
 	auth.SetSessionCookie(w, token)
-	log.Printf("Admin login: %s", req.Username)
+	log.Printf("Admin login: %s (role: %s)", req.Username, adminRole)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "admin", "redirect": "/admin"})
 }
 
@@ -704,9 +757,10 @@ func (a *App) HandlePINModeChange(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) saveConfig() {
 	cfg := models.Config{
-		AppName: a.AppName,
-		DataDir: a.DataDir,
-		PinMode: a.PinMode,
+		AppName:        a.AppName,
+		DataDir:        a.DataDir,
+		PinMode:        a.PinMode,
+		Administrators: a.Administrators,
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

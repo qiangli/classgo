@@ -120,7 +120,7 @@ func TestGlobalTrackerItem_CRUD(t *testing.T) {
 	}
 
 	// Delete (soft)
-	if err := database.DeleteTrackerItem(app.DB, int(id)); err != nil {
+	if err := database.DeleteTrackerItem(app.DB, int(id), "admin"); err != nil {
 		t.Fatalf("DeleteTrackerItem: %v", err)
 	}
 	afterDelete, _ := database.ListTrackerItems(app.DB, false)
@@ -131,6 +131,13 @@ func TestGlobalTrackerItem_CRUD(t *testing.T) {
 	withDeleted, _ := database.ListTrackerItems(app.DB, true)
 	if len(withDeleted) != 1 {
 		t.Errorf("expected 1 item with deleted, got %d", len(withDeleted))
+	}
+	// Verify audit fields
+	if withDeleted[0].DeletedAt == "" {
+		t.Error("expected deleted_at to be set after soft-delete")
+	}
+	if withDeleted[0].DeletedBy != "admin" {
+		t.Errorf("expected deleted_by='admin', got %q", withDeleted[0].DeletedBy)
 	}
 }
 
@@ -1341,6 +1348,148 @@ func TestGlobalItem_RequiresSignoff_RoundTrip(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected to find Required Item with requires_signoff=true")
+	}
+}
+
+// ==================== SOFT-DELETE AUDIT ====================
+
+func TestSoftDeleteAudit_Entity(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a student
+	app.DB.Exec("INSERT INTO students (id, first_name, last_name, active) VALUES ('AUDIT1', 'Audit', 'Test', 1)")
+
+	// Delete via API handler
+	req := reqWithSession("POST", "/api/v1/data",
+		`{"action":"delete","type":"students","id":"AUDIT1"}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleDataCRUD, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("delete failed: %v", resp)
+	}
+
+	// Verify audit columns in DB
+	var deletedAt, deletedBy string
+	err := app.DB.QueryRow("SELECT COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM students WHERE id = 'AUDIT1'").Scan(&deletedAt, &deletedBy)
+	if err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if deletedAt == "" {
+		t.Error("expected deleted_at to be set")
+	}
+	if deletedBy != "admin" {
+		t.Errorf("expected deleted_by='admin', got %q", deletedBy)
+	}
+}
+
+func TestSoftDeleteAudit_EntityAPI(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a student
+	app.DB.Exec("INSERT INTO students (id, first_name, last_name, active) VALUES ('AUDIT2', 'Audit2', 'Test', 1)")
+
+	// Delete via API handler
+	req := reqWithSession("POST", "/api/v1/data",
+		`{"action":"delete","type":"students","id":"AUDIT2"}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleDataCRUD, req)
+	mustDecode(t, w)
+
+	// Get directory with include_deleted via handler
+	req = reqWithSession("GET", "/api/v1/directory?include_deleted=1", "", app, "admin", "", "admin")
+	w = doReq(app.HandleDirectoryAPI, req)
+	resp := mustDecode(t, w)
+
+	students, _ := resp["students"].([]any)
+	var found map[string]any
+	for _, s := range students {
+		m, _ := s.(map[string]any)
+		if m["id"] == "AUDIT2" {
+			found = m
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("expected to find deleted student AUDIT2 with include_deleted=1")
+	}
+	if found["deleted"] != true {
+		t.Error("expected deleted=true")
+	}
+	if found["deleted_at"] == nil || found["deleted_at"] == "" {
+		t.Error("expected deleted_at to be set in API response")
+	}
+	if found["deleted_by"] == nil || found["deleted_by"] == "" {
+		t.Error("expected deleted_by to be set in API response")
+	}
+}
+
+func TestSoftDeleteAudit_TaskItem(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Create a global task
+	id, err := database.SaveTrackerItem(app.DB, models.TrackerItem{
+		Name: "Audit Task", Priority: "medium", Recurrence: "daily", Type: models.TaskTypeTodo, Active: true,
+	})
+	if err != nil {
+		t.Fatalf("SaveTrackerItem: %v", err)
+	}
+
+	// Delete via handler
+	req := reqWithSession("POST", "/api/v1/tracker/items/delete",
+		`{"id":`+jsonNum(float64(id))+`}`,
+		app, "admin", "", "admin")
+	w := doReq(app.HandleTrackerItemDelete, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("delete failed: %v", resp)
+	}
+
+	// List with include_deleted
+	items, _ := database.ListTrackerItems(app.DB, true)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].DeletedAt == "" {
+		t.Error("expected deleted_at to be set")
+	}
+	if items[0].DeletedBy == "" {
+		t.Error("expected deleted_by to be set")
+	}
+}
+
+func TestSoftDeleteAudit_StudentTaskByTeacher(t *testing.T) {
+	app, cleanup := setupTrackerTest(t)
+	defer cleanup()
+
+	// Teacher creates a personal task
+	id, err := database.SaveStudentTrackerItem(app.DB, models.StudentTrackerItem{
+		Scope: models.ScopePersonal, StudentID: "S001", Name: "Teacher Task",
+		Priority: "low", Recurrence: "none", CreatedBy: "T001", OwnerType: "teacher",
+		Type: models.TaskTypeTask, Active: true,
+	})
+	if err != nil {
+		t.Fatalf("SaveStudentTrackerItem: %v", err)
+	}
+
+	// Teacher deletes their own task
+	req := reqWithSession("POST", "/api/tracker/student-items/delete",
+		`{"id":`+jsonNum(float64(id))+`}`,
+		app, "user", "teacher", "T001")
+	w := doReq(app.HandleStudentTrackerItemDelete, req)
+	resp := mustDecode(t, w)
+	if resp["ok"] != true {
+		t.Fatalf("delete failed: %v", resp)
+	}
+
+	// Verify deleted_by is the teacher
+	var deletedBy string
+	app.DB.QueryRow("SELECT COALESCE(deleted_by,'') FROM task_items WHERE id = ?", id).Scan(&deletedBy)
+	if deletedBy != "T001" {
+		t.Errorf("expected deleted_by='T001', got %q", deletedBy)
 	}
 }
 
