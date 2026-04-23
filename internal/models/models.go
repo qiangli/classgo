@@ -21,11 +21,12 @@ type CloudSyncConfig struct {
 }
 
 type TunnelConfig struct {
-	Enabled    bool   `json:"enabled"`
-	ServerAddr string `json:"server_addr"`          // frps host:port, e.g. "myserver.com:7000"
-	Token      string `json:"token"`                // auth token shared with frps
-	Domain     string `json:"domain,omitempty"`     // custom domain for HTTP vhost
-	LocalPort  int    `json:"local_port,omitempty"` // local port to forward, default 8080
+	Enabled       bool     `json:"enabled"`
+	ServerAddr    string   `json:"server_addr"`              // frps host:port, e.g. "myserver.com:7000"
+	Token         string   `json:"token"`                    // auth token shared with frps
+	Domain        string   `json:"domain,omitempty"`         // custom domain for HTTP vhost
+	LocalPort     int      `json:"local_port,omitempty"`     // local port to forward, default 8080
+	AllowedRoutes []string `json:"allowed_routes,omitempty"` // route categories: "home", "checkin", "admin", "tracker", "memos"
 }
 
 type Config struct {

@@ -317,9 +317,15 @@ func main() {
 	}
 	log.Println("=================================")
 
+	var handler http.Handler = mux
+	if cfg.Tunnel.Enabled {
+		handler = handlers.TunnelGuard(handler, cfg.Tunnel.AllowedRoutes)
+	}
+	handler = handlers.AllowPrivateNetwork(handler)
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: handlers.AllowPrivateNetwork(mux),
+		Handler: handler,
 	}
 
 	// Start file watcher

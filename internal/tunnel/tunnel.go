@@ -96,6 +96,8 @@ func GenerateConfig(cfg models.TunnelConfig, dataDir string) (string, error) {
 	if cfg.Domain != "" {
 		fmt.Fprintf(&b, "customDomains = [%q]\n", cfg.Domain)
 	}
+	fmt.Fprintf(&b, "\n[proxies.requestHeaders.set]\n")
+	fmt.Fprintf(&b, "X-Tunnel = \"true\"\n")
 
 	confPath := filepath.Join(confDir, "frpc.toml")
 	if err := os.WriteFile(confPath, []byte(b.String()), 0600); err != nil {
