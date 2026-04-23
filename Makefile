@@ -3,7 +3,7 @@ BIN := bin/$(APP)
 PID_FILE := bin/.pid
 LOG_FILE := bin/classgo.log
 
-.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind
+.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind rclone
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -14,13 +14,21 @@ tidy: ## Run fmt, vet, and mod tidy
 	go mod tidy
 
 test: ## Run tests
-	go test -v -count=1 ./...
+	go test -v -count=1 ./internal/... .
 
 tailwind: ## Build Tailwind CSS from templates
 	./tailwindcss -i static/css/input.css -o static/css/tailwind.css --content 'templates/*.html' --minify
 
 memos-frontend: ## Build Memos React frontend
 	cd memos/web && pnpm install --frozen-lockfile && pnpm run release
+
+rclone: ## Build rclone binary from submodule
+	@if [ -d rclone-src ]; then \
+		mkdir -p bin && cd rclone-src && go build -ldflags "-s" -trimpath -o ../bin/rclone . ; \
+		echo "rclone built → bin/rclone"; \
+	else \
+		echo "rclone-src/ not found (run: git submodule update --init)"; \
+	fi
 
 build: tidy tailwind memos-frontend ## Build binary to bin/
 	@mkdir -p bin

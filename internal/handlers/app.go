@@ -36,8 +36,9 @@ type App struct {
 	MemosStore     *memosstore.Store
 	Sessions       *auth.SessionStore
 	RateLimiter    *RateLimiter
-	Administrators []models.Administrator // from config.json
+	Administrators []models.Administrator  // from config.json
 	ProcessUser    string                 // OS user who started this process (always superadmin)
+	CloudSync      models.CloudSyncConfig // cloud sync settings
 
 	dailyPIN   string
 	pinDate    string
@@ -602,8 +603,9 @@ func (a *App) HandleSettings(w http.ResponseWriter, r *http.Request) {
 		pinMode = "off"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"require_pin": a.RequirePIN(),
-		"pin_mode":    pinMode,
+		"require_pin":        a.RequirePIN(),
+		"pin_mode":           pinMode,
+		"cloud_sync_enabled": a.CloudSync.Enabled,
 	})
 }
 
@@ -761,6 +763,7 @@ func (a *App) saveConfig() {
 		DataDir:        a.DataDir,
 		PinMode:        a.PinMode,
 		Administrators: a.Administrators,
+		CloudSync:      a.CloudSync,
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

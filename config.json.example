@@ -4,5 +4,12 @@
   "administrators": [
     { "username": "jdoe", "role": "admin" },
     { "username": "jsmith", "role": "superadmin" }
-  ]
+  ],
+  "cloud_sync": {
+    "enabled": false,
+    "provider": "drive",
+    "service_account_file": "config/service-account.json",
+    "folder_id": "",
+    "schedule": "30 22 * * *"
+  }
 }

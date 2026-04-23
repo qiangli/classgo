@@ -18,6 +18,7 @@ import (
 
 	"classgo/internal/auth"
 	"classgo/internal/backup"
+	"classgo/internal/cloudsync"
 	"classgo/internal/database"
 	"classgo/internal/datastore"
 	"classgo/internal/handlers"
@@ -197,6 +198,7 @@ func main() {
 		RateLimiter:    handlers.NewRateLimiter(),
 		Administrators: cfg.Administrators,
 		ProcessUser:    processUser,
+		CloudSync:      cfg.CloudSync,
 	}
 	app.SetRequirePIN(pinMode == "center")
 
@@ -378,9 +380,43 @@ func main() {
 			log.Printf("Warning: failed to schedule attendance export: %v", err)
 		}
 
+		if cfg.CloudSync.Enabled {
+			syncSchedule := cfg.CloudSync.Schedule
+			if syncSchedule == "" {
+				syncSchedule = "30 22 * * *" // 10:30 PM daily (after backup)
+			}
+			// Generate rclone config at startup so admin can verify
+			if confPath, err := cloudsync.GenerateRcloneConf(cfg.CloudSync, cfg.DataDir); err != nil {
+				log.Printf("Warning: failed to generate rclone config: %v", err)
+			} else {
+				log.Printf("  Rclone config: %s", confPath)
+			}
+			syncCfg := cfg.CloudSync
+			syncDataDir := cfg.DataDir
+			_, err = sched.NewJob(
+				gocron.CronJob(syncSchedule, false),
+				gocron.NewTask(func() {
+					if err := cloudsync.Run(syncCfg, syncDataDir); err != nil {
+						log.Printf("Cloud sync failed: %v", err)
+					}
+				}),
+				gocron.WithName("cloud-sync"),
+			)
+			if err != nil {
+				log.Printf("Warning: failed to schedule cloud sync: %v", err)
+			}
+		}
+
 		sched.Start()
 		log.Printf("  Backup:  daily at 10:00 PM → %s", backupDir)
 		log.Printf("  Export:  daily at 9:00 PM → %s/attendances/attendance-*.xlsx", cfg.DataDir)
+		if cfg.CloudSync.Enabled {
+			schedule := cfg.CloudSync.Schedule
+			if schedule == "" {
+				schedule = "30 22 * * *"
+			}
+			log.Printf("  Sync:    %s → cloud (%s)", schedule, cfg.CloudSync.Provider)
+		}
 
 		schedulerUI := scheduler.NewHandler(sched)
 		schedulerUI.RegisterRoutes(mux, func(next http.HandlerFunc) http.HandlerFunc {

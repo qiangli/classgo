@@ -12,6 +12,14 @@ type Administrator struct {
 	Role     string `json:"role"` // "admin" or "superadmin"
 }
 
+type CloudSyncConfig struct {
+	Enabled            bool   `json:"enabled"`
+	Provider           string `json:"provider"`              // rclone backend name, e.g. "drive"
+	ServiceAccountFile string `json:"service_account_file"`  // relative to DataDir
+	FolderID           string `json:"folder_id"`             // remote root folder ID
+	Schedule           string `json:"schedule,omitempty"`    // cron expr, default "30 22 * * *"
+}
+
 type Config struct {
 	AppName        string          `json:"app_name"`
 	DataDir        string          `json:"data_dir"`
@@ -19,6 +27,7 @@ type Config struct {
 	Port           int             `json:"port,omitempty"`
 	DBPath         string          `json:"db_path,omitempty"`
 	Administrators []Administrator `json:"administrators,omitempty"`
+	CloudSync      CloudSyncConfig `json:"cloud_sync,omitempty"`
 }
 
 type CheckinAudit struct {
