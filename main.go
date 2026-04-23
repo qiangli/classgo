@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"os/user"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"classgo/internal/memos"
 	"classgo/internal/models"
 	"classgo/internal/scheduler"
+	"classgo/internal/tunnel"
 
 	"github.com/go-co-op/gocron/v2"
 
@@ -310,6 +312,9 @@ func main() {
 	log.Printf("  Home:    %s/home", mdnsURL)
 	log.Printf("  PIN:     %s", pin)
 	log.Printf("  Data:    %s", cfg.DataDir)
+	if cfg.Tunnel.Enabled {
+		log.Printf("  Tunnel:  %s", tunnel.PublicURL(cfg.Tunnel))
+	}
 	log.Println("=================================")
 
 	server := &http.Server{
@@ -424,11 +429,23 @@ func main() {
 		})
 	}
 
+	// Start tunnel if enabled
+	var tunnelCmd *exec.Cmd
+	if cfg.Tunnel.Enabled {
+		var err error
+		tunnelCmd, err = tunnel.Start(cfg.Tunnel, cfg.DataDir)
+		if err != nil {
+			log.Printf("Warning: tunnel not started: %v", err)
+		}
+	}
+
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
 		log.Println("Shutting down...")
+
+		tunnel.Stop(tunnelCmd)
 
 		// Shutdown backup on exit
 		dbs := backupDBs()

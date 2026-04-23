@@ -1,3 +1,6 @@
 [submodule "rclone-src"]
 	path = rclone-src
 	url = https://github.com/rclone/rclone.git
+[submodule "frp-src"]
+	path = frp-src
+	url = https://github.com/fatedier/frp.git

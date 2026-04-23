@@ -11,5 +11,11 @@
     "service_account_file": "config/service-account.json",
     "folder_id": "",
     "schedule": "30 22 * * *"
+  },
+  "tunnel": {
+    "enabled": false,
+    "server_addr": "your-vps-ip:7000",
+    "token": "change-me",
+    "domain": "classgo.example.com"
   }
 }

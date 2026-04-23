@@ -7,7 +7,7 @@ DIST := dist
 PLATFORMS := darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 windows-amd64
 
 .PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed \
-        start stop clean memos-frontend tailwind rclone rclone-all package
+        start stop clean memos-frontend tailwind rclone rclone-all frp frp-all package
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -47,11 +47,32 @@ rclone-all: ## Cross-compile rclone for all platforms
 		echo "rclone-src/ not found (run: git submodule update --init)"; \
 	fi
 
-build: tidy tailwind memos-frontend rclone ## Build binary to bin/
+frp: ## Build frpc binary from submodule
+	@if [ -d frp-src ]; then \
+		mkdir -p bin && cd frp-src && go build -ldflags "-s" -trimpath -o ../bin/frpc ./cmd/frpc ; \
+		echo "frpc built → bin/frpc"; \
+	else \
+		echo "frp-src/ not found (run: git submodule update --init)"; \
+	fi
+
+frp-all: ## Cross-compile frpc for all platforms
+	@if [ -d frp-src ]; then \
+		mkdir -p bin && cd frp-src && \
+		GOOS=darwin  GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-darwin-amd64 ./cmd/frpc && \
+		GOOS=darwin  GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/frpc-darwin-arm64 ./cmd/frpc && \
+		GOOS=linux   GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-linux-amd64 ./cmd/frpc && \
+		GOOS=linux   GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/frpc-linux-arm64 ./cmd/frpc && \
+		GOOS=windows GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-windows-amd64.exe ./cmd/frpc ; \
+		echo "frpc cross-compiled → bin/frpc-*"; \
+	else \
+		echo "frp-src/ not found (run: git submodule update --init)"; \
+	fi
+
+build: tidy tailwind memos-frontend rclone frp ## Build binary to bin/
 	@mkdir -p bin
 	go build -o $(BIN) .
 
-build-all: tidy rclone-all ## Cross-compile classgo + rclone for all platforms
+build-all: tidy rclone-all frp-all ## Cross-compile classgo + rclone + frpc for all platforms
 	@mkdir -p bin
 	GOOS=darwin  GOARCH=amd64 go build -o bin/$(APP)-darwin-amd64 .
 	GOOS=darwin  GOARCH=arm64 go build -o bin/$(APP)-darwin-arm64 .
@@ -69,9 +90,11 @@ package: build-all ## Package release archives for all platforms
 		if [ "$$os" = "windows" ]; then \
 			cp bin/$(APP)-$$p.exe $$stage/$(APP).exe; \
 			cp bin/rclone-$$p.exe $$stage/rclone.exe; \
+			cp bin/frpc-$$p.exe $$stage/frpc.exe; \
 		else \
 			cp bin/$(APP)-$$p $$stage/$(APP); \
 			cp bin/rclone-$$p $$stage/rclone; \
+			cp bin/frpc-$$p $$stage/frpc; \
 		fi; \
 		cp config.json.example $$stage/config.json.example; \
 		cp -r data/csv.example $$stage/data; \

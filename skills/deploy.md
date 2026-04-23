@@ -56,3 +56,52 @@ When a remote host is provided (e.g., `deploy start user@myserver`):
 7. For status: `ssh user@host 'pgrep -f classgo && curl -s localhost:8080/api/settings || echo "not running"'`
 
 Note: The binary is self-contained (includes Memos). Templates and static files are loaded from disk and must be copied alongside the binary.
+
+## Tunnel (frp)
+
+ClassGo can expose the local server to the internet via [frp](https://github.com/fatedier/frp). When `tunnel.enabled` is `true` in `config.json`, ClassGo auto-starts `frpc` as a subprocess.
+
+### Prerequisites
+- A VPS running `frps` (the frp server)
+- DNS A record pointing your domain to the VPS IP
+- `frpc` binary in `bin/` (built via `make frp`)
+
+### Config
+In `config.json`:
+```json
+"tunnel": {
+    "enabled": true,
+    "server_addr": "your-vps-ip:7000",
+    "token": "shared-secret",
+    "domain": "classgo.example.com"
+}
+```
+
+### frps Server Setup (DigitalOcean / any VPS)
+
+1. Download frps from https://github.com/fatedier/frp/releases (linux-amd64)
+2. Create `/etc/frp/frps.toml`:
+   ```toml
+   bindPort = 7000
+   vhostHTTPPort = 80
+   vhostHTTPSPort = 443
+   auth.token = "shared-secret"
+   ```
+3. Create systemd service `/etc/systemd/system/frps.service`:
+   ```ini
+   [Unit]
+   Description=frps server
+   After=network.target
+
+   [Service]
+   Type=simple
+   ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+   Restart=on-failure
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+4. Enable and start: `systemctl enable --now frps`
+5. Point DNS A record for your domain to the VPS IP
+6. For HTTPS: put Caddy or nginx with Let's Encrypt in front of frps vhostHTTPPort

@@ -20,6 +20,14 @@ type CloudSyncConfig struct {
 	Schedule           string `json:"schedule,omitempty"`   // cron expr, default "30 22 * * *"
 }
 
+type TunnelConfig struct {
+	Enabled    bool   `json:"enabled"`
+	ServerAddr string `json:"server_addr"`          // frps host:port, e.g. "myserver.com:7000"
+	Token      string `json:"token"`                // auth token shared with frps
+	Domain     string `json:"domain,omitempty"`     // custom domain for HTTP vhost
+	LocalPort  int    `json:"local_port,omitempty"` // local port to forward, default 8080
+}
+
 type Config struct {
 	AppName        string          `json:"app_name"`
 	DataDir        string          `json:"data_dir"`
@@ -28,6 +36,7 @@ type Config struct {
 	DBPath         string          `json:"db_path,omitempty"`
 	Administrators []Administrator `json:"administrators,omitempty"`
 	CloudSync      CloudSyncConfig `json:"cloud_sync,omitempty"`
+	Tunnel         TunnelConfig    `json:"tunnel,omitempty"`
 }
 
 type CheckinAudit struct {
