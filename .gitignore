@@ -29,6 +29,8 @@ data/attendances
 data/config
 data/csv.example/backups/
 data/csv.example/memos/
+data/csv.example/attendances
 
+# 
 #
 .env
