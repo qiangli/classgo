@@ -2,11 +2,15 @@ APP := classgo
 BIN := bin/$(APP)
 PID_FILE := bin/.pid
 LOG_FILE := bin/classgo.log
+DIST := dist
 
-.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind rclone rclone-all
+PLATFORMS := darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 windows-amd64
+
+.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed \
+        start stop clean memos-frontend tailwind rclone rclone-all package
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
 tidy: ## Run fmt, vet, and mod tidy
 	go fmt ./...
@@ -30,19 +34,6 @@ rclone: ## Build rclone binary from submodule
 		echo "rclone-src/ not found (run: git submodule update --init)"; \
 	fi
 
-build: tidy tailwind memos-frontend rclone ## Build binary to bin/
-	@mkdir -p bin
-	go build -o $(BIN) .
-
-build-all: tidy rclone-all ## Build for Windows, macOS, and Linux
-	@mkdir -p bin
-	GOOS=darwin  GOARCH=amd64 go build -o bin/$(APP)-darwin-amd64 .
-	GOOS=darwin  GOARCH=arm64 go build -o bin/$(APP)-darwin-arm64 .
-	GOOS=linux   GOARCH=amd64 go build -o bin/$(APP)-linux-amd64 .
-	GOOS=linux   GOARCH=arm64 go build -o bin/$(APP)-linux-arm64 .
-	GOOS=windows GOARCH=amd64 go build -o bin/$(APP)-windows-amd64.exe .
-	@echo "Binaries in bin/"
-
 rclone-all: ## Cross-compile rclone for all platforms
 	@if [ -d rclone-src ]; then \
 		mkdir -p bin && cd rclone-src && \
@@ -55,6 +46,48 @@ rclone-all: ## Cross-compile rclone for all platforms
 	else \
 		echo "rclone-src/ not found (run: git submodule update --init)"; \
 	fi
+
+build: tidy tailwind memos-frontend rclone ## Build binary to bin/
+	@mkdir -p bin
+	go build -o $(BIN) .
+
+build-all: tidy rclone-all ## Cross-compile classgo + rclone for all platforms
+	@mkdir -p bin
+	GOOS=darwin  GOARCH=amd64 go build -o bin/$(APP)-darwin-amd64 .
+	GOOS=darwin  GOARCH=arm64 go build -o bin/$(APP)-darwin-arm64 .
+	GOOS=linux   GOARCH=amd64 go build -o bin/$(APP)-linux-amd64 .
+	GOOS=linux   GOARCH=arm64 go build -o bin/$(APP)-linux-arm64 .
+	GOOS=windows GOARCH=amd64 go build -o bin/$(APP)-windows-amd64.exe .
+	@echo "Binaries in bin/"
+
+package: build-all ## Package release archives for all platforms
+	@rm -rf $(DIST)
+	@for p in $(PLATFORMS); do \
+		os=$${p%%-*}; \
+		stage=$(DIST)/$(APP)-$$p; \
+		mkdir -p $$stage; \
+		if [ "$$os" = "windows" ]; then \
+			cp bin/$(APP)-$$p.exe $$stage/$(APP).exe; \
+			cp bin/rclone-$$p.exe $$stage/rclone.exe; \
+		else \
+			cp bin/$(APP)-$$p $$stage/$(APP); \
+			cp bin/rclone-$$p $$stage/rclone; \
+		fi; \
+		cp config.json.example $$stage/config.json.example; \
+		cp -r data/csv.example $$stage/data; \
+		rm -rf $$stage/data/backups $$stage/data/memos $$stage/data/attendances; \
+		echo "Packaged $$stage"; \
+	done
+	@cd $(DIST) && for p in $(PLATFORMS); do \
+		os=$${p%%-*}; \
+		if [ "$$os" = "windows" ]; then \
+			(cd $(APP)-$$p && zip -qr ../$(APP)-$$p.zip .); \
+		else \
+			tar czf $(APP)-$$p.tar.gz -C $(APP)-$$p .; \
+		fi; \
+	done
+	@echo "Archives in $(DIST)/"
+	@ls -lh $(DIST)/*.tar.gz $(DIST)/*.zip 2>/dev/null
 
 start: build ## Start the server in the background
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
@@ -87,6 +120,6 @@ test-e2e-headed: ## Run E2E tests in headed browser
 	go build -o $(BIN) .
 	cd e2e && npx playwright test --headed
 
-clean: ## Remove build artifacts and database
-	rm -rf bin/
+clean: ## Remove build artifacts
+	rm -rf bin/ $(DIST)
 	rm -f $(APP).db

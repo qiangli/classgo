@@ -1,5 +1,6 @@
 classgo.db
 bin/
+dist/
 config.json
 *.exe
 .DS_Store
@@ -31,6 +32,4 @@ data/csv.example/backups/
 data/csv.example/memos/
 data/csv.example/attendances
 
-# 
-#
 .env

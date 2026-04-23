@@ -13,14 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Build binaries
+      - name: Build and package
         run: |
-          mkdir -p dist
           platforms=(
             "darwin/amd64"
             "darwin/arm64"
@@ -28,26 +29,51 @@ jobs:
             "linux/arm64"
             "windows/amd64"
           )
+          mkdir -p bin
+          # Cross-compile classgo
           for platform in "${platforms[@]}"; do
             GOOS="${platform%/*}"
             GOARCH="${platform#*/}"
             output="classgo-${GOOS}-${GOARCH}"
-            if [ "$GOOS" = "windows" ]; then
-              output="${output}.exe"
-            fi
+            if [ "$GOOS" = "windows" ]; then output="${output}.exe"; fi
             echo "Building ${output}..."
-            GOOS=$GOOS GOARCH=$GOARCH go build -o "dist/${output}" .
+            GOOS=$GOOS GOARCH=$GOARCH go build -o "bin/${output}" .
+          done
+          # Cross-compile rclone from submodule
+          for platform in "${platforms[@]}"; do
+            GOOS="${platform%/*}"
+            GOARCH="${platform#*/}"
+            output="rclone-${GOOS}-${GOARCH}"
+            if [ "$GOOS" = "windows" ]; then output="${output}.exe"; fi
+            echo "Building ${output}..."
+            (cd rclone-src && GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-s" -trimpath -o "../bin/${output}" .)
           done
 
       - name: Package archives
         run: |
-          cd dist
-          for f in classgo-*; do
-            if [[ "$f" == *.exe ]]; then
-              zip "${f%.exe}.zip" "$f"
+          mkdir -p dist
+          platforms=("darwin-amd64" "darwin-arm64" "linux-amd64" "linux-arm64" "windows-amd64")
+          for p in "${platforms[@]}"; do
+            os="${p%%-*}"
+            stage="dist/classgo-${p}"
+            mkdir -p "$stage"
+            if [ "$os" = "windows" ]; then
+              cp "bin/classgo-${p}.exe" "$stage/classgo.exe"
+              cp "bin/rclone-${p}.exe" "$stage/rclone.exe"
             else
-              tar czf "${f}.tar.gz" "$f"
+              cp "bin/classgo-${p}" "$stage/classgo"
+              cp "bin/rclone-${p}" "$stage/rclone"
             fi
+            cp config.json.example "$stage/config.json.example"
+            cp -r data/csv.example "$stage/data"
+            rm -rf "$stage/data/backups" "$stage/data/memos" "$stage/data/attendances"
+            # Create archive
+            if [ "$os" = "windows" ]; then
+              (cd "$stage" && zip -qr "../classgo-${p}.zip" .)
+            else
+              tar czf "dist/classgo-${p}.tar.gz" -C "$stage" .
+            fi
+            echo "Packaged classgo-${p}"
           done
 
       - name: Create release
