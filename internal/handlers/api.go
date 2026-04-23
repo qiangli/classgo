@@ -111,8 +111,8 @@ func (a *App) HandleCheckIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := a.DB.Exec(
-		"INSERT INTO attendance (student_name, device_type) VALUES (?, ?)",
-		req.StudentName, req.DeviceType,
+		"INSERT INTO attendance (student_id, student_name, device_type) VALUES (?, ?, ?)",
+		req.StudentID, req.StudentName, req.DeviceType,
 	)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to record attendance"})
@@ -338,12 +338,12 @@ func (a *App) HandleExport(w http.ResponseWriter, r *http.Request) {
 
 	if from != "" && to != "" {
 		rows, err = a.DB.Query(
-			"SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance WHERE date(check_in_time) BETWEEN ? AND ? ORDER BY check_in_time DESC",
+			"SELECT student_id, student_name, device_type, check_in_time, check_out_time FROM attendance WHERE date(check_in_time) BETWEEN ? AND ? ORDER BY check_in_time DESC",
 			from, to,
 		)
 	} else {
 		rows, err = a.DB.Query(
-			"SELECT id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC",
+			"SELECT student_id, student_name, device_type, check_in_time, check_out_time FROM attendance ORDER BY check_in_time DESC",
 		)
 	}
 	if err != nil {
@@ -357,13 +357,12 @@ func (a *App) HandleExport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 
 	writer := csv.NewWriter(w)
-	writer.Write([]string{"ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"})
+	writer.Write([]string{"Student ID", "Student Name", "Device Type", "Check In", "Check Out", "Duration"})
 
 	for rows.Next() {
-		var id int
-		var studentName, deviceType, checkIn string
+		var studentID, studentName, deviceType, checkIn string
 		var checkOut sql.NullString
-		if err := rows.Scan(&id, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
+		if err := rows.Scan(&studentID, &studentName, &deviceType, &checkIn, &checkOut); err != nil {
 			continue
 		}
 		inTime, _ := models.ParseTimestamp(checkIn)
@@ -375,7 +374,7 @@ func (a *App) HandleExport(w http.ResponseWriter, r *http.Request) {
 			checkOutFmt = outTime.Format("2006-01-02 3:04 PM")
 			durationStr = models.FormatDuration(outTime.Sub(inTime))
 		}
-		writer.Write([]string{fmt.Sprintf("%d", id), studentName, deviceType, checkInFmt, checkOutFmt, durationStr})
+		writer.Write([]string{studentID, studentName, deviceType, checkInFmt, checkOutFmt, durationStr})
 	}
 	writer.Flush()
 }
@@ -431,7 +430,14 @@ func (a *App) HandleDataCRUD(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Unknown type"})
 			return
 		}
-		_, err := a.DB.Exec("UPDATE "+req.Type+" SET deleted = 1 WHERE id = ?", req.ID)
+		deletedBy := "admin"
+		if sess := a.GetSession(r); sess != nil {
+			deletedBy = sess.EntityID
+			if deletedBy == "" {
+				deletedBy = sess.Username
+			}
+		}
+		_, err := a.DB.Exec("UPDATE "+req.Type+" SET deleted = 1, deleted_at = datetime('now','localtime'), deleted_by = ? WHERE id = ?", deletedBy, req.ID)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Database error"})
 			return
@@ -947,10 +953,11 @@ func (a *App) HandlePreferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := sess.Username
+	userType := sess.UserType
 
 	switch r.Method {
 	case http.MethodGet:
-		rows, err := a.DB.Query("SELECT pref_key, pref_value FROM user_preferences WHERE user_id = ?", userID)
+		rows, err := a.DB.Query("SELECT pref_key, pref_value FROM user_preferences WHERE user_id = ? AND user_type = ?", userID, userType)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Database error"})
 			return
@@ -974,8 +981,8 @@ func (a *App) HandlePreferences(w http.ResponseWriter, r *http.Request) {
 		}
 		for key, value := range req {
 			_, err := a.DB.Exec(
-				"INSERT INTO user_preferences (user_id, pref_key, pref_value, updated_at) VALUES (?, ?, ?, datetime('now','localtime')) ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value, updated_at = excluded.updated_at",
-				userID, key, value,
+				"INSERT INTO user_preferences (user_id, user_type, pref_key, pref_value, updated_at) VALUES (?, ?, ?, ?, datetime('now','localtime')) ON CONFLICT(user_id, user_type, pref_key) DO UPDATE SET pref_value = excluded.pref_value, updated_at = excluded.updated_at",
+				userID, userType, key, value,
 			)
 			if err != nil {
 				writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Save failed"})

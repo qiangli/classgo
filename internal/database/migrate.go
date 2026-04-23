@@ -21,10 +21,13 @@ func MigrateDB(db *sql.DB) error {
 	addMissingColumns(db)
 	// Migrate to unified task_items table
 	migrateToTaskItems(db)
+	// Recreate user_preferences with user_type in primary key
+	migrateUserPreferences(db)
 
 	schema := `
 	CREATE TABLE IF NOT EXISTS attendance (
 		id           INTEGER PRIMARY KEY AUTOINCREMENT,
+		student_id   TEXT NOT NULL DEFAULT '',
 		student_name TEXT NOT NULL,
 		device_type  TEXT NOT NULL CHECK(device_type IN ('mobile','kiosk')),
 		check_in_time DATETIME DEFAULT (datetime('now','localtime')),
@@ -52,6 +55,8 @@ func MigrateDB(db *sql.DB) error {
 		profile_status   TEXT NOT NULL DEFAULT '',
 		active           INTEGER NOT NULL DEFAULT 1,
 		deleted          INTEGER NOT NULL DEFAULT 0,
+		deleted_at       DATETIME,
+		deleted_by       TEXT,
 		row_hash         TEXT,
 		pin_hash           TEXT,
 		require_pin        INTEGER NOT NULL DEFAULT 0,
@@ -70,6 +75,8 @@ func MigrateDB(db *sql.DB) error {
 		address    TEXT,
 		notes      TEXT,
 		deleted    INTEGER NOT NULL DEFAULT 0,
+		deleted_at DATETIME,
+		deleted_by TEXT,
 		row_hash   TEXT
 	);
 
@@ -83,6 +90,8 @@ func MigrateDB(db *sql.DB) error {
 		subjects   TEXT,
 		active     INTEGER NOT NULL DEFAULT 1,
 		deleted    INTEGER NOT NULL DEFAULT 0,
+		deleted_at DATETIME,
+		deleted_by TEXT,
 		row_hash   TEXT
 	);
 
@@ -91,8 +100,10 @@ func MigrateDB(db *sql.DB) error {
 		name     TEXT NOT NULL,
 		capacity INTEGER,
 		notes    TEXT,
-		deleted  INTEGER NOT NULL DEFAULT 0,
-		row_hash TEXT
+		deleted    INTEGER NOT NULL DEFAULT 0,
+		deleted_at DATETIME,
+		deleted_by TEXT,
+		row_hash   TEXT
 	);
 
 	CREATE TABLE IF NOT EXISTS schedules (
@@ -107,6 +118,8 @@ func MigrateDB(db *sql.DB) error {
 		effective_from  TEXT,
 		effective_until TEXT,
 		deleted         INTEGER NOT NULL DEFAULT 0,
+		deleted_at      DATETIME,
+		deleted_by      TEXT,
 		row_hash        TEXT
 	);
 	CREATE INDEX IF NOT EXISTS idx_schedules_day ON schedules(day_of_week);
@@ -191,6 +204,8 @@ func MigrateDB(db *sql.DB) error {
 		completed_by    TEXT,
 		active          INTEGER NOT NULL DEFAULT 1,
 		deleted         INTEGER NOT NULL DEFAULT 0,
+		deleted_at      DATETIME,
+		deleted_by      TEXT,
 		created_at      DATETIME DEFAULT (datetime('now','localtime')),
 		updated_at      DATETIME DEFAULT (datetime('now','localtime')),
 		legacy_table    TEXT,
@@ -248,10 +263,11 @@ func MigrateDB(db *sql.DB) error {
 
 	CREATE TABLE IF NOT EXISTS user_preferences (
 		user_id    TEXT NOT NULL,
+		user_type  TEXT NOT NULL DEFAULT '',
 		pref_key   TEXT NOT NULL,
 		pref_value TEXT NOT NULL,
 		updated_at DATETIME DEFAULT (datetime('now','localtime')),
-		PRIMARY KEY (user_id, pref_key)
+		PRIMARY KEY (user_id, user_type, pref_key)
 	);
 	`
 	_, err := db.Exec(schema)
@@ -387,10 +403,57 @@ func addMissingColumns(db *sql.DB) {
 		// Late signoff support on tracker_responses
 		"ALTER TABLE tracker_responses ADD COLUMN due_date TEXT",
 		"ALTER TABLE tracker_responses ADD COLUMN is_late INTEGER NOT NULL DEFAULT 0",
+		// Soft-delete audit columns
+		"ALTER TABLE students ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE students ADD COLUMN deleted_by TEXT",
+		"ALTER TABLE parents ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE parents ADD COLUMN deleted_by TEXT",
+		"ALTER TABLE teachers ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE teachers ADD COLUMN deleted_by TEXT",
+		"ALTER TABLE rooms ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE rooms ADD COLUMN deleted_by TEXT",
+		"ALTER TABLE schedules ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE schedules ADD COLUMN deleted_by TEXT",
+		"ALTER TABLE task_items ADD COLUMN deleted_at DATETIME",
+		"ALTER TABLE task_items ADD COLUMN deleted_by TEXT",
+		// Attendance student_id
+		"ALTER TABLE attendance ADD COLUMN student_id TEXT NOT NULL DEFAULT ''",
+		// User preferences: add user_type for uniqueness across user types
+		"ALTER TABLE user_preferences ADD COLUMN user_type TEXT NOT NULL DEFAULT ''",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors
 	}
+}
+
+// migrateUserPreferences recreates user_preferences with user_type in the primary key.
+// Safe to call multiple times — skips if user_type is already part of the primary key.
+func migrateUserPreferences(db *sql.DB) {
+	// Check if user_preferences exists but has the old primary key (without user_type).
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('user_preferences') WHERE name = 'user_type' AND pk > 0").Scan(&count)
+	if err != nil || count > 0 {
+		return // table doesn't exist yet or already has user_type in PK
+	}
+	// Check if the table exists at all
+	var tableExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('user_preferences')").Scan(&tableExists)
+	if err != nil || tableExists == 0 {
+		return // table will be created by schema
+	}
+	// Recreate with user_type in primary key
+	db.Exec(`CREATE TABLE user_preferences_new (
+		user_id    TEXT NOT NULL,
+		user_type  TEXT NOT NULL DEFAULT '',
+		pref_key   TEXT NOT NULL,
+		pref_value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT (datetime('now','localtime')),
+		PRIMARY KEY (user_id, user_type, pref_key)
+	)`)
+	db.Exec(`INSERT INTO user_preferences_new (user_id, user_type, pref_key, pref_value, updated_at)
+		SELECT user_id, COALESCE(user_type, ''), pref_key, pref_value, updated_at FROM user_preferences`)
+	db.Exec(`DROP TABLE user_preferences`)
+	db.Exec(`ALTER TABLE user_preferences_new RENAME TO user_preferences`)
 }
 
 // migrateToTaskItems copies data from tracker_items and student_tracker_items into
