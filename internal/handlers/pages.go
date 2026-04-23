@@ -100,6 +100,8 @@ func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sess := a.GetSession(r)
+
 	data := models.AdminData{
 		AppName:       a.AppName,
 		PIN:           pin,
@@ -111,6 +113,7 @@ func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
 		Attendees:     attendees,
 		Count:         len(attendees),
 		Date:          time.Now().Format("Monday, January 2, 2006"),
+		IsSuperAdmin:  sess != nil && sess.IsSuperAdmin,
 	}
 	a.Tmpl.ExecuteTemplate(w, "admin.html", data)
 }

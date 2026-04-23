@@ -16,11 +16,12 @@ const (
 )
 
 type Session struct {
-	Username  string
-	Role      string // "admin" or "user"
-	UserType  string // "student", "parent", "teacher", "" (admin)
-	EntityID  string // original entity ID (e.g., "S001")
-	ExpiresAt time.Time
+	Username     string
+	Role         string // "admin" or "user"
+	UserType     string // "student", "parent", "teacher", "" (admin)
+	EntityID     string // original entity ID (e.g., "S001")
+	IsSuperAdmin bool   // true if this admin has superadmin privileges
+	ExpiresAt    time.Time
 }
 
 type SessionStore struct {
@@ -44,6 +45,16 @@ func (s *SessionStore) Create(username, role, userType, entityID string) string 
 	}
 	s.mu.Unlock()
 	return token
+}
+
+// SetSuperAdmin marks an existing session as superadmin.
+func (s *SessionStore) SetSuperAdmin(token string) {
+	s.mu.Lock()
+	if sess, ok := s.sessions[token]; ok {
+		sess.IsSuperAdmin = true
+		s.sessions[token] = sess
+	}
+	s.mu.Unlock()
 }
 
 func (s *SessionStore) Get(token string) (Session, bool) {
