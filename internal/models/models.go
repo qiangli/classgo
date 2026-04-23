@@ -14,10 +14,10 @@ type Administrator struct {
 
 type CloudSyncConfig struct {
 	Enabled            bool   `json:"enabled"`
-	Provider           string `json:"provider"`              // rclone backend name, e.g. "drive"
-	ServiceAccountFile string `json:"service_account_file"`  // relative to DataDir
-	FolderID           string `json:"folder_id"`             // remote root folder ID
-	Schedule           string `json:"schedule,omitempty"`    // cron expr, default "30 22 * * *"
+	Provider           string `json:"provider"`             // rclone backend name, e.g. "drive"
+	ServiceAccountFile string `json:"service_account_file"` // relative to DataDir
+	FolderID           string `json:"folder_id"`            // remote root folder ID
+	Schedule           string `json:"schedule,omitempty"`   // cron expr, default "30 22 * * *"
 }
 
 type Config struct {

@@ -36,7 +36,7 @@ type App struct {
 	MemosStore     *memosstore.Store
 	Sessions       *auth.SessionStore
 	RateLimiter    *RateLimiter
-	Administrators []models.Administrator  // from config.json
+	Administrators []models.Administrator // from config.json
 	ProcessUser    string                 // OS user who started this process (always superadmin)
 	CloudSync      models.CloudSyncConfig // cloud sync settings
 
