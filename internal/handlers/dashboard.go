@@ -245,7 +245,7 @@ func (a *App) HandleDashboardTeacherItems(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	items, err := database.ListStudentTrackerItemsByCreator(a.DB, sess.EntityID)
+	items, err := database.ListStudentTrackerItemsByCreator(a.DB, sess.EntityID, sess.UserType)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})
 		return

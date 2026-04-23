@@ -113,11 +113,11 @@ func ListStudentTrackerItems(db *sql.DB, studentID string) ([]models.TaskItem, e
 	return items, rows.Err()
 }
 
-// ListStudentTrackerItemsByCreator returns items created by a specific user.
-func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy string) ([]models.TaskItem, error) {
+// ListStudentTrackerItemsByCreator returns items created by a specific user of the given type.
+func ListStudentTrackerItemsByCreator(db *sql.DB, createdBy, ownerType string) ([]models.TaskItem, error) {
 	rows, err := db.Query(
-		"SELECT "+taskItemCols+" FROM task_items WHERE created_by = ? AND deleted = 0 ORDER BY student_id, end_date, id",
-		createdBy,
+		"SELECT "+taskItemCols+" FROM task_items WHERE created_by = ? AND owner_type = ? AND deleted = 0 ORDER BY student_id, end_date, id",
+		createdBy, ownerType,
 	)
 	if err != nil {
 		return nil, err
