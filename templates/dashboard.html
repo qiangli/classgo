@@ -7,6 +7,7 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/css/tailwind.css">
     <script src="/static/js/toast.js"></script>
+    <script src="/static/js/confirm.js"></script>
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||'system';
@@ -807,7 +808,7 @@
         }
 
         async function deleteTask(id) {
-            if (!confirm('Delete this task?')) return;
+            if (!await showConfirm('Delete this task?')) return;
             try {
                 await fetch('/api/tracker/student-items/delete', {
                     method: 'POST',
@@ -1194,7 +1195,7 @@
         }
 
         async function deleteMyItem(id) {
-            if (!confirm('Delete this item?')) return;
+            if (!await showConfirm('Delete this item?')) return;
             try {
                 await fetch('/api/tracker/student-items/delete', {
                     method: 'POST',

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"classgo/internal/handlers"
 	"classgo/internal/memos"
 	"classgo/internal/models"
+	"classgo/internal/scheduler"
 
 	"github.com/go-co-op/gocron/v2"
 
@@ -178,16 +180,23 @@ func main() {
 		pinMode = "off"
 	}
 
+	processUser := ""
+	if u, err := user.Current(); err == nil {
+		processUser = u.Username
+	}
+
 	app := &handlers.App{
-		DB:          db,
-		Tmpl:        tmpl,
-		AppName:     cfg.AppName,
-		DataDir:     cfg.DataDir,
-		PinMode:     pinMode,
-		MemosSyncer: memosSyncer,
-		MemosStore:  memosStoreInst,
-		Sessions:    auth.NewSessionStore(),
-		RateLimiter: handlers.NewRateLimiter(),
+		DB:             db,
+		Tmpl:           tmpl,
+		AppName:        cfg.AppName,
+		DataDir:        cfg.DataDir,
+		PinMode:        pinMode,
+		MemosSyncer:    memosSyncer,
+		MemosStore:     memosStoreInst,
+		Sessions:       auth.NewSessionStore(),
+		RateLimiter:    handlers.NewRateLimiter(),
+		Administrators: cfg.Administrators,
+		ProcessUser:    processUser,
 	}
 	app.SetRequirePIN(pinMode == "center")
 
@@ -332,12 +341,14 @@ func main() {
 		return dbs
 	}
 
-	scheduler, err := gocron.NewScheduler()
+	sched, err := gocron.NewScheduler(
+		gocron.WithLocation(time.Local), // explicit local timezone — DST-safe
+	)
 	if err != nil {
 		log.Printf("Warning: backup scheduler not started: %v", err)
 	} else {
-		_, err = scheduler.NewJob(
-			gocron.CronJob("0 0 * * *", false), // midnight daily
+		_, err = sched.NewJob(
+			gocron.CronJob("0 22 * * *", false), // 10:00 PM daily
 			gocron.NewTask(func() {
 				dbs := backupDBs()
 				backup.Run(backupDir, dbs)
@@ -346,13 +357,35 @@ func main() {
 					memosDB.Close()
 				}
 			}),
+			gocron.WithName("daily-backup"),
 		)
 		if err != nil {
 			log.Printf("Warning: failed to schedule backup: %v", err)
-		} else {
-			scheduler.Start()
-			log.Printf("  Backup:  daily at midnight → %s", backupDir)
 		}
+
+		_, err = sched.NewJob(
+			gocron.CronJob("0 21 * * *", false), // 9:00 PM daily
+			gocron.NewTask(func() {
+				if err := datastore.ExportDailyAttendanceXLSX(db, cfg.DataDir); err != nil {
+					log.Printf("Daily attendance export failed: %v", err)
+				} else {
+					log.Printf("Daily attendance exported to %s", cfg.DataDir)
+				}
+			}),
+			gocron.WithName("daily-attendance-export"),
+		)
+		if err != nil {
+			log.Printf("Warning: failed to schedule attendance export: %v", err)
+		}
+
+		sched.Start()
+		log.Printf("  Backup:  daily at 10:00 PM → %s", backupDir)
+		log.Printf("  Export:  daily at 9:00 PM → %s/attendances/attendance-*.xlsx", cfg.DataDir)
+
+		schedulerUI := scheduler.NewHandler(sched)
+		schedulerUI.RegisterRoutes(mux, func(next http.HandlerFunc) http.HandlerFunc {
+			return handlers.NoCache(app.RequireSuperAdminAPI(next))
+		})
 	}
 
 	go func() {
@@ -368,8 +401,8 @@ func main() {
 			memosDB.Close()
 		}
 
-		if scheduler != nil {
-			scheduler.Shutdown()
+		if sched != nil {
+			sched.Shutdown()
 		}
 		if watcher != nil {
 			watcher.Stop()

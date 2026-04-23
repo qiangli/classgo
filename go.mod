@@ -16,6 +16,7 @@ require (
 	github.com/google/cel-go v0.28.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/feeds v1.2.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
 	github.com/labstack/echo/v5 v5.1.0
 	github.com/lib/pq v1.12.3
@@ -67,7 +68,6 @@ require (
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

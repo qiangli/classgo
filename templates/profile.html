@@ -13,6 +13,7 @@
                 document.documentElement.classList.add('dark');
         })();
     </script>
+    <script src="/static/js/confirm.js"></script>
     <style>
         .dark body { color: #e5e7eb; }
         .dark input, .dark select, .dark textarea {
@@ -323,7 +324,7 @@
 
         async function saveProfile() { return doSave(false); }
         async function finalizeProfile() {
-            if (!confirm('Finalize this profile? This marks it as reviewed and approved.')) return;
+            if (!await showConfirm('Finalize this profile? This marks it as reviewed and approved.')) return;
             return doSave(true);
         }
 
