@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.AppName}} - Profile</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script src="/static/js/toast.js"></script>
+    <script>
+        (function(){
+            var t=localStorage.getItem('classgo-theme')||'system';
+            if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))
+                document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <style>
+        .dark body { color: #e5e7eb; }
+        .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .border-b, .dark .border-t, .dark .border { border-color: #374151; }
+        .dark input[type="text"], .dark input[type="date"], .dark input[type="number"],
+        .dark select, .dark textarea {
+            background-color: #1f2937; color: #e5e7eb; border-color: #4b5563;
+        }
+        .dark input[type="date"] { color-scheme: dark; }
+        .dark input::placeholder { color: #6b7280; }
+        .dark .border-gray-200, .dark .border-gray-300 { border-color: #374151; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14 flex items-center justify-between px-5 sticky top-0 z-20">
+        <div class="flex items-center gap-3">
+            <a href="/home" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-2" title="Back to Home">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <span class="text-sm font-medium">Home</span>
+            </a>
+            <span class="text-gray-300 dark:text-gray-600">|</span>
+            <h1 class="text-base font-semibold text-gray-800 dark:text-gray-100">My Profile</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{.UserName}}</span>
+            <button id="theme-btn" onclick="cycleTheme()" class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded-lg transition" title="Toggle theme">
+                <span id="theme-icon"></span>
+                <span id="theme-label" class="text-xs font-medium"></span>
+            </button>
+            <a href="/logout" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition p-1.5" title="Sign out">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-5 py-6">
+        <div id="profile-status-msg" class="hidden mb-4 px-4 py-2 rounded-lg text-sm"></div>
+
+        {{if eq .UserType "parent"}}
+        <!-- PARENT LAYOUT: parent section first, then child section -->
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Parent / Guardian</h2>
+                <div class="flex items-center gap-2">
+                    <button onclick="parentToggleEdit()" id="parent-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
+                    <button onclick="parentCancelEdit()" id="parent-cancel-btn" class="hidden text-sm text-gray-600 hover:text-gray-800 border border-gray-300 px-3 py-1.5 rounded-lg">Cancel</button>
+                    <button onclick="parentSave()" id="parent-save-btn" class="hidden text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+                </div>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-parent">
+                <div data-pfield="p-first_name" data-label="First Name"></div>
+                <div data-pfield="p-last_name" data-label="Last Name"></div>
+                <div data-pfield="p-email" data-label="Email" data-type="email"></div>
+                <div data-pfield="p-phone" data-label="Phone" data-type="tel"></div>
+                <div data-pfield="p-email2" data-label="Email (2nd)" data-type="email"></div>
+                <div data-pfield="p-phone2" data-label="Phone (2nd)" data-type="tel"></div>
+                <div data-pfield="p-address" data-label="Address" data-span="2"></div>
+            </div>
+        </div>
+
+        <div class="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Child</h2>
+                <select id="profile-child-select" class="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5"></select>
+                <span id="profile-status-badge" class="hidden text-xs px-2 py-1 rounded-full font-medium"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="profileToggleEdit()" id="profile-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
+                <button onclick="profileCancelEdit()" id="profile-cancel-btn" class="hidden text-sm text-gray-600 hover:text-gray-800 border border-gray-300 px-3 py-1.5 rounded-lg">Cancel</button>
+                <button onclick="profileSave()" id="profile-save-btn" class="hidden text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+            </div>
+        </div>
+
+        {{else}}
+        <!-- STUDENT/TEACHER LAYOUT -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <span id="profile-status-badge" class="hidden text-xs px-2 py-1 rounded-full font-medium"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="profileToggleEdit()" id="profile-edit-btn" class="hidden text-sm text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg font-medium">Edit</button>
+                <button onclick="profileCancelEdit()" id="profile-cancel-btn" class="hidden text-sm text-gray-600 hover:text-gray-800 border border-gray-300 px-3 py-1.5 rounded-lg">Cancel</button>
+                <button onclick="profileSave()" id="profile-save-btn" class="hidden text-sm text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-medium">Save</button>
+            </div>
+        </div>
+        {{end}}
+
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Personal Information</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-personal">
+                <div data-pfield="s-first_name" data-label="First Name" data-required="true"></div>
+                <div data-pfield="s-last_name" data-label="Last Name" data-required="true"></div>
+                {{if eq .UserType "student"}}
+                <div data-pfield="s-dob" data-label="Date of Birth" data-type="date"></div>
+                <div data-pfield="s-birthplace" data-label="Where were you born?"></div>
+                <div data-pfield="s-years_in_us" data-label="Years lived in the US"></div>
+                <div data-pfield="s-first_language" data-label="First language learned"></div>
+                {{end}}
+                <div data-pfield="s-email" data-label="Email" data-type="email"></div>
+                <div data-pfield="s-phone" data-label="Phone" data-type="tel"></div>
+                <div data-pfield="s-address" data-label="Address" data-span="2"></div>
+            </div>
+        </div>
+        {{if eq .UserType "student"}}
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Parent / Guardian Information</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-parent">
+                <div data-pfield="p-first_name" data-label="Parent First Name"></div>
+                <div data-pfield="p-last_name" data-label="Parent Last Name"></div>
+                <div data-pfield="p-email" data-label="Parent Email" data-type="email"></div>
+                <div data-pfield="p-phone" data-label="Parent Phone" data-type="tel"></div>
+                <div data-pfield="p-email2" data-label="Parent Email (2nd)" data-type="email"></div>
+                <div data-pfield="p-phone2" data-label="Parent Phone (2nd)" data-type="tel"></div>
+                <div data-pfield="p-address" data-label="Parent Address" data-span="2"></div>
+            </div>
+        </div>
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">High School Education</h2>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4" id="prof-section-education">
+                <div data-pfield="s-school" data-label="Current High School"></div>
+                <div data-pfield="s-grade" data-label="Current Grade Level"></div>
+                <div data-pfield="s-previous_schools" data-label="Previous High Schools" data-span="2"></div>
+                <div data-pfield="s-courses_outside" data-label="Courses Outside High School" data-span="2" data-type="textarea" data-placeholder="e.g., Stanford Online, BYU, community colleges"></div>
+            </div>
+        </div>
+        <div id="profile-tracker-sections"></div>
+        <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">Notes</h2>
+            </div>
+            <div class="px-5 py-4">
+                <div data-pfield="s-notes" data-label="" data-type="textarea" data-placeholder="Additional notes"></div>
+            </div>
+        </div>
+        {{end}}
+        <div class="flex justify-end gap-3 mb-8" id="profile-bottom-actions" style="display:none">
+            <button onclick="profileCancelEdit()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg">Cancel</button>
+            <button onclick="profileSave()" class="px-6 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium">Save Profile</button>
+        </div>
+    </main>
+
+    <script src="/static/js/theme.js"></script>
+    <script>
+        const userType = '{{.UserType}}';
+        const entityID = '{{.EntityID}}';
+
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        // ==================== PROFILE STATE ====================
+        let profileData = null;
+        let profileEditMode = false;
+        let parentEditMode = false;
+        let profileFieldValues = {};
+        let profileTrackerFieldMap = {};
+        let profileStudentID = (userType === 'parent' || userType === 'teacher' || userType === 'admin') ? '' : entityID;
+
+        const profileCategoryConfig = [
+            { cat: 'GPA', title: 'GPA' },
+            { cat: 'PSAT', title: 'Standardized Tests - PSAT' },
+            { cat: 'SAT', title: 'Standardized Tests - SAT' },
+            { cat: 'AP', title: 'AP Exams' },
+            { cat: 'Math Competition', title: 'Math Competitions' },
+            { cat: 'Extracurricular', title: 'Extracurricular Activities' },
+            { cat: 'College Prep', title: 'College Prep' },
+            { cat: 'Personal', title: 'Personal' }
+        ];
+
+        let profileLoaded = false;
+
+        async function loadProfileData() {
+            if (profileLoaded) return;
+            try {
+                const res = await fetch('/api/v1/user/profile?student_id=' + encodeURIComponent(profileStudentID));
+                const data = await res.json();
+                if (!data.ok) { showProfileStatus(data.error || 'Failed to load', 'error'); return; }
+                profileData = data;
+                profileLoaded = true;
+
+                const s = data.student;
+                if (s.id) profileStudentID = s.id;
+                profileFieldValues = {};
+                ['first_name','last_name','grade','school','email','phone','address','notes',
+                 'dob','birthplace','years_in_us','first_language','previous_schools','courses_outside'].forEach(f => {
+                    profileFieldValues['s-' + f] = s[f] || '';
+                });
+
+                const p = data.parent || {};
+                ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                    profileFieldValues['p-' + f] = p[f] || '';
+                });
+
+                // Status badge
+                const badge = document.getElementById('profile-status-badge');
+                if (s.profile_status === 'draft') {
+                    badge.textContent = 'Draft - pending review';
+                    badge.className = 'text-xs px-2 py-1 rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                } else if (s.profile_status === 'final') {
+                    badge.textContent = 'Finalized';
+                    badge.className = 'text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+                } else {
+                    badge.className = 'hidden';
+                }
+
+                buildProfileTrackerSections(data.tracker_items || [], data.tracker_values || {});
+
+                // Child selector for parents
+                if (userType === 'parent' && data.children && data.children.length > 0) {
+                    const sel = document.getElementById('profile-child-select');
+                    sel.innerHTML = data.children.map(c =>
+                        `<option value="${c.id}" ${c.id === profileStudentID ? 'selected' : ''}>${esc(c.name)}</option>`
+                    ).join('');
+                    sel.onchange = () => { profileStudentID = sel.value; profileLoaded = false; loadProfileData(); };
+                }
+
+                if (userType === 'parent') {
+                    setParentEditMode(parentEditMode);
+                }
+
+                if (data.is_empty_profile) {
+                    setProfileEditMode(true);
+                } else {
+                    setProfileEditMode(false);
+                }
+            } catch(e) {
+                showProfileStatus('Failed to load profile: ' + e.message, 'error');
+            }
+        }
+
+        function buildProfileTrackerSections(items, values) {
+            const container = document.getElementById('profile-tracker-sections');
+            if (!container) return;
+            container.innerHTML = '';
+            profileTrackerFieldMap = {};
+
+            const groups = {};
+            items.forEach(it => {
+                const cat = it.category || 'General';
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(it);
+            });
+
+            profileCategoryConfig.forEach(({ cat, title }) => {
+                const catItems = groups[cat];
+                if (!catItems || !catItems.length) return;
+
+                let fieldsHTML = '';
+                catItems.forEach(it => {
+                    const fieldId = 'prof-tracker-' + it.id;
+                    profileTrackerFieldMap[it.id] = fieldId;
+                    const val = values[it.id] || '';
+                    profileFieldValues[fieldId] = val;
+
+                    const placeholder = it.notes || '';
+                    const isLong = cat === 'Extracurricular' || cat === 'College Prep' || cat === 'Personal';
+                    const type = isLong ? 'textarea' : 'text';
+                    const span = isLong ? '2' : '';
+
+                    fieldsHTML += `<div data-pfield="${fieldId}" data-label="${esc(it.name)}" data-type="${type}" data-placeholder="${esc(placeholder)}"${span ? ' data-span="2"' : ''}></div>`;
+                });
+
+                container.innerHTML += `
+                    <div class="section-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+                        <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h2 class="text-base font-semibold text-gray-800">${esc(title)}</h2>
+                        </div>
+                        <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">${fieldsHTML}</div>
+                    </div>`;
+            });
+        }
+
+        function setProfileEditMode(on) {
+            profileEditMode = on;
+            document.getElementById('profile-edit-btn').classList.toggle('hidden', on);
+            document.getElementById('profile-save-btn').classList.toggle('hidden', !on);
+            document.getElementById('profile-cancel-btn').classList.toggle('hidden', !on);
+            document.getElementById('profile-bottom-actions').style.display = on ? 'flex' : 'none';
+            renderProfileFields();
+        }
+
+        function profileToggleEdit() { setProfileEditMode(true); }
+        function profileCancelEdit() { setProfileEditMode(false); }
+
+        function setParentEditMode(on) {
+            parentEditMode = on;
+            const editBtn = document.getElementById('parent-edit-btn');
+            const saveBtn = document.getElementById('parent-save-btn');
+            const cancelBtn = document.getElementById('parent-cancel-btn');
+            if (editBtn) editBtn.classList.toggle('hidden', on);
+            if (saveBtn) saveBtn.classList.toggle('hidden', !on);
+            if (cancelBtn) cancelBtn.classList.toggle('hidden', !on);
+            renderProfileFieldsInScope('p-');
+        }
+        function parentToggleEdit() { setParentEditMode(true); }
+        function parentCancelEdit() { setParentEditMode(false); }
+
+        async function parentSave() {
+            const parent = {};
+            if (profileData && profileData.parent) parent.id = profileData.parent.id || '';
+            ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                const el = document.getElementById('p-' + f);
+                if (el) parent[f] = el.value;
+            });
+            const student = { id: profileStudentID };
+            if (profileData && profileData.student) student.parent_id = profileData.student.parent_id || '';
+
+            const btn = document.getElementById('parent-save-btn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                const res = await fetch('/api/v1/user/profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student, parent, tracker_values: {} })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showProfileStatus('Parent info saved.', 'success');
+                    ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                        const el = document.getElementById('p-' + f);
+                        if (el) profileFieldValues['p-' + f] = el.value;
+                    });
+                    setParentEditMode(false);
+                } else {
+                    showProfileStatus(data.error || 'Save failed.', 'error');
+                }
+            } catch(e) {
+                showProfileStatus('Save failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Save';
+            }
+        }
+
+        function renderProfileFields() {
+            renderProfileFieldsInScope(null);
+        }
+        function renderProfileFieldsInScope(scopePrefix) {
+            document.querySelectorAll('[data-pfield]').forEach(div => {
+                const fieldId = div.dataset.pfield;
+                if (scopePrefix !== null) {
+                    const isParent = fieldId.startsWith('p-');
+                    if (scopePrefix === 'p-' && !isParent) return;
+                    if (scopePrefix === 's-' && isParent) return;
+                }
+                const label = div.dataset.label;
+                const type = div.dataset.type || 'text';
+                const placeholder = div.dataset.placeholder || '';
+                const required = div.dataset.required === 'true';
+                const span = div.dataset.span;
+                const val = profileFieldValues[fieldId] || '';
+
+                if (span === '2') div.className = 'md:col-span-2';
+
+                const isParentField = fieldId.startsWith('p-');
+                const editing = isParentField ? parentEditMode : profileEditMode;
+
+                if (editing) {
+                    const reqMark = required ? ' <span class="text-red-400">*</span>' : '';
+                    if (type === 'textarea') {
+                        div.innerHTML = `<label class="block text-xs text-gray-500 mb-1">${label}${reqMark}</label>
+                            <textarea id="${fieldId}" rows="2" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm" placeholder="${esc(placeholder)}">${esc(val)}</textarea>`;
+                    } else {
+                        div.innerHTML = `<label class="block text-xs text-gray-500 mb-1">${label}${reqMark}</label>
+                            <input type="${type}" id="${fieldId}" value="${esc(val)}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm" placeholder="${esc(placeholder)}">`;
+                    }
+                } else {
+                    div.innerHTML = label
+                        ? `<label class="block text-xs text-gray-500 mb-1">${label}</label><div class="view-val text-sm text-gray-800 dark:text-gray-200" style="min-height:1.5em">${val ? esc(val) : '<span class="text-gray-300">-</span>'}</div>`
+                        : `<div class="view-val text-sm text-gray-800 dark:text-gray-200" style="min-height:1.5em">${val ? esc(val) : ''}</div>`;
+                }
+            });
+        }
+
+        async function profileSave() {
+            const student = { id: profileStudentID };
+            ['first_name','last_name','grade','school','email','phone','address',
+             'dob','birthplace','years_in_us','first_language','previous_schools'].forEach(f => {
+                const el = document.getElementById('s-' + f);
+                if (el) student[f] = el.value;
+            });
+            const coe = document.getElementById('s-courses_outside');
+            if (coe) student.courses_outside = coe.value;
+            const notesEl = document.getElementById('s-notes');
+            if (notesEl) student.notes = notesEl.value;
+            if (profileData && profileData.student) student.parent_id = profileData.student.parent_id || '';
+
+            const parent = {};
+            if (userType !== 'parent') {
+                if (profileData && profileData.parent) parent.id = profileData.parent.id || '';
+                ['first_name','last_name','email','phone','email2','phone2','address'].forEach(f => {
+                    const el = document.getElementById('p-' + f);
+                    if (el) parent[f] = el.value;
+                });
+            }
+
+            const tracker_values = {};
+            for (const [itemId, fieldId] of Object.entries(profileTrackerFieldMap)) {
+                const el = document.getElementById(fieldId);
+                if (el) tracker_values[itemId] = el.value;
+            }
+
+            const btn = document.getElementById('profile-save-btn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('/api/v1/user/profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ student, parent, tracker_values })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showProfileStatus('Profile saved.', 'success');
+                    document.querySelectorAll('[data-pfield]').forEach(div => {
+                        const el = document.getElementById(div.dataset.pfield);
+                        if (el) profileFieldValues[div.dataset.pfield] = el.value;
+                    });
+                    setProfileEditMode(false);
+                    profileLoaded = false;
+                    loadProfileData();
+                } else {
+                    showProfileStatus(data.error || 'Save failed.', 'error');
+                }
+            } catch(e) {
+                showProfileStatus('Save failed: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Save';
+            }
+        }
+
+        function showProfileStatus(msg, type) {
+            const el = document.getElementById('profile-status-msg');
+            el.textContent = msg;
+            el.className = type === 'success'
+                ? 'mb-4 px-4 py-2 rounded-lg text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : 'mb-4 px-4 py-2 rounded-lg text-sm bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+            el.classList.remove('hidden');
+            if (type === 'success') setTimeout(() => el.classList.add('hidden'), 4000);
+        }
+
+        // ==================== INIT ====================
+        loadProfileData();
+    </script>
+</body>
+</html>

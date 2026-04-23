@@ -225,8 +225,8 @@ func TestLogin_Success(t *testing.T) {
 	if resp["ok"] != true {
 		t.Fatalf("login failed: %v", resp)
 	}
-	if resp["redirect"] != "/dashboard" {
-		t.Errorf("expected redirect to /dashboard, got %v", resp["redirect"])
+	if resp["redirect"] != "/home" {
+		t.Errorf("expected redirect to /home, got %v", resp["redirect"])
 	}
 }
 

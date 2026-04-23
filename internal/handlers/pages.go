@@ -20,6 +20,42 @@ func (a *App) HandleScheduleRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/schedule", http.StatusMovedPermanently)
 }
 
+// HandleHome serves the Safari-style start page for regular users.
+// If not authenticated, falls back to showing the login form.
+func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
+	sess := a.GetSession(r)
+	if sess == nil {
+		// Not logged in — show the entry page with login form
+		ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
+		mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
+		data := models.CheckInPageData{
+			AppName:       a.AppName,
+			ServerURLIP:   ipURL,
+			ServerURLMDNS: mdnsURL,
+		}
+		a.Tmpl.ExecuteTemplate(w, "entry.html", data)
+		return
+	}
+	if sess.Role == "admin" {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+		return
+	}
+
+	name, _ := a.lookupEntity(sess.EntityID)
+	if name == "" {
+		name = sess.Username
+	}
+
+	data := models.DashboardData{
+		AppName:  a.AppName,
+		UserType: sess.UserType,
+		EntityID: sess.EntityID,
+		UserName: name,
+		Date:     time.Now().Format("Monday, January 2, 2006"),
+	}
+	a.Tmpl.ExecuteTemplate(w, "home.html", data)
+}
+
 func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)

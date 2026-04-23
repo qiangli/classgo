@@ -41,8 +41,8 @@ func TestPhase1_SignupLoginCheckinCheckout(t *testing.T) {
 	if resp["ok"] != true {
 		t.Fatalf("login failed: %v", resp)
 	}
-	if resp["redirect"] != "/dashboard" {
-		t.Errorf("expected redirect to /dashboard after login, got %v", resp["redirect"])
+	if resp["redirect"] != "/home" {
+		t.Errorf("expected redirect to /home after login, got %v", resp["redirect"])
 	}
 
 	// 3. Check in (by name, no PIN required in Phase 1)

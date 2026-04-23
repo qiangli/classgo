@@ -21,8 +21,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      // Mobile viewport — only for tests that exercise mobile-specific UI
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
+      testMatch: [
+        'mobile-*.spec.ts',
+        'checkout-tracker.spec.ts',
+      ],
     },
   ],
 });

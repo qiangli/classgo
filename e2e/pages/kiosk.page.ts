@@ -44,13 +44,23 @@ export class KioskPage {
   }
 
   async pressKey(digit: string) {
-    await this.page.click(`.kbtn:has-text("${digit}")`);
+    // Use the onclick button directly — find by exact text within keypad
+    const btn = this.keypad.locator('button', { hasText: new RegExp(`^${digit}$`) });
+    await btn.click();
   }
 
   async enterPin(pin: string) {
     for (const d of pin) {
       await this.pressKey(d);
     }
+    // Verify all digits were entered by checking display has correct length
+    await this.page.waitForFunction(
+      (len) => {
+        const display = document.getElementById('display');
+        return display && display.textContent!.replace(/\s/g, '').length === len;
+      },
+      pin.length,
+    );
   }
 
   async submit() {

@@ -41,16 +41,12 @@ async function completeTask(cookie: string, id: number, complete: boolean) {
   return res.json();
 }
 
-async function getProgress(cookie: string): Promise<{ done_count: number; total_items: number; completion: number }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const res = await fetch(
-    `${BASE_URL}/api/v1/admin/progress-summary?start_date=${today}&end_date=${today}&refresh=true`,
-    { headers: { Cookie: cookie } },
-  );
-  const stats = await res.json();
-  if (!Array.isArray(stats)) return { done_count: 0, total_items: 0, completion: 0 };
-  const entry = stats.find((s: any) => s.student_id === STUDENT_ID);
-  return entry || { done_count: 0, total_items: 0, completion: 0 };
+async function getAllTasks(cookie: string): Promise<any[]> {
+  const res = await fetch(`${BASE_URL}/api/dashboard/all-tasks?student_id=${STUDENT_ID}`, {
+    headers: { Cookie: cookie },
+  });
+  const data = await res.json();
+  return data.student_items || [];
 }
 
 test.describe('Tracker progress after complete/uncomplete', () => {
@@ -67,27 +63,28 @@ test.describe('Tracker progress after complete/uncomplete', () => {
     expect(task1.ok).toBe(true);
     expect(task2.ok).toBe(true);
 
-    // Baseline
-    const baseline = await getProgress(cookie);
-    const baseDone = baseline.done_count;
+    // Baseline — count completed items via all-tasks API
+    const baseline = await getAllTasks(cookie);
+    const countCompleted = (tasks: any[]) => tasks.filter((t: any) => t.completed).length;
+    const baseDone = countCompleted(baseline);
 
     // Complete task 1 — done should increase by 1
     const r1 = await completeTask(cookie, task1.id, true);
     expect(r1.ok).toBe(true);
-    const afterComplete = await getProgress(cookie);
-    expect(afterComplete.done_count - baseDone).toBe(1);
+    const afterComplete = await getAllTasks(cookie);
+    expect(countCompleted(afterComplete) - baseDone).toBe(1);
 
     // Uncomplete task 1 — done should go back to baseline
     const r2 = await completeTask(cookie, task1.id, false);
     expect(r2.ok).toBe(true);
-    const afterUncomplete = await getProgress(cookie);
-    expect(afterUncomplete.done_count - baseDone).toBe(0);
+    const afterUncomplete = await getAllTasks(cookie);
+    expect(countCompleted(afterUncomplete) - baseDone).toBe(0);
 
     // Complete both tasks — done should increase by 2
     await completeTask(cookie, task1.id, true);
     await completeTask(cookie, task2.id, true);
-    const afterBoth = await getProgress(cookie);
-    expect(afterBoth.done_count - baseDone).toBe(2);
+    const afterBoth = await getAllTasks(cookie);
+    expect(countCompleted(afterBoth) - baseDone).toBe(2);
 
     // Clean up: uncomplete before deleting to remove tracker_responses
     await completeTask(cookie, task1.id, false);

@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"classgo/internal/auth"
 	"classgo/internal/database"
+	"classgo/internal/models"
 )
 
 // ==================== ADMIN PROFILE (existing) ====================
@@ -89,9 +91,25 @@ func (a *App) saveStudentProfile(w http.ResponseWriter, r *http.Request) {
 
 // ==================== USER PROFILE (new) ====================
 
-// HandleUserProfilePage redirects to the unified dashboard profile section.
+// HandleUserProfilePage serves the standalone profile page.
 func (a *App) HandleUserProfilePage(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/dashboard#profile", http.StatusFound)
+	sess := a.GetSession(r)
+	if sess == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	name, _ := a.lookupEntity(sess.EntityID)
+	if name == "" {
+		name = sess.Username
+	}
+	data := models.DashboardData{
+		AppName:  a.AppName,
+		UserType: sess.UserType,
+		EntityID: sess.EntityID,
+		UserName: name,
+		Date:     time.Now().Format("Monday, January 2, 2006"),
+	}
+	a.Tmpl.ExecuteTemplate(w, "profile_standalone.html", data)
 }
 
 // HandleUserProfile handles GET/POST for user-facing profile (RequireAuth).
@@ -112,6 +130,12 @@ func (a *App) HandleUserProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) getUserProfile(w http.ResponseWriter, r *http.Request, sess *auth.Session) {
+	// Teachers have their own profile — not a student profile
+	if sess.UserType == "teacher" || sess.UserType == "admin" {
+		a.getTeacherProfile(w, sess)
+		return
+	}
+
 	studentID := a.resolveStudentID(sess, r)
 	if studentID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "No student profile available"})
@@ -157,6 +181,42 @@ func (a *App) getUserProfile(w http.ResponseWriter, r *http.Request, sess *auth.
 	})
 }
 
+func (a *App) getTeacherProfile(w http.ResponseWriter, sess *auth.Session) {
+	var id, fn, ln, email, phone, address, subjects string
+	err := a.DB.QueryRow(`SELECT id, first_name, last_name, COALESCE(email,''), COALESCE(phone,''),
+		COALESCE(address,''), COALESCE(subjects,'') FROM teachers WHERE id = ?`, sess.EntityID).
+		Scan(&id, &fn, &ln, &email, &phone, &address, &subjects)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "Teacher not found"})
+		return
+	}
+	teacher := map[string]any{
+		"id": id, "first_name": fn, "last_name": ln,
+		"email": email, "phone": phone, "address": address, "subjects": subjects,
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"teacher": teacher,
+		"student": teacher, // frontend reads student fields for display
+	})
+}
+
+func (a *App) saveTeacherProfile(w http.ResponseWriter, sess *auth.Session, data map[string]any) {
+	_, err := a.DB.Exec(`UPDATE teachers SET
+		first_name = ?, last_name = ?, email = ?, phone = ?, address = ?
+		WHERE id = ?`,
+		getString(data, "first_name"), getString(data, "last_name"),
+		getString(data, "email"), getString(data, "phone"),
+		getString(data, "address"),
+		sess.EntityID,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "Failed to save profile"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func (a *App) saveUserProfile(w http.ResponseWriter, r *http.Request, sess *auth.Session) {
 	var req struct {
 		Student       map[string]any `json:"student"`
@@ -165,6 +225,16 @@ func (a *App) saveUserProfile(w http.ResponseWriter, r *http.Request, sess *auth
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
+		return
+	}
+
+	// Teachers save to the teachers table
+	if sess.UserType == "teacher" || sess.UserType == "admin" {
+		if req.Student != nil {
+			a.saveTeacherProfile(w, sess, req.Student)
+		} else {
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		}
 		return
 	}
 

@@ -195,6 +195,7 @@ func main() {
 
 	// Public routes — no authentication required
 	mux.HandleFunc("/", handlers.NoCache(app.HandleMobile))
+	mux.HandleFunc("/home", handlers.NoCache(app.HandleHome))
 	mux.HandleFunc("/kiosk", handlers.NoCache(app.HandleKiosk))
 	mux.HandleFunc("/login", handlers.NoCache(app.HandleLogin))
 	mux.HandleFunc("/logout", handlers.NoCache(app.HandleLogout))
@@ -295,7 +296,7 @@ func main() {
 	log.Printf("           %s", ipURL)
 	log.Printf("  Admin:   %s/admin", mdnsURL)
 	log.Printf("  Kiosk:   %s/kiosk", mdnsURL)
-	log.Printf("  Memos:   %s/memos/", mdnsURL)
+	log.Printf("  Home:    %s/home", mdnsURL)
 	log.Printf("  PIN:     %s", pin)
 	log.Printf("  Data:    %s", cfg.DataDir)
 	log.Println("=================================")

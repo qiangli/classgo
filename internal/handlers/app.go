@@ -126,7 +126,7 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 				if sess.Role == "admin" {
 					http.Redirect(w, r, "/admin", http.StatusFound)
 				} else {
-					http.Redirect(w, r, "/dashboard", http.StatusFound)
+					http.Redirect(w, r, "/home", http.StatusFound)
 				}
 				return
 			}
@@ -177,6 +177,7 @@ func (a *App) HandleAdminLoginAPI(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Invalid credentials"})
 		return
 	}
+	a.clearExistingSession(r)
 	token := a.Sessions.Create(req.Username, "admin", "", "")
 	auth.SetSessionCookie(w, token)
 	log.Printf("Admin login: %s", req.Username)
@@ -235,6 +236,7 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(req.EntityID)
+		a.clearExistingSession(r)
 		token := a.Sessions.Create(username, "user", userType, req.EntityID)
 		auth.SetSessionCookie(w, token)
 		log.Printf("User setup + login: %s (%s, %s)", name, username, userType)
@@ -258,10 +260,11 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(req.EntityID)
+		a.clearExistingSession(r)
 		token := a.Sessions.Create(username, "user", userType, req.EntityID)
 		auth.SetSessionCookie(w, token)
 		log.Printf("User login: %s (%s, %s)", user.Nickname, username, userType)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/dashboard"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/home"})
 
 	case "signup":
 		// Signup by name: find or create student, then create login account
@@ -302,6 +305,7 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(entityID)
+		a.clearExistingSession(r)
 		token := a.Sessions.Create(username, "user", userType, entityID)
 		auth.SetSessionCookie(w, token)
 		log.Printf("User signup: %s (%s, %s)", name, username, userType)
@@ -438,6 +442,14 @@ func (a *App) GetSession(r *http.Request) *auth.Session {
 		return nil
 	}
 	return &sess
+}
+
+// clearExistingSession invalidates any active session from the request cookie.
+// Must be called before creating a new session to prevent privilege carryover.
+func (a *App) clearExistingSession(r *http.Request) {
+	if token := auth.GetSessionToken(r); token != "" {
+		a.Sessions.Delete(token)
+	}
 }
 
 // HandleLogout clears the session and redirects to login.
