@@ -3,7 +3,7 @@ BIN := bin/$(APP)
 PID_FILE := bin/.pid
 LOG_FILE := bin/classgo.log
 
-.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind rclone
+.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed start stop clean memos-frontend tailwind rclone rclone-all
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -30,11 +30,11 @@ rclone: ## Build rclone binary from submodule
 		echo "rclone-src/ not found (run: git submodule update --init)"; \
 	fi
 
-build: tidy tailwind memos-frontend ## Build binary to bin/
+build: tidy tailwind memos-frontend rclone ## Build binary to bin/
 	@mkdir -p bin
 	go build -o $(BIN) .
 
-build-all: tidy ## Build for Windows, macOS, and Linux
+build-all: tidy rclone-all ## Build for Windows, macOS, and Linux
 	@mkdir -p bin
 	GOOS=darwin  GOARCH=amd64 go build -o bin/$(APP)-darwin-amd64 .
 	GOOS=darwin  GOARCH=arm64 go build -o bin/$(APP)-darwin-arm64 .
@@ -42,6 +42,19 @@ build-all: tidy ## Build for Windows, macOS, and Linux
 	GOOS=linux   GOARCH=arm64 go build -o bin/$(APP)-linux-arm64 .
 	GOOS=windows GOARCH=amd64 go build -o bin/$(APP)-windows-amd64.exe .
 	@echo "Binaries in bin/"
+
+rclone-all: ## Cross-compile rclone for all platforms
+	@if [ -d rclone-src ]; then \
+		mkdir -p bin && cd rclone-src && \
+		GOOS=darwin  GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/rclone-darwin-amd64 . && \
+		GOOS=darwin  GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/rclone-darwin-arm64 . && \
+		GOOS=linux   GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/rclone-linux-amd64 . && \
+		GOOS=linux   GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/rclone-linux-arm64 . && \
+		GOOS=windows GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/rclone-windows-amd64.exe . ; \
+		echo "rclone cross-compiled → bin/rclone-*"; \
+	else \
+		echo "rclone-src/ not found (run: git submodule update --init)"; \
+	fi
 
 start: build ## Start the server in the background
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
