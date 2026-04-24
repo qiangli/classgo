@@ -63,6 +63,10 @@ const (
 	// Student reports
 	ReportStudentWeekly  = "student-weekly-summary"
 	ReportStudentMonthly = "student-monthly-progress"
+
+	// Timesheet reports
+	ReportAdminStaffTimesheet = "admin-staff-timesheet"
+	ReportTeacherTimesheet    = "teacher-timesheet"
 )
 
 // ReportDef describes a report available in the system.
@@ -96,6 +100,10 @@ func AllReports() []ReportDef {
 		// Student
 		{ReportStudentWeekly, "My Weekly Summary", "Days attended, hours, completion, streak", []string{"student"}, false},
 		{ReportStudentMonthly, "My Monthly Progress", "Monthly trends, category breakdown, engagement level", []string{"student"}, false},
+
+		// Timesheet
+		{ReportAdminStaffTimesheet, "Staff Timesheet", "Staff hours with time-off deductions for payroll reference", []string{"admin"}, true},
+		{ReportTeacherTimesheet, "My Timesheet", "Personal timesheet with scheduled hours and time off", []string{"teacher"}, true},
 	}
 }
 

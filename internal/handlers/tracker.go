@@ -265,6 +265,11 @@ func (a *App) HandleTrackerItemDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	sess := a.GetSession(r)
+	if sess == nil || !sess.IsSuperAdmin {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "Superadmin access required"})
+		return
+	}
 	var req struct {
 		ID int `json:"id"`
 	}
@@ -272,12 +277,9 @@ func (a *App) HandleTrackerItemDelete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
 		return
 	}
-	deletedBy := "admin"
-	if sess := a.GetSession(r); sess != nil {
-		deletedBy = sess.EntityID
-		if deletedBy == "" {
-			deletedBy = sess.Username
-		}
+	deletedBy := sess.EntityID
+	if deletedBy == "" {
+		deletedBy = sess.Username
 	}
 	if err := database.DeleteTrackerItem(a.DB, req.ID, deletedBy); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Database error"})

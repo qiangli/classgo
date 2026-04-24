@@ -167,11 +167,15 @@ func importSchedules(db *sql.DB, schedules []models.Schedule) error {
 	for _, s := range schedules {
 		ids[s.ID] = true
 		studentIDs := strings.Join(s.StudentIDs, ";")
-		hash := rowHash(s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, fmt.Sprint(s.Deleted))
+		schedType := s.Type
+		if schedType == "" {
+			schedType = "class"
+		}
+		hash := rowHash(s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, schedType, fmt.Sprint(s.Deleted))
 		_, err := tx.Exec(
-			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, boolToInt(s.Deleted), hash,
+			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, type, deleted, row_hash)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, studentIDs, s.EffectiveFrom, s.EffectiveUntil, schedType, boolToInt(s.Deleted), hash,
 		)
 		if err != nil {
 			return err

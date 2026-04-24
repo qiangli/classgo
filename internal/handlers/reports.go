@@ -135,6 +135,12 @@ func (a *App) HandleReportAPI(w http.ResponseWriter, r *http.Request) {
 	case reports.ReportStudentMonthly:
 		result, err = reports.MyMonthlyProgress(a.DB, dr, sess.EntityID)
 
+	// Timesheet reports
+	case reports.ReportAdminStaffTimesheet:
+		result, err = reports.AdminStaffTimesheet(a.DB, dr)
+	case reports.ReportTeacherTimesheet:
+		result, err = reports.StaffTimesheet(a.DB, dr, sess.EntityID)
+
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Unknown report type"})
 		return

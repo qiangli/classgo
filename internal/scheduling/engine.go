@@ -19,6 +19,7 @@ type Session struct {
 	RoomID     string    `json:"room_id"`
 	Subject    string    `json:"subject"`
 	StudentIDs []string  `json:"student_ids"`
+	Type       string    `json:"type"`
 }
 
 // MaterializeSessions generates concrete session instances from schedule templates
@@ -60,6 +61,7 @@ func MaterializeSessions(schedules []models.Schedule, from, to time.Time) []Sess
 				RoomID:     sched.RoomID,
 				Subject:    sched.Subject,
 				StudentIDs: sched.StudentIDs,
+				Type:       sched.Type,
 			})
 		}
 	}

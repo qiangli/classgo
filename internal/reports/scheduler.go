@@ -2,6 +2,7 @@ package reports
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -101,14 +102,36 @@ func ProcessSubscriptions(db *sql.DB, dataDir string) {
 				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
 				continue
 			}
-			// Archive
 			outDir := filepath.Join(dataDir, "reports", "parent")
 			os.MkdirAll(outDir, 0755)
 			outPath := filepath.Join(outDir, "child-activity-"+sub.UserID+"-"+now.Format("2006-01-02")+".xlsx")
 			writeParentXLSX(report, outPath)
 			log.Printf("Report: parent subscription archived → %s", outPath)
+
+		case ReportTeacherTimesheet:
+			report, err := StaffTimesheet(db, dr, sub.UserID)
+			if err != nil {
+				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
+				continue
+			}
+			outDir := filepath.Join(dataDir, "reports", "teacher")
+			os.MkdirAll(outDir, 0755)
+			outPath := filepath.Join(outDir, "timesheet-"+sub.UserID+"-"+now.Format("2006-01-02")+".xlsx")
+			writeTimesheetXLSX(report, outPath)
+			log.Printf("Report: teacher timesheet archived → %s", outPath)
+
+		case ReportAdminStaffTimesheet:
+			report, err := AdminStaffTimesheet(db, dr)
+			if err != nil {
+				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
+				continue
+			}
+			outDir := filepath.Join(dataDir, "reports", "admin")
+			os.MkdirAll(outDir, 0755)
+			outPath := filepath.Join(outDir, "staff-timesheet-"+now.Format("2006-01-02")+".xlsx")
+			writeAdminTimesheetXLSX(report, outPath)
+			log.Printf("Report: admin staff timesheet archived → %s", outPath)
 		}
-		// Add more report types as they become schedulable
 	}
 }
 
@@ -291,4 +314,73 @@ func cellRef(col, row int) string {
 		letter = string(rune('A'+col/26-1)) + string(rune('A'+col%26-1))
 	}
 	return letter + itoa(row)
+}
+
+func writeTimesheetXLSX(report *StaffTimesheetReport, path string) error {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Timesheet"
+	f.SetSheetName("Sheet1", sheet)
+	headers := []string{"Date", "Day", "Scheduled", "Time Off", "Net Hours", "Type Breakdown"}
+	for i, h := range headers {
+		f.SetCellValue(sheet, cellRef(i+1, 1), h)
+	}
+
+	for i, day := range report.Days {
+		row := i + 2
+		f.SetCellValue(sheet, cellRef(1, row), day.Date)
+		f.SetCellValue(sheet, cellRef(2, row), day.DayOfWeek)
+		f.SetCellValue(sheet, cellRef(3, row), day.ScheduledHours)
+		f.SetCellValue(sheet, cellRef(4, row), day.ScheduledHours-day.NetHours)
+		f.SetCellValue(sheet, cellRef(5, row), day.NetHours)
+		var breakdown string
+		for _, th := range day.HoursByType {
+			if breakdown != "" {
+				breakdown += ", "
+			}
+			breakdown += th.Type + ": " + fmt.Sprintf("%.1f", th.Hours) + "h"
+		}
+		f.SetCellValue(sheet, cellRef(6, row), breakdown)
+	}
+
+	// Summary row
+	row := len(report.Days) + 3
+	f.SetCellValue(sheet, cellRef(1, row), "TOTAL")
+	f.SetCellValue(sheet, cellRef(3, row), report.TotalScheduled)
+	f.SetCellValue(sheet, cellRef(4, row), report.TotalTimeOff)
+	f.SetCellValue(sheet, cellRef(5, row), report.NetHours)
+
+	return f.SaveAs(path)
+}
+
+func writeAdminTimesheetXLSX(report *AdminTimesheetReport, path string) error {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Staff Timesheet"
+	f.SetSheetName("Sheet1", sheet)
+	headers := []string{"Teacher ID", "Teacher Name", "Scheduled Hours", "Time Off Hours", "Net Hours", "Type Breakdown"}
+	for i, h := range headers {
+		f.SetCellValue(sheet, cellRef(i+1, 1), h)
+	}
+
+	for i, s := range report.Staff {
+		row := i + 2
+		f.SetCellValue(sheet, cellRef(1, row), s.TeacherID)
+		f.SetCellValue(sheet, cellRef(2, row), s.TeacherName)
+		f.SetCellValue(sheet, cellRef(3, row), s.TotalScheduled)
+		f.SetCellValue(sheet, cellRef(4, row), s.TotalTimeOff)
+		f.SetCellValue(sheet, cellRef(5, row), s.NetHours)
+		var breakdown string
+		for _, th := range s.TotalByType {
+			if breakdown != "" {
+				breakdown += ", "
+			}
+			breakdown += th.Type + ": " + fmt.Sprintf("%.1f", th.Hours) + "h"
+		}
+		f.SetCellValue(sheet, cellRef(6, row), breakdown)
+	}
+
+	return f.SaveAs(path)
 }

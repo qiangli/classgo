@@ -421,6 +421,11 @@ func (a *App) HandleDataCRUD(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Action {
 	case "delete":
+		sess := a.GetSession(r)
+		if sess == nil || !sess.IsSuperAdmin {
+			writeJSON(w, http.StatusForbidden, map[string]any{"ok": false, "error": "Superadmin access required"})
+			return
+		}
 		if req.ID == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "ID is required"})
 			return
@@ -430,12 +435,9 @@ func (a *App) HandleDataCRUD(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Unknown type"})
 			return
 		}
-		deletedBy := "admin"
-		if sess := a.GetSession(r); sess != nil {
-			deletedBy = sess.EntityID
-			if deletedBy == "" {
-				deletedBy = sess.Username
-			}
+		deletedBy := sess.EntityID
+		if deletedBy == "" {
+			deletedBy = sess.Username
 		}
 		_, err := a.DB.Exec("UPDATE "+req.Type+" SET deleted = 1, deleted_at = datetime('now','localtime'), deleted_by = ? WHERE id = ?", deletedBy, req.ID)
 		if err != nil {
@@ -576,13 +578,17 @@ func (a *App) saveEntity(entityType string, data map[string]any) error {
 			return fmt.Errorf("day_of_week, start_time, and end_time are required")
 		}
 		studentIDs := getString(data, "student_ids")
+		schedType := getString(data, "type")
+		if schedType == "" {
+			schedType = "class"
+		}
 		_, err := a.DB.Exec(
-			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, type, deleted)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, dow, st, et, getString(data, "teacher_id"), getString(data, "room_id"),
 			getString(data, "subject"), studentIDs,
 			getString(data, "effective_from"), getString(data, "effective_until"),
-			boolToInt(getBool(data, "deleted", false)),
+			schedType, boolToInt(getBool(data, "deleted", false)),
 		)
 		return err
 

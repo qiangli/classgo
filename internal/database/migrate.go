@@ -117,6 +117,7 @@ func MigrateDB(db *sql.DB) error {
 		student_ids     TEXT,
 		effective_from  TEXT,
 		effective_until TEXT,
+		type            TEXT NOT NULL DEFAULT 'class',
 		deleted         INTEGER NOT NULL DEFAULT 0,
 		deleted_at      DATETIME,
 		deleted_by      TEXT,
@@ -284,6 +285,22 @@ func MigrateDB(db *sql.DB) error {
 	);
 	CREATE INDEX IF NOT EXISTS idx_report_sub_user ON report_subscriptions(user_id, user_type);
 	CREATE INDEX IF NOT EXISTS idx_report_sub_active ON report_subscriptions(active) WHERE active = 1;
+
+	CREATE TABLE IF NOT EXISTS timeoff (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id       TEXT NOT NULL,
+		user_type     TEXT NOT NULL DEFAULT '',
+		date          TEXT NOT NULL,
+		type          TEXT NOT NULL CHECK(type IN ('holiday','sick','personal')),
+		schedule_type TEXT NOT NULL DEFAULT '',
+		hours         REAL NOT NULL DEFAULT 0,
+		notes         TEXT,
+		created_by    TEXT,
+		created_at    DATETIME DEFAULT (datetime('now','localtime')),
+		UNIQUE(user_id, user_type, date, schedule_type)
+	);
+	CREATE INDEX IF NOT EXISTS idx_timeoff_user ON timeoff(user_id, user_type);
+	CREATE INDEX IF NOT EXISTS idx_timeoff_date ON timeoff(date);
 	`
 	_, err := db.Exec(schema)
 	return err
@@ -435,6 +452,8 @@ func addMissingColumns(db *sql.DB) {
 		"ALTER TABLE attendance ADD COLUMN student_id TEXT NOT NULL DEFAULT ''",
 		// User preferences: add user_type for uniqueness across user types
 		"ALTER TABLE user_preferences ADD COLUMN user_type TEXT NOT NULL DEFAULT ''",
+		// Schedule type (class, office, tutoring)
+		"ALTER TABLE schedules ADD COLUMN type TEXT NOT NULL DEFAULT 'class'",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors

@@ -51,6 +51,20 @@ func reqWithSession(method, path, body string, app *handlers.App, role, userType
 	return req
 }
 
+func reqWithSuperAdmin(method, path, body string, app *handlers.App) *http.Request {
+	token := app.Sessions.Create("test-superadmin", "admin", "", "superadmin")
+	app.Sessions.SetSuperAdmin(token)
+	var req *http.Request
+	if body != "" {
+		req = httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req = httptest.NewRequest(method, path, nil)
+	}
+	req.AddCookie(&http.Cookie{Name: auth.SessionCookie, Value: token})
+	return req
+}
+
 func doReq(handler http.HandlerFunc, req *http.Request) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -169,9 +183,9 @@ func TestGlobalTrackerItem_API(t *testing.T) {
 		t.Fatalf("expected 1 item named 'SAT Prep', got %v", items)
 	}
 
-	// DELETE
+	// DELETE (requires superadmin)
 	itemID := items[0]["id"].(float64)
-	req = reqWithSession("POST", "/api/v1/tracker/items/delete", `{"id":`+jsonNum(itemID)+`}`, app, "admin", "", "admin")
+	req = reqWithSuperAdmin("POST", "/api/v1/tracker/items/delete", `{"id":`+jsonNum(itemID)+`}`, app)
 	w = doReq(app.HandleTrackerItemDelete, req)
 	resp = mustDecode(t, w)
 	if resp["ok"] != true {
@@ -1360,10 +1374,9 @@ func TestSoftDeleteAudit_Entity(t *testing.T) {
 	// Create a student
 	app.DB.Exec("INSERT INTO students (id, first_name, last_name, active) VALUES ('AUDIT1', 'Audit', 'Test', 1)")
 
-	// Delete via API handler
-	req := reqWithSession("POST", "/api/v1/data",
-		`{"action":"delete","type":"students","id":"AUDIT1"}`,
-		app, "admin", "", "admin")
+	// Delete via API handler (requires superadmin)
+	req := reqWithSuperAdmin("POST", "/api/v1/data",
+		`{"action":"delete","type":"students","id":"AUDIT1"}`, app)
 	w := doReq(app.HandleDataCRUD, req)
 	resp := mustDecode(t, w)
 	if resp["ok"] != true {
@@ -1379,8 +1392,8 @@ func TestSoftDeleteAudit_Entity(t *testing.T) {
 	if deletedAt == "" {
 		t.Error("expected deleted_at to be set")
 	}
-	if deletedBy != "admin" {
-		t.Errorf("expected deleted_by='admin', got %q", deletedBy)
+	if deletedBy == "" {
+		t.Error("expected deleted_by to be set")
 	}
 }
 
@@ -1391,10 +1404,9 @@ func TestSoftDeleteAudit_EntityAPI(t *testing.T) {
 	// Create a student
 	app.DB.Exec("INSERT INTO students (id, first_name, last_name, active) VALUES ('AUDIT2', 'Audit2', 'Test', 1)")
 
-	// Delete via API handler
-	req := reqWithSession("POST", "/api/v1/data",
-		`{"action":"delete","type":"students","id":"AUDIT2"}`,
-		app, "admin", "", "admin")
+	// Delete via API handler (requires superadmin)
+	req := reqWithSuperAdmin("POST", "/api/v1/data",
+		`{"action":"delete","type":"students","id":"AUDIT2"}`, app)
 	w := doReq(app.HandleDataCRUD, req)
 	mustDecode(t, w)
 
@@ -1438,10 +1450,9 @@ func TestSoftDeleteAudit_TaskItem(t *testing.T) {
 		t.Fatalf("SaveTrackerItem: %v", err)
 	}
 
-	// Delete via handler
-	req := reqWithSession("POST", "/api/v1/tracker/items/delete",
-		`{"id":`+jsonNum(float64(id))+`}`,
-		app, "admin", "", "admin")
+	// Delete via handler (requires superadmin)
+	req := reqWithSuperAdmin("POST", "/api/v1/tracker/items/delete",
+		`{"id":`+jsonNum(float64(id))+`}`, app)
 	w := doReq(app.HandleTrackerItemDelete, req)
 	resp := mustDecode(t, w)
 	if resp["ok"] != true {

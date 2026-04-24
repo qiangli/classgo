@@ -290,6 +290,12 @@ func main() {
 	mux.HandleFunc("/api/v1/student/profile", handlers.NoCache(app.RequireAdminAPI(app.HandleStudentProfile)))
 	mux.HandleFunc("/api/v1/preferences", handlers.NoCache(app.RequireAuth(app.HandlePreferences)))
 
+	// Time off — admin manages all, users view their own
+	mux.HandleFunc("/api/v1/timeoff", handlers.NoCache(app.RequireAdminAPI(app.HandleTimeOffList)))
+	mux.HandleFunc("/api/v1/timeoff/save", handlers.NoCache(app.RequireAdminAPI(app.HandleTimeOffSave)))
+	mux.HandleFunc("/api/v1/timeoff/delete", handlers.NoCache(app.RequireAdminAPI(app.HandleTimeOffDelete)))
+	mux.HandleFunc("/api/dashboard/my-timeoff", handlers.NoCache(app.RequireAuth(app.HandleDashboardMyTimeOff)))
+
 	// Reports — require any authenticated user (role-filtered)
 	mux.HandleFunc("/reports", handlers.NoCache(app.RequireAuth(app.HandleReportsPage)))
 	mux.HandleFunc("/api/v1/reports/catalog", handlers.NoCache(app.RequireAuth(app.HandleReportCatalog)))

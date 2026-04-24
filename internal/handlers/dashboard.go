@@ -572,6 +572,7 @@ func (a *App) HandleDashboardScheduleSave(w http.ResponseWriter, r *http.Request
 		StudentIDs     string `json:"student_ids"`
 		EffectiveFrom  string `json:"effective_from"`
 		EffectiveUntil string `json:"effective_until"`
+		Type           string `json:"type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid request"})
@@ -608,11 +609,15 @@ func (a *App) HandleDashboardScheduleSave(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	schedType := req.Type
+	if schedType == "" {
+		schedType = "class"
+	}
 	_, err := a.DB.Exec(
-		`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+		`INSERT OR REPLACE INTO schedules (id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, type, deleted)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
 		req.ID, req.DayOfWeek, req.StartTime, req.EndTime, teacherID, req.RoomID,
-		req.Subject, req.StudentIDs, req.EffectiveFrom, req.EffectiveUntil,
+		req.Subject, req.StudentIDs, req.EffectiveFrom, req.EffectiveUntil, schedType,
 	)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Failed to save"})

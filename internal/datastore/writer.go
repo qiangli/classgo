@@ -70,9 +70,9 @@ func ExportCSVDir(dir string, data *EntityData) error {
 			}
 		},
 		"schedules.csv": func(w *csv.Writer) {
-			w.Write([]string{"id", "day_of_week", "start_time", "end_time", "teacher_id", "room_id", "subject", "student_ids", "effective_from", "effective_until"})
+			w.Write([]string{"id", "day_of_week", "start_time", "end_time", "teacher_id", "room_id", "subject", "student_ids", "effective_from", "effective_until", "type"})
 			for _, s := range data.Schedules {
-				w.Write([]string{s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, strings.Join(s.StudentIDs, ";"), s.EffectiveFrom, s.EffectiveUntil})
+				w.Write([]string{s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, strings.Join(s.StudentIDs, ";"), s.EffectiveFrom, s.EffectiveUntil, s.Type})
 			}
 		},
 	}
@@ -173,14 +173,14 @@ func writeRoomSheet(f *excelize.File, rooms []models.Room) {
 func writeScheduleSheet(f *excelize.File, schedules []models.Schedule) {
 	sheet := "Schedules"
 	f.NewSheet(sheet)
-	headers := []string{"id", "day_of_week", "start_time", "end_time", "teacher_id", "room_id", "subject", "student_ids", "effective_from", "effective_until"}
+	headers := []string{"id", "day_of_week", "start_time", "end_time", "teacher_id", "room_id", "subject", "student_ids", "effective_from", "effective_until", "type"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
 	}
 	for r, s := range schedules {
 		row := r + 2
-		vals := []string{s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, strings.Join(s.StudentIDs, ";"), s.EffectiveFrom, s.EffectiveUntil}
+		vals := []string{s.ID, s.DayOfWeek, s.StartTime, s.EndTime, s.TeacherID, s.RoomID, s.Subject, strings.Join(s.StudentIDs, ";"), s.EffectiveFrom, s.EffectiveUntil, s.Type}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -400,7 +400,7 @@ func queryRooms(db *sql.DB, includeDeleted bool) ([]models.Room, error) {
 }
 
 func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) {
-	q := "SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM schedules"
+	q := "SELECT id, day_of_week, start_time, end_time, teacher_id, room_id, subject, student_ids, effective_from, effective_until, COALESCE(type,'class'), deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,'') FROM schedules"
 	if !includeDeleted {
 		q += " WHERE deleted = 0"
 	}
@@ -415,7 +415,7 @@ func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) 
 		var s models.Schedule
 		var teacherID, roomID, subject, studentIDs, effectiveFrom, effectiveUntil sql.NullString
 		var deleted int
-		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil, &deleted, &s.DeletedAt, &s.DeletedBy); err != nil {
+		if err := rows.Scan(&s.ID, &s.DayOfWeek, &s.StartTime, &s.EndTime, &teacherID, &roomID, &subject, &studentIDs, &effectiveFrom, &effectiveUntil, &s.Type, &deleted, &s.DeletedAt, &s.DeletedBy); err != nil {
 			return nil, err
 		}
 		s.TeacherID = teacherID.String

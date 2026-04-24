@@ -131,6 +131,7 @@ type Schedule struct {
 	StudentIDs     []string `json:"student_ids"`
 	EffectiveFrom  string   `json:"effective_from"`
 	EffectiveUntil string   `json:"effective_until"`
+	Type           string   `json:"type"` // "class", "office", "tutoring"
 	Deleted        bool     `json:"deleted"`
 	DeletedAt      string   `json:"deleted_at,omitempty"`
 	DeletedBy      string   `json:"deleted_by,omitempty"`
@@ -321,4 +322,18 @@ func FormatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dh %dm", h, m)
 	}
 	return fmt.Sprintf("%dm", m)
+}
+
+// TimeOff represents a time-off entry (holiday, sick, personal) for any user type.
+type TimeOff struct {
+	ID           int     `json:"id"`
+	UserID       string  `json:"user_id"`
+	UserType     string  `json:"user_type"`
+	Date         string  `json:"date"`
+	Type         string  `json:"type"`          // holiday, sick, personal
+	ScheduleType string  `json:"schedule_type"` // "" = all, "office", "tutoring", "class"
+	Hours        float64 `json:"hours"`         // 0 = full day
+	Notes        string  `json:"notes"`
+	CreatedBy    string  `json:"created_by"`
+	CreatedAt    string  `json:"created_at"`
 }

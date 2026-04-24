@@ -47,8 +47,8 @@ func DetectConflicts(sessions []Session) []Conflict {
 					})
 				}
 
-				// Teacher conflict
-				if s1.TeacherID != "" && s1.TeacherID == s2.TeacherID {
+				// Teacher conflict — only within same schedule type
+				if s1.TeacherID != "" && s1.TeacherID == s2.TeacherID && s1.Type == s2.Type {
 					conflicts = append(conflicts, Conflict{
 						Type:     "teacher",
 						Session1: s1,

@@ -232,6 +232,7 @@ func parseScheduleRows(rows [][]string) []models.Schedule {
 			StudentIDs:     parseRefList(m["student_ids"]),
 			EffectiveFrom:  m["effective_from"],
 			EffectiveUntil: m["effective_until"],
+			Type:           m["type"],
 			Deleted:        parseBoolDefault(m["deleted"], false),
 		})
 	}
