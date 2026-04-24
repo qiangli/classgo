@@ -2120,9 +2120,20 @@
                     const refItems = (dataStore && dataStore[c.ref]) || [];
                     const isMulti = c.key === 'student_ids';
                     if (isMulti) {
-                        return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label} <span class="text-gray-400 text-xs">(semicolon-separated)</span></label>
-                            <input type="text" name="${c.key}" value="${displayVal}" class="w-full px-3 py-1.5 border rounded-lg text-sm" list="list-${c.key}">
-                            <datalist id="list-${c.key}">${refItems.map(r => `<option value="${r.id}">${r.first_name ? r.first_name+' '+r.last_name : r.name} (${r.id})</option>`).join('')}</datalist></div>`;
+                        const selectedIds = displayVal ? String(displayVal).split(/;\s*/).filter(Boolean) : [];
+                        const chipHtml = selectedIds.map(id => {
+                            const s = refItems.find(r => r.id === id);
+                            const label = s ? esc(s.first_name + ' ' + s.last_name) : esc(id);
+                            const grade = s && s.grade ? ' · Grade ' + esc(String(s.grade)) : '';
+                            return `<span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs" data-student-id="${esc(id)}">${label}${grade}<button type="button" onclick="removeStudentChip(this)" class="ml-0.5 text-indigo-400 hover:text-indigo-700 font-bold">&times;</button></span>`;
+                        }).join('');
+                        return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                            <input type="hidden" name="${c.key}" value="${esc(displayVal)}" id="student-ids-hidden">
+                            <div id="student-chips" class="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">${chipHtml}</div>
+                            <div class="relative">
+                                <input type="text" id="student-search-input" placeholder="Search by name, ID, or grade..." class="w-full px-3 py-1.5 border rounded-lg text-sm" autocomplete="off" oninput="filterStudentDropdown(this.value)">
+                                <div id="student-search-results" class="hidden absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+                            </div></div>`;
                     }
                     return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
                         <select name="${c.key}" class="w-full px-3 py-1.5 border rounded-lg text-sm">
@@ -2140,6 +2151,16 @@
                             ${days.map(d => `<option value="${d}" ${d === displayVal ? 'selected' : ''}>${d}</option>`).join('')}
                         </select></div>`;
                 }
+                const isTime = c.key === 'start_time' || c.key === 'end_time';
+                if (isTime) {
+                    return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                        <input type="time" name="${c.key}" value="${String(displayVal).replace(/"/g,'&quot;')}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>`;
+                }
+                const isDate = c.key === 'effective_from' || c.key === 'effective_until';
+                if (isDate) {
+                    return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+                        <input type="date" name="${c.key}" value="${String(displayVal).replace(/"/g,'&quot;')}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>`;
+                }
                 return `<div class="mb-3"><label class="block text-sm text-gray-600 mb-1">${c.label}</label>
                     <input type="text" name="${c.key}" value="${String(displayVal).replace(/"/g,'&quot;')}" class="w-full px-3 py-1.5 border rounded-lg text-sm" ${c.key === 'id' && row.id ? 'readonly class="bg-gray-100"' : ''}></div>`;
             }).join('');
@@ -2148,10 +2169,84 @@
 
         function closeModal() { document.getElementById('entity-modal').classList.add('hidden'); }
 
+        // ---- Student chip picker helpers ----
+        let studentSearchTimeout = null;
+
+        function getSelectedStudentIds() {
+            const container = document.getElementById('student-chips');
+            if (!container) return [];
+            return [...container.querySelectorAll('[data-student-id]')].map(el => el.dataset.studentId);
+        }
+
+        function syncStudentIdsHidden() {
+            const hidden = document.getElementById('student-ids-hidden');
+            if (hidden) hidden.value = getSelectedStudentIds().join('; ');
+        }
+
+        function filterStudentDropdown(query) {
+            clearTimeout(studentSearchTimeout);
+            const resultsDiv = document.getElementById('student-search-results');
+            if (!resultsDiv) return;
+            if (!query || query.length < 1) { resultsDiv.classList.add('hidden'); return; }
+            studentSearchTimeout = setTimeout(() => {
+                const q = query.toLowerCase();
+                const selectedIds = getSelectedStudentIds();
+                const matches = (dataStore && dataStore.students || [])
+                    .filter(s => s.active !== false && !selectedIds.includes(s.id))
+                    .filter(s =>
+                        (s.first_name + ' ' + s.last_name).toLowerCase().includes(q) ||
+                        s.id.toLowerCase().includes(q) ||
+                        (s.grade && String(s.grade).toLowerCase().includes(q))
+                    )
+                    .slice(0, 10);
+                if (!matches.length) {
+                    resultsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-400">No matching students</div>';
+                } else {
+                    resultsDiv.innerHTML = matches.map(s =>
+                        `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm flex justify-between items-center" onmousedown="addStudentChip('${esc(s.id)}')">
+                            <span>${esc(s.first_name + ' ' + s.last_name)}</span>
+                            <span class="text-gray-400 text-xs">${esc(s.id)}${s.grade ? ' · Grade ' + esc(String(s.grade)) : ''}</span>
+                        </div>`
+                    ).join('');
+                }
+                resultsDiv.classList.remove('hidden');
+            }, 150);
+        }
+
+        function addStudentChip(id) {
+            const students = (dataStore && dataStore.students) || [];
+            const s = students.find(r => r.id === id);
+            if (!s) return;
+            const grade = s.grade ? ' · Grade ' + esc(String(s.grade)) : '';
+            const chip = document.createElement('span');
+            chip.className = 'inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs';
+            chip.dataset.studentId = id;
+            chip.innerHTML = `${esc(s.first_name + ' ' + s.last_name)}${grade}<button type="button" onclick="removeStudentChip(this)" class="ml-0.5 text-indigo-400 hover:text-indigo-700 font-bold">&times;</button>`;
+            document.getElementById('student-chips').appendChild(chip);
+            syncStudentIdsHidden();
+            const input = document.getElementById('student-search-input');
+            input.value = '';
+            document.getElementById('student-search-results').classList.add('hidden');
+            input.focus();
+        }
+
+        function removeStudentChip(btn) {
+            btn.closest('[data-student-id]').remove();
+            syncStudentIdsHidden();
+        }
+
+        document.addEventListener('click', function(e) {
+            const results = document.getElementById('student-search-results');
+            const input = document.getElementById('student-search-input');
+            if (results && input && !results.contains(e.target) && e.target !== input) {
+                results.classList.add('hidden');
+            }
+        });
+
         async function saveModal() {
             const form = document.getElementById('modal-form');
             const data = {};
-            form.querySelectorAll('input[type=text], select').forEach(el => { data[el.name] = el.value; });
+            form.querySelectorAll('input[type=text], input[type=hidden], input[type=date], input[type=time], select').forEach(el => { data[el.name] = el.value; });
             form.querySelectorAll('input[type=checkbox]').forEach(el => { data[el.name] = el.checked; });
             // Convert student_ids string back to semicolon format for storage
             if (data.student_ids && typeof data.student_ids === 'string') {
