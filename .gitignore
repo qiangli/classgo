@@ -33,3 +33,4 @@ data/csv.example/memos/
 data/csv.example/attendances
 
 .env
+test-results/
