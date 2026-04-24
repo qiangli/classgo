@@ -49,7 +49,7 @@ rclone-all: ## Cross-compile rclone for all platforms
 
 frp: ## Build frpc binary from submodule
 	@if [ -d frp-src ]; then \
-		mkdir -p bin && cd frp-src && go build -ldflags "-s" -trimpath -o ../bin/frpc ./cmd/frpc ; \
+		mkdir -p bin && cd frp-src && go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc ./cmd/frpc ; \
 		echo "frpc built → bin/frpc"; \
 	else \
 		echo "frp-src/ not found (run: git submodule update --init)"; \
@@ -58,11 +58,11 @@ frp: ## Build frpc binary from submodule
 frp-all: ## Cross-compile frpc for all platforms
 	@if [ -d frp-src ]; then \
 		mkdir -p bin && cd frp-src && \
-		GOOS=darwin  GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-darwin-amd64 ./cmd/frpc && \
-		GOOS=darwin  GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/frpc-darwin-arm64 ./cmd/frpc && \
-		GOOS=linux   GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-linux-amd64 ./cmd/frpc && \
-		GOOS=linux   GOARCH=arm64 go build -ldflags "-s" -trimpath -o ../bin/frpc-linux-arm64 ./cmd/frpc && \
-		GOOS=windows GOARCH=amd64 go build -ldflags "-s" -trimpath -o ../bin/frpc-windows-amd64.exe ./cmd/frpc ; \
+		GOOS=darwin  GOARCH=amd64 go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc-darwin-amd64 ./cmd/frpc && \
+		GOOS=darwin  GOARCH=arm64 go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc-darwin-arm64 ./cmd/frpc && \
+		GOOS=linux   GOARCH=amd64 go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc-linux-amd64 ./cmd/frpc && \
+		GOOS=linux   GOARCH=arm64 go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc-linux-arm64 ./cmd/frpc && \
+		GOOS=windows GOARCH=amd64 go build -tags noweb -ldflags "-s" -trimpath -o ../bin/frpc-windows-amd64.exe ./cmd/frpc ; \
 		echo "frpc cross-compiled → bin/frpc-*"; \
 	else \
 		echo "frp-src/ not found (run: git submodule update --init)"; \
