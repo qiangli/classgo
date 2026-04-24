@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.AppName}} - Reports</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <script src="/static/js/toast.js"></script>
+    <script>
+        (function(){
+            var t=localStorage.getItem('classgo-theme')||'system';
+            if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))
+                document.documentElement.classList.add('dark');
+        })();
+    </script>
+    <style>
+        .dark body { color: #e5e7eb; }
+        .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .border-b, .dark .border-t, .dark .border { border-color: #374151; }
+        .dark input[type="text"], .dark input[type="date"], .dark select {
+            background-color: #1f2937; color: #e5e7eb; border-color: #4b5563;
+        }
+        .dark input[type="date"] { color-scheme: dark; }
+        .dark table th { color: #9ca3af; }
+        .dark table td { color: #d1d5db; }
+        .dark tr.border-b { border-color: #374151; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .dark body { color: #111 !important; }
+            .dark .text-gray-800, .dark .text-gray-700, .dark .text-gray-600 { color: #333 !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14 flex items-center justify-between px-5 sticky top-0 z-20 no-print">
+        <div class="flex items-center gap-3">
+            <a href="/dashboard" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <img src="/static/lern.png" alt="{{.AppName}}" class="h-9 max-w-[200px] object-contain">
+            <span class="text-lg font-semibold text-gray-700 dark:text-gray-200">Reports</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{.UserName}}</span>
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
+                {{if eq .UserType "teacher"}}bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300
+                {{else if eq .UserType "parent"}}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
+                {{else if eq .UserType "student"}}bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300
+                {{else}}bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300{{end}}">
+                {{if eq .UserType ""}}admin{{else}}{{.UserType}}{{end}}</span>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto p-4">
+
+        <!-- Report Selector -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 no-print">
+            <div class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Report</label>
+                    <select id="report-select" onchange="onReportChange()" class="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm min-w-[280px]">
+                        <option value="">-- Select a report --</option>
+                        {{range .Reports}}
+                        <option value="{{.Type}}">{{.Name}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
+                    <input type="date" id="date-from" class="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
+                    <input type="date" id="date-to" class="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Preset</label>
+                    <select id="preset" onchange="applyPreset()" class="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm">
+                        <option value="today">Today</option>
+                        <option value="week" selected>This Week</option>
+                        <option value="last-week">Last Week</option>
+                        <option value="2weeks">Last 2 Weeks</option>
+                        <option value="month">This Month</option>
+                        <option value="last-month">Last Month</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <button onclick="loadReport()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded font-medium">
+                    Generate
+                </button>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div id="action-bar" class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 mb-4 no-print hidden">
+            <div class="flex items-center gap-3">
+                <button onclick="window.print()" class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Print
+                </button>
+                <button onclick="exportReport()" class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Export
+                </button>
+                <button id="schedule-btn" onclick="openScheduleModal()" class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded hidden">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Schedule
+                </button>
+            </div>
+        </div>
+
+        <!-- Report Content -->
+        <div id="report-content" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="text-center text-gray-400 dark:text-gray-500 py-12">
+                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <p class="text-sm">Select a report and click Generate to view data</p>
+            </div>
+        </div>
+
+        <!-- Subscriptions Section -->
+        <div id="subscriptions-section" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mt-4 no-print">
+            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">My Scheduled Reports</h3>
+            <div id="subscriptions-list" class="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div id="schedule-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Schedule This Report</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Frequency</label>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-1.5 text-sm"><input type="radio" name="sched-freq" value="weekly" checked> Weekly</label>
+                        <label class="flex items-center gap-1.5 text-sm"><input type="radio" name="sched-freq" value="biweekly"> Biweekly</label>
+                        <label class="flex items-center gap-1.5 text-sm"><input type="radio" name="sched-freq" value="monthly"> Monthly</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Day</label>
+                    <select id="sched-day" class="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm w-full">
+                        <option value="monday">Monday</option>
+                        <option value="tuesday">Tuesday</option>
+                        <option value="wednesday">Wednesday</option>
+                        <option value="thursday">Thursday</option>
+                        <option value="friday" selected>Friday</option>
+                        <option value="saturday">Saturday</option>
+                        <option value="sunday">Sunday</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Send via</label>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-1.5 text-sm"><input type="checkbox" id="sched-email" checked> Email</label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeScheduleModal()" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 px-4 py-2">Cancel</button>
+                <button onclick="saveSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded font-medium">Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Report metadata from server
+    const reportDefs = [
+        {{range .Reports}}
+        {type: "{{.Type}}", name: "{{.Name}}", desc: "{{.Description}}", schedulable: {{.Schedulable}}},
+        {{end}}
+    ];
+
+    let currentData = null;
+    let currentType = '';
+
+    // Date helpers
+    function today() { return new Date().toISOString().slice(0,10); }
+    function addDays(d, n) { let r = new Date(d); r.setDate(r.getDate()+n); return r.toISOString().slice(0,10); }
+    function weekStart(d) { let r = new Date(d||new Date()); let day = r.getDay()||7; r.setDate(r.getDate()-(day-1)); return r.toISOString().slice(0,10); }
+    function monthStart(d) { let r = new Date(d||new Date()); return new Date(r.getFullYear(), r.getMonth(), 1).toISOString().slice(0,10); }
+    function monthEnd(d) { let r = new Date(d||new Date()); return new Date(r.getFullYear(), r.getMonth()+1, 0).toISOString().slice(0,10); }
+
+    // Init dates
+    document.getElementById('date-from').value = weekStart();
+    document.getElementById('date-to').value = addDays(weekStart(), 6);
+
+    function applyPreset() {
+        const p = document.getElementById('preset').value;
+        const now = new Date();
+        let from, to;
+        switch(p) {
+            case 'today': from = to = today(); break;
+            case 'week': from = weekStart(); to = addDays(from, 6); break;
+            case 'last-week': from = addDays(weekStart(), -7); to = addDays(from, 6); break;
+            case '2weeks': to = today(); from = addDays(to, -13); break;
+            case 'month': from = monthStart(); to = monthEnd(); break;
+            case 'last-month':
+                let prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+                from = prev.toISOString().slice(0,10);
+                to = new Date(prev.getFullYear(), prev.getMonth()+1, 0).toISOString().slice(0,10);
+                break;
+            case 'custom': return; // user sets manually
+        }
+        document.getElementById('date-from').value = from;
+        document.getElementById('date-to').value = to;
+    }
+
+    function onReportChange() {
+        const sel = document.getElementById('report-select').value;
+        const def = reportDefs.find(r => r.type === sel);
+        // Show/hide schedule button based on whether report is schedulable
+        const schedBtn = document.getElementById('schedule-btn');
+        if (def && def.schedulable) {
+            schedBtn.classList.remove('hidden');
+        } else {
+            schedBtn.classList.add('hidden');
+        }
+    }
+
+    async function loadReport() {
+        const type = document.getElementById('report-select').value;
+        if (!type) { showToast('Select a report first', 'error'); return; }
+
+        const from = document.getElementById('date-from').value;
+        const to = document.getElementById('date-to').value;
+        const content = document.getElementById('report-content');
+
+        content.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="text-sm text-gray-500 mt-2">Generating report...</p></div>';
+
+        try {
+            const resp = await fetch(`/api/v1/reports/data?type=${type}&from=${from}&to=${to}`);
+            if (!resp.ok) throw new Error((await resp.json()).error || 'Failed');
+            currentData = await resp.json();
+            currentType = type;
+            document.getElementById('action-bar').classList.remove('hidden');
+            renderReport(type, currentData);
+        } catch(e) {
+            content.innerHTML = `<div class="text-center text-red-500 py-8">${e.message}</div>`;
+        }
+    }
+
+    function renderReport(type, data) {
+        const el = document.getElementById('report-content');
+        let html = '';
+
+        // Generic renderer: show summary cards + data table
+        if (data.date || data.date_range) {
+            const range = data.date_range || {from: data.date, to: data.date};
+            html += `<div class="text-xs text-gray-400 mb-4">${range.from}${range.from !== range.to ? ' to ' + range.to : ''}</div>`;
+        }
+
+        // Summary metrics cards
+        const metricKeys = ['total_checkins','unique_students','total_checkouts','open_sessions','avg_duration_mins',
+            'fraud_flags','fraud_flag_count','consistent_count','sporadic_count','completion_rate','avg_score',
+            'at_risk_count','total_flags','total_hours','class_count','unique_students','days_attended',
+            'tasks_completed','tasks_total','completion_pct','late_count','streak',
+            'class_avg_attendance','class_avg_completion','new_students','inactive_students'];
+        const labels = {
+            total_checkins:'Check-ins', unique_students:'Unique Students', total_checkouts:'Check-outs',
+            open_sessions:'Open Sessions', avg_duration_mins:'Avg Duration (min)', fraud_flags:'Fraud Flags',
+            fraud_flag_count:'Fraud Flags', consistent_count:'Consistent (4+ days)', sporadic_count:'Sporadic (1 day)',
+            completion_rate:'Completion Rate %', avg_score:'Avg Score', at_risk_count:'At Risk',
+            total_flags:'Total Flags', total_hours:'Total Hours', class_count:'Classes',
+            days_attended:'Days Attended', tasks_completed:'Tasks Done', tasks_total:'Tasks Total',
+            completion_pct:'Completion %', late_count:'Late', streak:'Streak',
+            class_avg_attendance:'Class Avg Attendance %', class_avg_completion:'Class Avg Completion %',
+            new_students:'New Students', inactive_students:'Inactive Students'
+        };
+
+        let cards = '';
+        for (const k of metricKeys) {
+            if (data[k] !== undefined && data[k] !== null) {
+                let v = typeof data[k] === 'number' ? (Number.isInteger(data[k]) ? data[k] : data[k].toFixed(1)) : data[k];
+                cards += `<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                    <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">${v}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">${labels[k]||k}</div>
+                </div>`;
+            }
+        }
+        if (cards) html += `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">${cards}</div>`;
+
+        // Previous week comparison
+        if (data.prev_week_compare) {
+            const pw = data.prev_week_compare;
+            html += `<div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 mb-4 text-sm">
+                <span class="font-medium">vs. Previous:</span>
+                Check-ins ${pw.delta_checkins >= 0 ? '+' : ''}${pw.delta_checkins} (was ${pw.prev_checkins}),
+                Unique ${pw.delta_unique >= 0 ? '+' : ''}${pw.delta_unique} (was ${pw.prev_unique})
+            </div>`;
+        }
+
+        // Profile gaps (monthly)
+        if (data.profile_gaps) {
+            const g = data.profile_gaps;
+            html += `<div class="bg-yellow-50 dark:bg-yellow-900/30 rounded-lg p-3 mb-4 text-sm">
+                <span class="font-medium">Profile Gaps:</span>
+                ${g.missing_grade} missing grade, ${g.missing_parent} missing parent,
+                ${g.missing_dob} missing DOB, ${g.parents_no_email} parents without email
+                (of ${g.total_students} students)
+            </div>`;
+        }
+
+        // Data tables for arrays
+        const arrayKeys = ['records','open_session_list','by_day','no_shows','new_students','students',
+            'teachers','rooms','classes','children','flagged_events','repeat_offenders',
+            'weekly_breakdown','weekly_hours','daily_detail','incomplete_items','upcoming_tasks',
+            'category_breakdown','weekly_trend','engagement_level'];
+
+        for (const k of arrayKeys) {
+            if (data[k] && Array.isArray(data[k]) && data[k].length > 0) {
+                const items = data[k];
+                const cols = Object.keys(items[0]).filter(c => !c.endsWith('_id') || c === 'student_id' || c === 'teacher_id');
+
+                html += `<h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-6 mb-2">${k.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</h3>`;
+                html += '<div class="overflow-x-auto"><table class="w-full text-sm">';
+                html += '<thead><tr class="border-b dark:border-gray-600">';
+                for (const c of cols) {
+                    html += `<th class="text-left py-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">${c.replace(/_/g,' ')}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+                for (const row of items) {
+                    html += '<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">';
+                    for (const c of cols) {
+                        let val = row[c];
+                        if (typeof val === 'number' && !Number.isInteger(val)) val = val.toFixed(1);
+                        if (typeof val === 'boolean') val = val ? 'Yes' : 'No';
+                        if (Array.isArray(val)) val = val.join(', ');
+                        if (val === null || val === undefined) val = '';
+                        html += `<td class="py-2 px-2 text-gray-700 dark:text-gray-300">${val}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table></div>';
+            }
+        }
+
+        // Children (parent report - special rendering)
+        if (data.children && Array.isArray(data.children)) {
+            html = ''; // override generic rendering
+            for (const child of data.children) {
+                html += `<div class="mb-8 pb-6 border-b dark:border-gray-700 last:border-0">`;
+                html += `<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">${child.student_name}</h3>`;
+                html += `<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-center">
+                        <div class="text-xl font-bold">${child.days_attended}</div>
+                        <div class="text-xs text-gray-500">Days Attended</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-center">
+                        <div class="text-xl font-bold">${child.total_hours.toFixed(1)}</div>
+                        <div class="text-xs text-gray-500">Total Hours</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-center">
+                        <div class="text-xl font-bold">${child.completion_pct.toFixed(0)}%</div>
+                        <div class="text-xs text-gray-500">Completion</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 text-center">
+                        <div class="text-xl font-bold ${child.engagement_level==='Needs Attention'?'text-red-500':child.engagement_level==='Good'?'text-yellow-500':'text-green-500'}">${child.engagement_level}</div>
+                        <div class="text-xs text-gray-500">Engagement</div>
+                    </div>
+                </div>`;
+
+                if (child.daily_detail && child.daily_detail.length) {
+                    html += '<table class="w-full text-sm mb-4"><thead><tr class="border-b dark:border-gray-600"><th class="text-left py-1 px-2 text-xs text-gray-500">Date</th><th class="text-left py-1 px-2 text-xs text-gray-500">Check In</th><th class="text-left py-1 px-2 text-xs text-gray-500">Check Out</th><th class="text-left py-1 px-2 text-xs text-gray-500">Duration</th></tr></thead><tbody>';
+                    for (const d of child.daily_detail) {
+                        html += `<tr class="border-b dark:border-gray-700"><td class="py-1 px-2">${d.date}</td><td class="py-1 px-2">${d.check_in}</td><td class="py-1 px-2">${d.check_out||'-'}</td><td class="py-1 px-2">${d.duration||'-'}</td></tr>`;
+                    }
+                    html += '</tbody></table>';
+                }
+
+                if (child.incomplete_items && child.incomplete_items.length) {
+                    html += '<h4 class="text-sm font-medium text-red-600 dark:text-red-400 mb-1">Incomplete Items</h4><ul class="text-sm mb-4">';
+                    for (const it of child.incomplete_items) {
+                        html += `<li class="py-0.5">${it.name} ${it.is_late ? '<span class="text-xs text-red-500">(late)</span>' : ''}</li>`;
+                    }
+                    html += '</ul>';
+                }
+
+                html += '</div>';
+            }
+        }
+
+        if (!html) html = '<div class="text-center text-gray-400 py-8">No data for selected period</div>';
+        el.innerHTML = html;
+    }
+
+    function exportReport() {
+        if (!currentData) return;
+        // Export as CSV
+        const tables = document.querySelectorAll('#report-content table');
+        if (tables.length === 0) { showToast('No table data to export', 'error'); return; }
+
+        let csv = '';
+        tables.forEach(table => {
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const line = Array.from(cells).map(c => '"' + c.textContent.trim().replace(/"/g,'""') + '"').join(',');
+                csv += line + '\n';
+            });
+            csv += '\n';
+        });
+
+        const blob = new Blob([csv], {type:'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = currentType + '-' + document.getElementById('date-from').value + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Schedule modal
+    function openScheduleModal() { document.getElementById('schedule-modal').classList.remove('hidden'); }
+    function closeScheduleModal() { document.getElementById('schedule-modal').classList.add('hidden'); }
+
+    async function saveSchedule() {
+        const freq = document.querySelector('input[name="sched-freq"]:checked').value;
+        const day = document.getElementById('sched-day').value;
+        const type = document.getElementById('report-select').value;
+
+        try {
+            const resp = await fetch('/api/v1/reports/subscriptions', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({report_type: type, frequency: freq, day_of_week: day, channel: 'email'})
+            });
+            if (!resp.ok) throw new Error((await resp.json()).error || 'Failed');
+            closeScheduleModal();
+            showToast('Report scheduled successfully');
+            loadSubscriptions();
+        } catch(e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    async function loadSubscriptions() {
+        try {
+            const resp = await fetch('/api/v1/reports/subscriptions');
+            if (!resp.ok) return;
+            const subs = await resp.json();
+            const el = document.getElementById('subscriptions-list');
+            if (!subs || subs.length === 0) {
+                el.innerHTML = '<span class="text-gray-400">No scheduled reports</span>';
+                return;
+            }
+            let html = '<div class="space-y-2">';
+            for (const s of subs) {
+                const def = reportDefs.find(r => r.type === s.report_type);
+                const name = def ? def.name : s.report_type;
+                html += `<div class="flex items-center justify-between py-2 border-b dark:border-gray-700">
+                    <div>
+                        <span class="font-medium text-gray-700 dark:text-gray-300">${name}</span>
+                        <span class="text-gray-400 ml-2">${s.frequency} on ${s.day_of_week} via ${s.channel}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs ${s.active ? 'text-green-500' : 'text-gray-400'}">${s.active ? 'Active' : 'Paused'}</span>
+                        <button onclick="toggleSub(${s.id}, ${!s.active}, '${s.frequency}', '${s.day_of_week}', '${s.channel}')"
+                            class="text-xs text-blue-500 hover:underline">${s.active ? 'Pause' : 'Resume'}</button>
+                        <button onclick="deleteSub(${s.id})" class="text-xs text-red-500 hover:underline">Delete</button>
+                    </div>
+                </div>`;
+            }
+            html += '</div>';
+            el.innerHTML = html;
+        } catch(e) {
+            console.error('Failed to load subscriptions:', e);
+        }
+    }
+
+    async function toggleSub(id, active, freq, day, channel) {
+        await fetch('/api/v1/reports/subscriptions', {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({id, active, frequency: freq, day_of_week: day, channel})
+        });
+        loadSubscriptions();
+    }
+
+    async function deleteSub(id) {
+        if (!confirm('Delete this scheduled report?')) return;
+        await fetch(`/api/v1/reports/subscriptions?id=${id}`, {method: 'DELETE'});
+        loadSubscriptions();
+    }
+
+    // Init
+    loadSubscriptions();
+    </script>
+</body>
+</html>

@@ -25,6 +25,7 @@ import (
 	"classgo/internal/handlers"
 	"classgo/internal/memos"
 	"classgo/internal/models"
+	"classgo/internal/reports"
 	"classgo/internal/scheduler"
 	"classgo/internal/tunnel"
 
@@ -237,6 +238,12 @@ func main() {
 	mux.HandleFunc("/api/dashboard/progress", handlers.NoCache(app.RequireAuth(app.HandleTrackerProgress)))
 	mux.HandleFunc("/api/dashboard/bulk-assign", handlers.NoCache(app.RequireAuth(app.HandleTrackerBulkAssign)))
 	mux.HandleFunc("/api/dashboard/assign-library-item", handlers.NoCache(app.RequireAuth(app.HandleAssignLibraryItem)))
+	mux.HandleFunc("/api/dashboard/classes", handlers.NoCache(app.RequireAuth(app.HandleDashboardClasses)))
+	mux.HandleFunc("/api/dashboard/enroll", handlers.NoCache(app.RequireAuth(app.HandleDashboardEnroll)))
+	mux.HandleFunc("/api/dashboard/unenroll", handlers.NoCache(app.RequireAuth(app.HandleDashboardUnenroll)))
+	mux.HandleFunc("/api/dashboard/schedule", handlers.NoCache(app.RequireAuth(app.HandleDashboardScheduleSave)))
+	mux.HandleFunc("/api/dashboard/schedule/delete", handlers.NoCache(app.RequireAuth(app.HandleDashboardScheduleDelete)))
+	mux.HandleFunc("/api/dashboard/rooms", handlers.NoCache(app.RequireAuth(app.HandleDashboardRooms)))
 
 	// User profile — require any authenticated user
 	mux.HandleFunc("/profile", handlers.NoCache(app.RequireAuth(app.HandleUserProfilePage)))
@@ -282,6 +289,12 @@ func main() {
 	mux.HandleFunc("/api/v1/audit/dismiss", handlers.NoCache(app.RequireAdminAPI(app.HandleAuditDismiss)))
 	mux.HandleFunc("/api/v1/student/profile", handlers.NoCache(app.RequireAdminAPI(app.HandleStudentProfile)))
 	mux.HandleFunc("/api/v1/preferences", handlers.NoCache(app.RequireAuth(app.HandlePreferences)))
+
+	// Reports — require any authenticated user (role-filtered)
+	mux.HandleFunc("/reports", handlers.NoCache(app.RequireAuth(app.HandleReportsPage)))
+	mux.HandleFunc("/api/v1/reports/catalog", handlers.NoCache(app.RequireAuth(app.HandleReportCatalog)))
+	mux.HandleFunc("/api/v1/reports/data", handlers.NoCache(app.RequireAuth(app.HandleReportAPI)))
+	mux.HandleFunc("/api/v1/reports/subscriptions", handlers.NoCache(app.RequireAuth(app.HandleReportSubscriptions)))
 
 	// Memos — require any authenticated user (redirect to login)
 	mux.Handle("/memos/", handlers.NoCache(app.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -418,9 +431,57 @@ func main() {
 			}
 		}
 
+		// Report cron jobs
+		reportDB := db
+		reportDir := cfg.DataDir
+		_, err = sched.NewJob(
+			gocron.CronJob("30 21 * * *", false), // 9:30 PM daily
+			gocron.NewTask(func() {
+				reports.RunDailyAttendance(reportDB, reportDir)
+			}),
+			gocron.WithName("report-daily-attendance"),
+		)
+		if err != nil {
+			log.Printf("Warning: failed to schedule daily attendance report: %v", err)
+		}
+
+		_, err = sched.NewJob(
+			gocron.CronJob("0 21 * * 0", false), // Sunday 9 PM
+			gocron.NewTask(func() {
+				reports.RunWeeklyAudit(reportDB, reportDir)
+			}),
+			gocron.WithName("report-weekly-audit"),
+		)
+		if err != nil {
+			log.Printf("Warning: failed to schedule weekly audit report: %v", err)
+		}
+
+		_, err = sched.NewJob(
+			gocron.CronJob("0 7 1 * *", false), // 1st of month 7 AM
+			gocron.NewTask(func() {
+				reports.RunMonthlyDashboard(reportDB, reportDir)
+			}),
+			gocron.WithName("report-monthly-dashboard"),
+		)
+		if err != nil {
+			log.Printf("Warning: failed to schedule monthly dashboard report: %v", err)
+		}
+
+		_, err = sched.NewJob(
+			gocron.CronJob("0 18 * * *", false), // 6 PM daily — process subscriptions
+			gocron.NewTask(func() {
+				reports.ProcessSubscriptions(reportDB, reportDir)
+			}),
+			gocron.WithName("report-subscriptions"),
+		)
+		if err != nil {
+			log.Printf("Warning: failed to schedule report subscriptions: %v", err)
+		}
+
 		sched.Start()
 		log.Printf("  Backup:  daily at 10:00 PM → %s", backupDir)
 		log.Printf("  Export:  daily at 9:00 PM → %s/attendances/attendance-*.xlsx", cfg.DataDir)
+		log.Printf("  Reports: daily/weekly/monthly → %s/reports/", cfg.DataDir)
 		if cfg.CloudSync.Enabled {
 			schedule := cfg.CloudSync.Schedule
 			if schedule == "" {

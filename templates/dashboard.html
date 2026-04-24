@@ -84,12 +84,12 @@
                 <span class="text-[10px] mt-1 leading-tight text-center">My Items</span>
             </div>
 
-            {{if eq .UserType "teacher"}}
-            <!-- Classes (teacher only) -->
-            <div onclick="navigate('classes')" id="nav-classes" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="My Classes">
+            <!-- Classes (all roles) -->
+            <div onclick="navigate('classes')" id="nav-classes" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Classes">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Classes</span>
             </div>
+            {{if eq .UserType "teacher"}}
             <!-- Students (teacher only) -->
             <div onclick="navigate('students')" id="nav-students" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Students">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
@@ -105,6 +105,10 @@
         </div>
 
         <div class="flex flex-col gap-1 w-full mt-auto">
+            <a href="/reports" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Reports">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Reports</span>
+            </a>
             <a href="/home" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-300 cursor-pointer rounded-r-lg" title="Back to Home">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Home</span>
@@ -197,16 +201,37 @@
                 </div>
             </section>
 
-            {{if eq .UserType "teacher"}}
-            <!-- ==================== CLASSES SECTION ==================== -->
+            <!-- ==================== CLASSES SECTION (all roles) ==================== -->
             <section id="section-classes" class="hidden">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">My Classes</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 id="classes-title" class="text-lg font-semibold text-gray-700">Classes</h2>
+                        <div class="flex items-center gap-2">
+                            {{if eq .UserType "parent"}}
+                            <select id="classes-child-filter" onchange="loadClasses()" class="text-sm border rounded-lg px-3 py-1.5">
+                                <option value="">Select child...</option>
+                            </select>
+                            {{end}}
+                            {{if eq .UserType "teacher"}}
+                            <button onclick="openScheduleModal()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                New Class
+                            </button>
+                            {{end}}
+                        </div>
+                    </div>
+                    {{if ne .UserType "teacher"}}
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="setClassesTab('enrolled')" id="classes-tab-enrolled" class="px-3 py-1.5 text-sm font-medium rounded-lg transition bg-indigo-600 text-white">My Classes</button>
+                        <button onclick="setClassesTab('available')" id="classes-tab-available" class="px-3 py-1.5 text-sm font-medium rounded-lg transition bg-gray-100 text-gray-600 hover:bg-gray-200">Available</button>
+                    </div>
+                    {{end}}
                     <div id="classes-container"><p class="text-gray-400 text-center py-4">Loading...</p></div>
                 </div>
             </section>
 
-            <!-- ==================== STUDENTS SECTION ==================== -->
+            {{if eq .UserType "teacher"}}
+            <!-- ==================== STUDENTS SECTION (teacher only) ==================== -->
             <section id="section-students" class="hidden">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4">My Students</h2>
@@ -456,12 +481,12 @@
 
         // ==================== NAVIGATION ====================
         let currentSection = 'tasks';
-        const sections = ['tasks', 'my-items', {{if eq .UserType "teacher"}}'classes', 'students',{{end}} 'progress'];
+        const sections = ['tasks', 'my-items', 'classes', {{if eq .UserType "teacher"}}'students',{{end}} 'progress'];
         const sectionMeta = {
             tasks:      { title: userType === 'parent' ? 'Tasks' : 'My Tasks', subtitle: '{{.Date}}' },
             'my-items': { title: 'My Task Items', subtitle: 'Create and manage your tasks' },
+            classes:    { title: userType === 'teacher' ? 'My Classes' : 'Classes', subtitle: 'Weekly Schedule' },
             {{if eq .UserType "teacher"}}
-            classes:    { title: 'My Classes', subtitle: 'Weekly Schedule' },
             students:   { title: 'My Students', subtitle: 'Student & Parent Information' },
             {{end}}
             progress:   { title: 'Progress', subtitle: 'Completion Statistics' }
@@ -891,27 +916,103 @@
             } catch(e) { showToast('Failed to save', 'error'); }
         }
 
-        {{if eq .UserType "teacher"}}
-        // ==================== CLASSES ====================
+        // ==================== CLASSES (all roles) ====================
         let classData = [];
+        let classesTab = 'enrolled'; // 'enrolled' or 'available' (student/parent only)
+        let classRooms = []; // cached rooms list for teacher modal
+
+        function setClassesTab(tab) {
+            classesTab = tab;
+            document.getElementById('classes-tab-enrolled').className = tab === 'enrolled'
+                ? 'px-3 py-1.5 text-sm font-medium rounded-lg transition bg-indigo-600 text-white'
+                : 'px-3 py-1.5 text-sm font-medium rounded-lg transition bg-gray-100 text-gray-600 hover:bg-gray-200';
+            document.getElementById('classes-tab-available').className = tab === 'available'
+                ? 'px-3 py-1.5 text-sm font-medium rounded-lg transition bg-indigo-600 text-white'
+                : 'px-3 py-1.5 text-sm font-medium rounded-lg transition bg-gray-100 text-gray-600 hover:bg-gray-200';
+            renderClasses();
+        }
 
         async function loadClasses() {
             try {
-                const res = await fetch('/api/dashboard/my-classes');
+                let url = '/api/dashboard/classes';
+                if (userType === 'parent') {
+                    const sel = document.getElementById('classes-child-filter');
+                    if (sel && sel.value) url += '?student_id=' + encodeURIComponent(sel.value);
+                } else if (userType === 'student') {
+                    url += '?student_id=' + encodeURIComponent(entityID);
+                }
+                const res = await fetch(url);
                 classData = await res.json();
                 renderClasses();
             } catch(e) { console.error(e); }
         }
 
+        function renderClassCard(c, showEnrollBtn) {
+            const spotsHtml = c.capacity > 0
+                ? `<span class="text-xs ${c.enrolled_count >= c.capacity ? 'text-red-500' : 'text-green-600'}">${c.capacity - c.enrolled_count} spots left</span>`
+                : '';
+            const teacherHtml = c.teacher_name ? `<span class="text-sm text-gray-500">Teacher: ${esc(c.teacher_name)}</span>` : '';
+
+            let actionHtml = '';
+            if (userType === 'teacher') {
+                actionHtml = `<div class="flex gap-2 mt-2">
+                    <button onclick='openScheduleModal(${JSON.stringify(c).replace(/'/g,"&#39;")})' class="text-xs text-indigo-600 hover:text-indigo-800">Edit</button>
+                    <button onclick="deleteSchedule('${esc(c.id)}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                </div>`;
+            } else if (showEnrollBtn) {
+                if (c.is_enrolled) {
+                    actionHtml = `<button onclick="unenrollFromClass('${esc(c.id)}')" class="mt-2 text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1 rounded-lg transition">Unenroll</button>`;
+                } else {
+                    const full = c.capacity > 0 && c.enrolled_count >= c.capacity;
+                    actionHtml = full
+                        ? `<span class="mt-2 inline-block text-xs text-red-400">Full</span>`
+                        : `<button onclick="enrollInClass('${esc(c.id)}')" class="mt-2 text-xs bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1 rounded-lg transition">Enroll</button>`;
+                }
+            }
+
+            return `<div class="border rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div class="flex items-center justify-between">
+                    <span class="font-medium text-gray-800 dark:text-gray-200">${c.start_time} - ${c.end_time}</span>
+                    <span class="text-sm text-gray-500">${esc(c.subject || 'No subject')}</span>
+                </div>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm text-gray-500">Room: ${esc(c.room_name || c.room_id || 'TBD')}</span>
+                    ${spotsHtml}
+                </div>
+                ${teacherHtml ? `<div class="mt-1">${teacherHtml}</div>` : ''}
+                <div class="flex flex-wrap gap-1 mt-2">
+                    ${(c.students || []).map(s => `<span class="inline-block px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-300">${esc(s.name)}</span>`).join('')}
+                </div>
+                ${actionHtml}
+            </div>`;
+        }
+
         function renderClasses() {
             const container = document.getElementById('classes-container');
             if (!classData || classData.length === 0) {
-                container.innerHTML = '<p class="text-gray-400 text-center py-8">No classes scheduled.</p>';
+                container.innerHTML = '<p class="text-gray-400 text-center py-8">No classes available.</p>';
                 return;
             }
+
+            // For student/parent, filter by tab
+            let displayData = classData;
+            if (userType !== 'teacher') {
+                if (classesTab === 'enrolled') {
+                    displayData = classData.filter(c => c.is_enrolled);
+                } else {
+                    displayData = classData.filter(c => !c.is_enrolled);
+                }
+            }
+
+            if (displayData.length === 0) {
+                const msg = classesTab === 'enrolled' ? 'Not enrolled in any classes yet.' : 'No available classes.';
+                container.innerHTML = `<p class="text-gray-400 text-center py-8">${userType === 'teacher' ? 'No classes scheduled.' : msg}</p>`;
+                return;
+            }
+
             // Group by day
             const byDay = {};
-            for (const c of classData) {
+            for (const c of displayData) {
                 if (!byDay[c.day_of_week]) byDay[c.day_of_week] = [];
                 byDay[c.day_of_week].push(c);
             }
@@ -920,22 +1021,213 @@
                 <div class="mb-6">
                     <h3 class="text-sm font-semibold text-indigo-600 uppercase tracking-wide mb-2">${day}</h3>
                     <div class="space-y-2">
-                        ${byDay[day].map(c => `
-                        <div class="border rounded-xl p-3 hover:bg-gray-50">
-                            <div class="flex items-center justify-between">
-                                <span class="font-medium text-gray-800">${c.start_time} - ${c.end_time}</span>
-                                <span class="text-sm text-gray-500">${esc(c.subject || 'No subject')}</span>
-                            </div>
-                            <div class="text-sm text-gray-500 mt-1">Room: ${esc(c.room_name || c.room_id || 'TBD')}</div>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                ${(c.students || []).map(s => `<span class="inline-block px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600">${esc(s.name)}</span>`).join('')}
-                            </div>
-                        </div>`).join('')}
+                        ${byDay[day].map(c => renderClassCard(c, userType !== 'teacher')).join('')}
                     </div>
                 </div>
             `).join('');
         }
 
+        async function enrollInClass(scheduleId) {
+            const studentId = userType === 'parent'
+                ? (document.getElementById('classes-child-filter')?.value || '')
+                : entityID;
+            if (!studentId) { showToast('Please select a child first', 'error'); return; }
+            try {
+                const res = await fetch('/api/dashboard/enroll', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ schedule_id: scheduleId, student_id: studentId })
+                });
+                const data = await res.json();
+                if (data.ok) { showToast('Enrolled!', 'success'); loadClasses(); }
+                else showToast(data.error || 'Failed to enroll', 'error');
+            } catch(e) { showToast('Failed to enroll', 'error'); }
+        }
+
+        async function unenrollFromClass(scheduleId) {
+            const studentId = userType === 'parent'
+                ? (document.getElementById('classes-child-filter')?.value || '')
+                : entityID;
+            if (!studentId) { showToast('Please select a child first', 'error'); return; }
+            try {
+                const res = await fetch('/api/dashboard/unenroll', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ schedule_id: scheduleId, student_id: studentId })
+                });
+                const data = await res.json();
+                if (data.ok) { showToast('Unenrolled', 'success'); loadClasses(); }
+                else showToast(data.error || 'Failed to unenroll', 'error');
+            } catch(e) { showToast('Failed to unenroll', 'error'); }
+        }
+
+        // ---- Teacher schedule management ----
+        async function openScheduleModal(classObj) {
+            if (!classRooms.length) {
+                try { classRooms = await (await fetch('/api/dashboard/rooms')).json(); } catch(e) { classRooms = []; }
+            }
+            const isEdit = !!classObj;
+            const c = classObj || {};
+            const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+            const formHtml = `
+                <div class="space-y-3">
+                    ${isEdit ? `<input type="hidden" id="sched-id" value="${esc(c.id)}">` : ''}
+                    <div><label class="block text-sm text-gray-600 mb-1">Day</label>
+                        <select id="sched-day" class="w-full px-3 py-1.5 border rounded-lg text-sm">
+                            ${days.map(d => `<option value="${d}" ${d === c.day_of_week ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-sm text-gray-600 mb-1">Start</label>
+                            <input type="time" id="sched-start" value="${c.start_time || ''}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>
+                        <div><label class="block text-sm text-gray-600 mb-1">End</label>
+                            <input type="time" id="sched-end" value="${c.end_time || ''}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>
+                    </div>
+                    <div><label class="block text-sm text-gray-600 mb-1">Room</label>
+                        <select id="sched-room" class="w-full px-3 py-1.5 border rounded-lg text-sm">
+                            <option value="">-- None --</option>
+                            ${classRooms.map(r => `<option value="${r.id}" ${r.id === c.room_id ? 'selected' : ''}>${esc(r.name || r.id)}${r.capacity ? ' (cap: '+r.capacity+')' : ''}</option>`).join('')}
+                        </select></div>
+                    <div><label class="block text-sm text-gray-600 mb-1">Subject</label>
+                        <input type="text" id="sched-subject" value="${esc(c.subject || '')}" class="w-full px-3 py-1.5 border rounded-lg text-sm" placeholder="e.g. Math, Reading"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-sm text-gray-600 mb-1">From</label>
+                            <input type="date" id="sched-from" value="${c.effective_from || ''}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>
+                        <div><label class="block text-sm text-gray-600 mb-1">Until</label>
+                            <input type="date" id="sched-until" value="${c.effective_until || ''}" class="w-full px-3 py-1.5 border rounded-lg text-sm"></div>
+                    </div>
+                    <div><label class="block text-sm text-gray-600 mb-1">Students</label>
+                        <input type="hidden" id="sched-student-ids" value="${(c.student_ids || []).join('; ')}">
+                        <div id="sched-chips" class="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                            ${(c.students || []).map(s => `<span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs" data-student-id="${esc(s.id)}">${esc(s.name)}<button type="button" onclick="removeSchedChip(this)" class="ml-0.5 text-indigo-400 hover:text-indigo-700 font-bold">&times;</button></span>`).join('')}
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="sched-student-search" placeholder="Search by name or ID..." class="w-full px-3 py-1.5 border rounded-lg text-sm" autocomplete="off" oninput="filterSchedStudents(this.value)">
+                            <div id="sched-student-results" class="hidden absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>`;
+
+            // Use a simple modal approach — repurpose a container
+            const modal = document.createElement('div');
+            modal.id = 'schedule-modal';
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40';
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between px-6 py-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">${isEdit ? 'Edit Class' : 'New Class'}</h3>
+                    <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+                </div>
+                <div class="px-6 py-4 overflow-y-auto flex-1">${formHtml}</div>
+                <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                    <button onclick="closeScheduleModal()" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg">Cancel</button>
+                    <button onclick="saveSchedule()" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function closeScheduleModal() {
+            const m = document.getElementById('schedule-modal');
+            if (m) m.remove();
+        }
+
+        async function saveSchedule() {
+            const idEl = document.getElementById('sched-id');
+            const data = {
+                id: idEl ? idEl.value : '',
+                day_of_week: document.getElementById('sched-day').value,
+                start_time: document.getElementById('sched-start').value,
+                end_time: document.getElementById('sched-end').value,
+                room_id: document.getElementById('sched-room').value,
+                subject: document.getElementById('sched-subject').value,
+                student_ids: document.getElementById('sched-student-ids').value,
+                effective_from: document.getElementById('sched-from').value,
+                effective_until: document.getElementById('sched-until').value
+            };
+            if (!data.day_of_week || !data.start_time || !data.end_time) {
+                showToast('Day, start time, and end time are required', 'error'); return;
+            }
+            try {
+                const res = await fetch('/api/dashboard/schedule', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.ok) { closeScheduleModal(); showToast('Class saved!', 'success'); loadClasses(); }
+                else showToast(result.error || 'Failed to save', 'error');
+            } catch(e) { showToast('Failed to save', 'error'); }
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('Delete this class?')) return;
+            try {
+                const res = await fetch('/api/dashboard/schedule/delete', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.ok) { showToast('Class deleted', 'success'); loadClasses(); }
+                else showToast(data.error || 'Failed to delete', 'error');
+            } catch(e) { showToast('Failed to delete', 'error'); }
+        }
+
+        // ---- Student chip picker for schedule modal ----
+        let schedSearchTimeout = null;
+
+        function getSchedSelectedIds() {
+            const container = document.getElementById('sched-chips');
+            if (!container) return [];
+            return [...container.querySelectorAll('[data-student-id]')].map(el => el.dataset.studentId);
+        }
+
+        function syncSchedHidden() {
+            const hidden = document.getElementById('sched-student-ids');
+            if (hidden) hidden.value = getSchedSelectedIds().join('; ');
+        }
+
+        function filterSchedStudents(query) {
+            clearTimeout(schedSearchTimeout);
+            const resultsDiv = document.getElementById('sched-student-results');
+            if (!resultsDiv) return;
+            if (!query || query.length < 2) { resultsDiv.classList.add('hidden'); return; }
+            schedSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch('/api/students/search?q=' + encodeURIComponent(query));
+                    const students = await res.json();
+                    const selectedIds = getSchedSelectedIds();
+                    const matches = (students || []).filter(s => !selectedIds.includes(s.id));
+                    if (!matches.length) {
+                        resultsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-400">No matching students</div>';
+                    } else {
+                        resultsDiv.innerHTML = matches.map(s =>
+                            `<div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm flex justify-between" onmousedown="addSchedChip('${esc(s.id)}','${esc(s.first_name + ' ' + s.last_name)}')">
+                                <span>${esc(s.first_name + ' ' + s.last_name)}</span>
+                                <span class="text-gray-400 text-xs">${esc(s.id)}${s.grade ? ' · Grade ' + esc(String(s.grade)) : ''}</span>
+                            </div>`
+                        ).join('');
+                    }
+                    resultsDiv.classList.remove('hidden');
+                } catch(e) { resultsDiv.classList.add('hidden'); }
+            }, 200);
+        }
+
+        function addSchedChip(id, name) {
+            const chip = document.createElement('span');
+            chip.className = 'inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs';
+            chip.dataset.studentId = id;
+            chip.innerHTML = `${esc(name)}<button type="button" onclick="removeSchedChip(this)" class="ml-0.5 text-indigo-400 hover:text-indigo-700 font-bold">&times;</button>`;
+            document.getElementById('sched-chips').appendChild(chip);
+            syncSchedHidden();
+            const input = document.getElementById('sched-student-search');
+            input.value = '';
+            document.getElementById('sched-student-results').classList.add('hidden');
+            input.focus();
+        }
+
+        function removeSchedChip(btn) {
+            btn.closest('[data-student-id]').remove();
+            syncSchedHidden();
+        }
+
+        {{if eq .UserType "teacher"}}
         // ==================== STUDENTS (teacher) ====================
         async function loadStudents() {
             try {
@@ -1272,7 +1564,15 @@
                 } catch(e) {}
             }
 
-            if (userType === 'teacher') loadClasses();
+            // Populate child selector for parent's classes view
+            if (userType === 'parent') {
+                const classSel = document.getElementById('classes-child-filter');
+                if (classSel && myStudents && myStudents.length > 0) {
+                    classSel.innerHTML = myStudents.map((s, i) =>
+                        `<option value="${s.id}" ${i === 0 ? 'selected' : ''}>${esc(s.first_name + ' ' + s.last_name)}</option>`
+                    ).join('');
+                }
+            }
 
             switchTaskView('list');
             setTaskFilter(taskFilter);

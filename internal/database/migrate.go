@@ -269,6 +269,21 @@ func MigrateDB(db *sql.DB) error {
 		updated_at DATETIME DEFAULT (datetime('now','localtime')),
 		PRIMARY KEY (user_id, user_type, pref_key)
 	);
+
+	CREATE TABLE IF NOT EXISTS report_subscriptions (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id     TEXT NOT NULL,
+		user_type   TEXT NOT NULL,
+		report_type TEXT NOT NULL,
+		frequency   TEXT NOT NULL CHECK(frequency IN ('weekly','biweekly','monthly')),
+		day_of_week TEXT NOT NULL DEFAULT 'friday',
+		channel     TEXT NOT NULL DEFAULT 'email' CHECK(channel IN ('email','text','chat')),
+		active      INTEGER NOT NULL DEFAULT 1,
+		created_at  DATETIME DEFAULT (datetime('now','localtime')),
+		updated_at  DATETIME DEFAULT (datetime('now','localtime'))
+	);
+	CREATE INDEX IF NOT EXISTS idx_report_sub_user ON report_subscriptions(user_id, user_type);
+	CREATE INDEX IF NOT EXISTS idx_report_sub_active ON report_subscriptions(active) WHERE active = 1;
 	`
 	_, err := db.Exec(schema)
 	return err
