@@ -1,3 +1,4 @@
+classgo
 classgo.db
 bin/
 dist/
@@ -27,6 +28,7 @@ data/tutoros.xlsx
 data/*.db
 data/backups
 data/attendances
+data/reports
 data/config
 data/csv.example/backups/
 data/csv.example/memos/
