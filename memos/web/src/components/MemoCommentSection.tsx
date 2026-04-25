@@ -1,7 +1,7 @@
 import { MessageCircleIcon } from "lucide-react";
 import { useState } from "react";
 import MemoEditor from "@/components/MemoEditor";
-import MemoView from "@/components/MemoView";
+import MemoView from "@/components/MemoView/MemoView";
 import { Button } from "@/components/ui/button";
 import { extractMemoIdFromName } from "@/helpers/resource-names";
 import useCurrentUser from "@/hooks/useCurrentUser";
