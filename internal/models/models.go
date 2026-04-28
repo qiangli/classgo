@@ -12,6 +12,22 @@ type Administrator struct {
 	Role     string `json:"role"` // "admin" or "superadmin"
 }
 
+// AccountInfo holds multi-identity session data for the account switcher UI.
+type AccountInfo struct {
+	Identities  []AccountIdentity `json:"identities"`
+	ActiveIndex int               `json:"active_index"`
+}
+
+// AccountIdentity is a template-friendly view of an auth.Identity.
+type AccountIdentity struct {
+	Username     string `json:"username"`
+	Role         string `json:"role"`
+	UserType     string `json:"user_type"`
+	EntityID     string `json:"entity_id"`
+	IsSuperAdmin bool   `json:"is_super_admin,omitempty"`
+	DisplayName  string `json:"display_name"`
+}
+
 type CloudSyncConfig struct {
 	Enabled            bool   `json:"enabled"`
 	Provider           string `json:"provider"`             // rclone backend name, e.g. "drive"
@@ -165,6 +181,7 @@ type AdminData struct {
 	Count         int
 	Date          string
 	IsSuperAdmin  bool
+	Accounts      *AccountInfo
 }
 
 type CheckInPageData struct {
@@ -298,6 +315,7 @@ type DashboardData struct {
 	EntityID string
 	UserName string
 	Date     string
+	Accounts *AccountInfo
 }
 
 // ParseTimestamp handles timestamps from modernc.org/sqlite.

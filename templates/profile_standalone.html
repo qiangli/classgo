@@ -41,14 +41,11 @@
             <h1 class="text-base font-semibold text-gray-800 dark:text-gray-100">My Profile</h1>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{.UserName}}</span>
+            {{template "account-switcher" .}}
             <button id="theme-btn" onclick="cycleTheme()" class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded-lg transition" title="Toggle theme">
                 <span id="theme-icon"></span>
                 <span id="theme-label" class="text-xs font-medium"></span>
             </button>
-            <a href="/logout" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition p-1.5" title="Sign out">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            </a>
         </div>
     </header>
 

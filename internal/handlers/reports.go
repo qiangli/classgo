@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"classgo/internal/models"
 	"classgo/internal/reports"
 )
 
@@ -24,12 +25,14 @@ func (a *App) HandleReportsPage(w http.ResponseWriter, r *http.Request) {
 		UserName string
 		Date     string
 		Reports  []reports.ReportDef
+		Accounts *models.AccountInfo
 	}{
 		AppName:  a.AppName,
 		UserType: sess.UserType,
 		EntityID: sess.EntityID,
 		Date:     time.Now().Format("Monday, January 2, 2006"),
 		Reports:  reports.ReportsForRole(sess.UserType),
+		Accounts: a.GetAccountInfo(r),
 	}
 
 	name, _ := a.lookupEntity(sess.EntityID)

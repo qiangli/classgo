@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"classgo/internal/auth"
 	"classgo/internal/database"
 	"classgo/internal/datastore"
 	"classgo/internal/memos"
@@ -952,9 +951,8 @@ func subtractMinutes(timeStr string, minutes int) string {
 
 // HandlePreferences handles GET/POST for per-user UI preferences (e.g., column visibility).
 func (a *App) HandlePreferences(w http.ResponseWriter, r *http.Request) {
-	token := auth.GetSessionToken(r)
-	sess, ok := a.Sessions.Get(token)
-	if !ok {
+	sess := a.GetSession(r)
+	if sess == nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"ok": false, "error": "Not authenticated"})
 		return
 	}

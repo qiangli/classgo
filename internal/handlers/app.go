@@ -165,8 +165,11 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		token := auth.GetSessionToken(r)
 		if token != "" {
 			if sess, ok := a.Sessions.Get(token); ok {
+				// Redirect based on active identity role.
 				if sess.Role == "admin" {
 					http.Redirect(w, r, "/admin", http.StatusFound)
+				} else if sess.Role == "guest" {
+					http.Redirect(w, r, "/kiosk", http.StatusFound)
 				} else {
 					http.Redirect(w, r, "/home", http.StatusFound)
 				}
@@ -228,12 +231,16 @@ func (a *App) HandleAdminLoginAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.clearExistingSession(r)
-	token := a.Sessions.Create(req.Username, "admin", "", "")
+	id := auth.Identity{
+		Username:     req.Username,
+		Role:         "admin",
+		DisplayName:  req.Username,
+		IsSuperAdmin: adminRole == "superadmin",
+	}
+	token := a.addOrCreateSession(r, w, id)
 	if adminRole == "superadmin" {
 		a.Sessions.SetSuperAdmin(token)
 	}
-	auth.SetSessionCookie(w, token)
 	log.Printf("Admin login: %s (role: %s)", req.Username, adminRole)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "admin", "redirect": "/admin"})
 }
@@ -290,9 +297,14 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(req.EntityID)
-		a.clearExistingSession(r)
-		token := a.Sessions.Create(username, "user", userType, req.EntityID)
-		auth.SetSessionCookie(w, token)
+		id := auth.Identity{
+			Username:    username,
+			Role:        "user",
+			UserType:    userType,
+			EntityID:    req.EntityID,
+			DisplayName: name,
+		}
+		a.addOrCreateSession(r, w, id)
 		log.Printf("User setup + login: %s (%s, %s)", name, username, userType)
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/profile"})
 
@@ -314,9 +326,18 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(req.EntityID)
-		a.clearExistingSession(r)
-		token := a.Sessions.Create(username, "user", userType, req.EntityID)
-		auth.SetSessionCookie(w, token)
+		displayName := user.Nickname
+		if displayName == "" {
+			displayName, _ = a.lookupEntity(req.EntityID)
+		}
+		id := auth.Identity{
+			Username:    username,
+			Role:        "user",
+			UserType:    userType,
+			EntityID:    req.EntityID,
+			DisplayName: displayName,
+		}
+		a.addOrCreateSession(r, w, id)
 		log.Printf("User login: %s (%s, %s)", user.Nickname, username, userType)
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/home"})
 
@@ -359,9 +380,14 @@ func (a *App) HandleLoginAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userType := a.detectUserType(entityID)
-		a.clearExistingSession(r)
-		token := a.Sessions.Create(username, "user", userType, entityID)
-		auth.SetSessionCookie(w, token)
+		id := auth.Identity{
+			Username:    username,
+			Role:        "user",
+			UserType:    userType,
+			EntityID:    entityID,
+			DisplayName: name,
+		}
+		a.addOrCreateSession(r, w, id)
 		log.Printf("User signup: %s (%s, %s)", name, username, userType)
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "role": "user", "redirect": "/profile"})
 
@@ -485,6 +511,33 @@ func (a *App) detectUserType(entityID string) string {
 	return ""
 }
 
+// GetAccountInfo returns account switcher data for templates, or nil if not authenticated.
+func (a *App) GetAccountInfo(r *http.Request) *models.AccountInfo {
+	token := auth.GetSessionToken(r)
+	if token == "" {
+		return nil
+	}
+	sess, ok := a.Sessions.Get(token)
+	if !ok {
+		return nil
+	}
+	info := &models.AccountInfo{
+		ActiveIndex: sess.ActiveIndex,
+		Identities:  make([]models.AccountIdentity, len(sess.Identities)),
+	}
+	for i, id := range sess.Identities {
+		info.Identities[i] = models.AccountIdentity{
+			Username:     id.Username,
+			Role:         id.Role,
+			UserType:     id.UserType,
+			EntityID:     id.EntityID,
+			IsSuperAdmin: id.IsSuperAdmin,
+			DisplayName:  id.DisplayName,
+		}
+	}
+	return info
+}
+
 // GetSession extracts the session from the request, returning nil if not authenticated.
 func (a *App) GetSession(r *http.Request) *auth.Session {
 	token := auth.GetSessionToken(r)
@@ -498,15 +551,30 @@ func (a *App) GetSession(r *http.Request) *auth.Session {
 	return &sess
 }
 
-// clearExistingSession invalidates any active session from the request cookie.
-// Must be called before creating a new session to prevent privilege carryover.
-func (a *App) clearExistingSession(r *http.Request) {
-	if token := auth.GetSessionToken(r); token != "" {
-		a.Sessions.Delete(token)
+// addOrCreateSession adds an identity to an existing session, or creates a new
+// session if none exists. Sets the session cookie and switches to the new identity.
+// Returns the session token.
+func (a *App) addOrCreateSession(r *http.Request, w http.ResponseWriter, id auth.Identity) string {
+	token := auth.GetSessionToken(r)
+	if token != "" {
+		if _, ok := a.Sessions.Get(token); ok {
+			idx, err := a.Sessions.AddIdentity(token, id)
+			if err == nil {
+				a.Sessions.SwitchIdentity(token, idx)
+				return token
+			}
+		}
 	}
+	// No existing session — create a new one.
+	token = a.Sessions.CreateWithDisplayName(id.Username, id.Role, id.UserType, id.EntityID, id.DisplayName)
+	if id.IsSuperAdmin {
+		a.Sessions.SetSuperAdmin(token)
+	}
+	auth.SetSessionCookie(w, token)
+	return token
 }
 
-// HandleLogout clears the session and redirects to login.
+// HandleLogout clears the entire session (all identities) and redirects to login.
 func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	token := auth.GetSessionToken(r)
 	if token != "" {

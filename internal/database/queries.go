@@ -165,7 +165,7 @@ func SearchStudents(db *sql.DB, query string, limit int) ([]models.Student, erro
 	like := "%" + query + "%"
 	rows, err := db.Query(
 		`SELECT id, first_name, last_name, grade, school, COALESCE(require_pin, 0) FROM students
-		 WHERE active = 1 AND (
+		 WHERE active = 1 AND deleted = 0 AND (
 		   LOWER(id) LIKE LOWER(?) OR
 		   LOWER(first_name) LIKE LOWER(?) OR
 		   LOWER(last_name) LIKE LOWER(?) OR

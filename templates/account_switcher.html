@@ -1,0 +1,196 @@
+{{define "account-switcher"}}
+{{if .Accounts}}
+<div class="relative" id="account-switcher">
+    <!-- Trigger button -->
+    <button onclick="toggleAccountSwitcher()" class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-gray-800/80 backdrop-blur hover:bg-white dark:hover:bg-gray-700 px-2.5 py-1.5 rounded-lg transition" title="Switch account">
+        {{with index .Accounts.Identities .Accounts.ActiveIndex}}
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span class="max-w-[120px] truncate">{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Username}}{{end}}</span>
+        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium
+            {{if eq .Role "admin"}}bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300
+            {{else if eq .UserType "teacher"}}bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300
+            {{else if eq .UserType "parent"}}bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300
+            {{else if eq .Role "guest"}}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300
+            {{else}}bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300{{end}}">{{if eq .Role "admin"}}admin{{else if eq .Role "guest"}}guest{{else}}{{.UserType}}{{end}}</span>
+        {{end}}
+        <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+
+    <!-- Dropdown menu -->
+    <div id="account-dropdown" class="hidden absolute right-0 top-full mt-1 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50">
+        <!-- Identity list -->
+        <div class="py-1">
+            {{range $i, $id := .Accounts.Identities}}
+            <button onclick="switchAccount({{$i}})" class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{if eq $i $.Accounts.ActiveIndex}}bg-blue-50 dark:bg-blue-900/20{{end}}">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                    {{if eq .Role "admin"}}bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300
+                    {{else if eq .UserType "teacher"}}bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300
+                    {{else if eq .UserType "parent"}}bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300
+                    {{else if eq .Role "guest"}}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300
+                    {{else}}bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300{{end}}">
+                    {{if eq .Role "guest"}}G{{else if .DisplayName}}{{slice .DisplayName 0 1}}{{else if .Username}}{{slice .Username 0 1}}{{else}}?{{end}}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Username}}{{end}}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{if eq .Role "admin"}}Administrator{{else if eq .Role "guest"}}Guest (Kiosk){{else}}{{.UserType}}{{if .EntityID}} &middot; {{.EntityID}}{{end}}{{end}}</div>
+                </div>
+                {{if eq $i $.Accounts.ActiveIndex}}
+                <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                {{end}}
+                {{if ne $i $.Accounts.ActiveIndex}}
+                <button onclick="event.stopPropagation(); removeAccount({{$i}})" class="text-gray-400 hover:text-red-500 transition p-1 flex-shrink-0" title="Remove account">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                {{end}}
+            </button>
+            {{end}}
+        </div>
+
+        <!-- Divider + actions -->
+        <div class="border-t border-gray-200 dark:border-gray-700 py-1">
+            <button onclick="showAddAccount()" class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </div>
+                <span class="text-sm text-gray-600 dark:text-gray-300">Add account</span>
+            </button>
+            <a href="/logout" class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </div>
+                <span class="text-sm text-gray-600 dark:text-gray-300">Sign out all</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Add account modal -->
+    <div id="add-account-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" onclick="hideAddAccount()"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Add Account</h3>
+
+            <!-- Account type tabs -->
+            <div class="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button onclick="setAddType('user')" id="add-type-user" class="flex-1 text-sm py-1.5 rounded-md transition font-medium bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm">User</button>
+                <button onclick="setAddType('admin')" id="add-type-admin" class="flex-1 text-sm py-1.5 rounded-md transition font-medium text-gray-500 dark:text-gray-400">Admin</button>
+                <button onclick="setAddType('guest')" id="add-type-guest" class="flex-1 text-sm py-1.5 rounded-md transition font-medium text-gray-500 dark:text-gray-400">Guest</button>
+            </div>
+
+            <!-- User login form -->
+            <div id="add-form-user">
+                <input type="text" id="add-entity-id" placeholder="User ID (e.g., S001)" class="w-full px-3 py-2 mb-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input type="password" id="add-user-password" placeholder="Password" class="w-full px-3 py-2 mb-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <!-- Admin login form -->
+            <div id="add-form-admin" class="hidden">
+                <input type="text" id="add-username" placeholder="Username" class="w-full px-3 py-2 mb-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input type="password" id="add-admin-password" placeholder="Password" class="w-full px-3 py-2 mb-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <!-- Guest (no form needed) -->
+            <div id="add-form-guest" class="hidden">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Add a guest (kiosk) session. No credentials needed.</p>
+            </div>
+
+            <div id="add-error" class="hidden text-sm text-red-600 dark:text-red-400 mb-3"></div>
+
+            <div class="flex gap-3">
+                <button onclick="hideAddAccount()" class="flex-1 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
+                <button onclick="submitAddAccount()" id="add-submit-btn" class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAccountSwitcher() {
+    const dd = document.getElementById('account-dropdown');
+    dd.classList.toggle('hidden');
+    if (!dd.classList.contains('hidden')) {
+        setTimeout(() => document.addEventListener('click', closeAccountDropdown, {once: true}), 0);
+    }
+}
+function closeAccountDropdown(e) {
+    const dd = document.getElementById('account-dropdown');
+    if (!document.getElementById('account-switcher').contains(e.target)) {
+        dd.classList.add('hidden');
+    } else {
+        setTimeout(() => document.addEventListener('click', closeAccountDropdown, {once: true}), 0);
+    }
+}
+function switchAccount(index) {
+    fetch('/api/account/switch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({index})
+    }).then(r => r.json()).then(data => {
+        if (data.ok) window.location.href = data.redirect;
+    });
+}
+function removeAccount(index) {
+    if (!confirm('Remove this account from the session?')) return;
+    fetch('/api/account/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({index})
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            if (data.redirect) window.location.href = data.redirect;
+            else window.location.reload();
+        }
+    });
+}
+let addAccountType = 'user';
+function showAddAccount() {
+    document.getElementById('account-dropdown').classList.add('hidden');
+    document.getElementById('add-account-modal').classList.remove('hidden');
+    document.getElementById('add-error').classList.add('hidden');
+    setAddType('user');
+}
+function hideAddAccount() {
+    document.getElementById('add-account-modal').classList.add('hidden');
+}
+function setAddType(type) {
+    addAccountType = type;
+    ['user','admin','guest'].forEach(t => {
+        document.getElementById('add-form-' + t).classList.toggle('hidden', t !== type);
+        const btn = document.getElementById('add-type-' + t);
+        if (t === type) {
+            btn.className = 'flex-1 text-sm py-1.5 rounded-md transition font-medium bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 shadow-sm';
+        } else {
+            btn.className = 'flex-1 text-sm py-1.5 rounded-md transition font-medium text-gray-500 dark:text-gray-400';
+        }
+    });
+}
+function submitAddAccount() {
+    const errEl = document.getElementById('add-error');
+    errEl.classList.add('hidden');
+    let body = {type: addAccountType};
+    if (addAccountType === 'user') {
+        body.entity_id = document.getElementById('add-entity-id').value;
+        body.password = document.getElementById('add-user-password').value;
+    } else if (addAccountType === 'admin') {
+        body.username = document.getElementById('add-username').value;
+        body.password = document.getElementById('add-admin-password').value;
+    }
+    fetch('/api/account/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            hideAddAccount();
+            window.location.href = data.redirect;
+        } else {
+            errEl.textContent = data.error || 'Failed to add account';
+            errEl.classList.remove('hidden');
+        }
+    }).catch(() => {
+        errEl.textContent = 'Network error';
+        errEl.classList.remove('hidden');
+    });
+}
+</script>
+{{end}}
+{{end}}

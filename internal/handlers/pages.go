@@ -52,6 +52,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 		EntityID: sess.EntityID,
 		UserName: name,
 		Date:     time.Now().Format("Monday, January 2, 2006"),
+		Accounts: a.GetAccountInfo(r),
 	}
 	a.Tmpl.ExecuteTemplate(w, "home.html", data)
 }
@@ -114,6 +115,7 @@ func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
 		Count:         len(attendees),
 		Date:          time.Now().Format("Monday, January 2, 2006"),
 		IsSuperAdmin:  sess != nil && sess.IsSuperAdmin,
+		Accounts:      a.GetAccountInfo(r),
 	}
 	a.Tmpl.ExecuteTemplate(w, "admin.html", data)
 }

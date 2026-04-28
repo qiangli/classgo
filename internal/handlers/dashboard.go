@@ -32,6 +32,7 @@ func (a *App) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		EntityID: sess.EntityID,
 		UserName: name,
 		Date:     time.Now().Format("Monday, January 2, 2006"),
+		Accounts: a.GetAccountInfo(r),
 	}
 
 	a.Tmpl.ExecuteTemplate(w, "dashboard.html", data)

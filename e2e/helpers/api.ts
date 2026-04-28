@@ -201,6 +201,13 @@ export async function userLogin(entityId: string, password: string): Promise<str
   return match ? `classgo_session=${match[1]}` : null;
 }
 
+export async function reimportDataViaAPI(cookie: string) {
+  await fetch(`${BASE_URL}/api/v1/import`, {
+    method: 'POST',
+    headers: { Cookie: cookie },
+  });
+}
+
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   const res = await fetch(`${BASE_URL}/admin/api/login`, {
     method: 'POST',

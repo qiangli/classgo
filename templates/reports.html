@@ -46,13 +46,7 @@
             <span class="text-lg font-semibold text-gray-700 dark:text-gray-200">Reports</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{.UserName}}</span>
-            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
-                {{if eq .UserType "teacher"}}bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300
-                {{else if eq .UserType "parent"}}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
-                {{else if eq .UserType "student"}}bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300
-                {{else}}bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300{{end}}">
-                {{if eq .UserType ""}}admin{{else}}{{.UserType}}{{end}}</span>
+            {{template "account-switcher" .}}
         </div>
     </header>
 
