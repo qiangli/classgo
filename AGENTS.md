@@ -1,33 +1,34 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project
-
-ClassGo is a tutoring center management system in Go. Single binary with embedded SQLite — no external services required. Runs on local Wi-Fi; students check in via phone or shared kiosk tablet.
+This file provides guidance to AI coding assistants working in this repository.
 
 ## Build & Dev
 
 ```bash
-make build        # Full build: Tailwind CSS + Memos React frontend + Go binary
-make build-all    # Cross-compile for 5 platforms (darwin/linux/windows, amd64/arm64)
-make test         # Run all tests: go test -v -count=1 ./...
+make build        # Full build: Tailwind CSS + Memos frontend + rclone + frpc + Go binary
+make build-all    # Cross-compile classgo + rclone + frpc for 5 platforms
+make package      # build-all + create release archives in dist/
+make test         # Run all tests: go test -v -count=1 ./internal/... .
 make tidy         # Format, vet, tidy modules
 make start        # Build and start server in background (PID tracked at bin/.pid)
 make stop         # Stop running server
-make test-e2e     # Run Playwright E2E tests (builds Go binary, runs headless)
+make test-e2e     # Run Playwright E2E tests (headless)
 make test-e2e-headed  # Run E2E tests in headed browser
+make test-e2e-setup   # Install Playwright deps + Chromium
+make clean        # Remove bin/ and dist/
 ```
 
 **Quick Go-only build** (skip frontend): `go build -o bin/classgo .`
 
 **Run single test**: `go test -v -run TestCheckInMobile ./...`
 
+**Build submodules independently**: `make rclone` / `make frp` (requires `git submodule update --init`)
+
 Server listens on `:8080`. Config priority: CLI flag (`-name`) > env var (`APP_NAME`) > `config.json` > default ("LERN").
 
 ### Frontend Build Requirements
 
-- **Tailwind CSS**: Requires `tailwindcss` CLI binary in repo root. Builds from `static/css/input.css` → `static/css/tailwind.css` using templates in `templates/*.html`
+- **Tailwind CSS**: Requires `tailwindcss` CLI binary in repo root. Builds from `static/css/input.css` -> `static/css/tailwind.css` using templates in `templates/*.html`
 - **Memos frontend**: React/TypeScript in `memos/web/`. Requires `pnpm`. Built with `pnpm install --frozen-lockfile && pnpm run release`
 
 ## Architecture
@@ -68,7 +69,6 @@ Memos runs as an embedded Go server in the same process with its own SQLite DB a
 - **Checkout signoff enforcement**: `/api/checkout` blocks if student has pending `requires_signoff=true` tasks. Must use `/api/tracker/respond` to submit responses + checkout atomically.
 - **Auto-assign**: On profile save, system auto-assigns tracker items for missing data with grade-aware filtering.
 - **Spreadsheet source of truth**: `data/tutoros.xlsx` or `data/csv/*.csv`. SQLite indexes rebuildable via `--rebuild-db`. File watcher auto-reimports on changes.
-- **Three-phase rollout**: (1) check-in/out with signup, (2) admin tasks with signoff enforcement, (3) full scheduling.
 
 ### Data Model Notes
 
@@ -91,20 +91,17 @@ Integration tests using `httptest` with isolated temp databases. `setupTest(t)` 
 - `checkin_test.go` — PIN modes, rate limiting, audit trail
 - `signup_test.go` — Signup/login, profile workflow, auto-assign
 - `tracker_test.go` — Tracker CRUD, role-based access, bulk assign
-- `e2e_test.go` — Full user flows (signup → login → checkin → checkout → signoff)
+- `e2e_test.go` — Full user flows (signup -> login -> checkin -> checkout -> signoff)
 - `internal/scheduling/engine_test.go` — Schedule materialization, conflicts
 
 ### E2E Tests (Playwright)
 
-Playwright tests in `e2e/` use page objects (`e2e/pages/`) and test against a real server instance. Setup: `make test-e2e-setup` (installs npm deps + Chromium). The test suite auto-starts a Go server with a temp DB via `e2e/global-setup.ts`.
+Playwright tests in `e2e/` use page objects (`e2e/pages/`). Setup: `make test-e2e-setup` (installs npm deps + Chromium). The test suite auto-starts a Go server with a temp DB via `e2e/global-setup.ts`.
 
 ## Release
 
 GitHub Actions triggers on `v*` tags. Release workflow cross-compiles Go only — does NOT build frontend. Frontend must be pre-built before tagging.
 
-## Skills
+## Sub-directory Instructions
 
-Reusable workflows in `skills/`:
-- `skills/build.md` — Build procedures
-- `skills/deploy.md` — Server lifecycle (local PID-based or remote SSH)
-- `skills/validate.md` — Integration tests against running server
+- See `frp-src/AGENTS.md` or `frp-src/CLAUDE.md` for FRP (frp-src) submodule guidance.

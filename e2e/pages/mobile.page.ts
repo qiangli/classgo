@@ -33,6 +33,7 @@ export class MobilePage {
 
   async goto() {
     await this.page.goto('/');
+    await this.page.waitForLoadState('networkidle');
   }
 
   async switchToTab(tab: 'checkin' | 'signup' | 'login') {
@@ -40,8 +41,10 @@ export class MobilePage {
   }
 
   async searchStudent(name: string) {
+    await this.studentName.waitFor({ state: 'visible' });
+    await this.studentName.click();
     await this.studentName.fill(name);
-    await this.searchResults.waitFor({ state: 'visible' });
+    await this.searchResults.locator('li').first().waitFor({ state: 'visible', timeout: 10000 });
   }
 
   async selectFirstResult() {
