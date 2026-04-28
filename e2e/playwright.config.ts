@@ -19,9 +19,11 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: 'mobile-000-setup.spec.ts',
     },
     {
-      // Mobile viewport — only for tests that exercise mobile-specific UI
+      // Mobile viewport — only for tests that exercise mobile-specific UI.
+      // mobile-setup.ts restarts the server with a fresh DB before other tests.
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
       testMatch: [

@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { MobilePage } from '../pages/mobile.page.js';
+import { forceCheckoutViaAPI } from '../helpers/api.js';
 
 test.describe('Mobile Checkout', () => {
   test('checkout after check-in succeeds', async ({ page }) => {
+    await forceCheckoutViaAPI('Bob Wang').catch(() => {});
+
     const mobile = new MobilePage(page);
     await mobile.goto();
 

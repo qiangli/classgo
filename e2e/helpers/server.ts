@@ -64,3 +64,31 @@ export function stopServer(): void {
 export function getState(): ServerState {
   return JSON.parse(readFileSync(STATE_FILE, 'utf-8'));
 }
+
+// restartServer stops the running server and starts a fresh one with a new temp DB.
+export async function restartServer(): Promise<void> {
+  const oldState = getState();
+  const port = parseInt(new URL(oldState.baseURL).port, 10);
+
+  // Stop old server
+  try { process.kill(oldState.pid, 'SIGTERM'); } catch {}
+  // Wait for process to exit
+  await new Promise(r => setTimeout(r, 1000));
+  // Clean up old DB
+  try { rmSync(path.dirname(oldState.dbPath), { recursive: true, force: true }); } catch {}
+
+  // Start fresh server on same port with same data dir
+  const tmpDir = execSync('mktemp -d /tmp/classgo-e2e-XXXXXX').toString().trim();
+  const dbPath = path.join(tmpDir, 'classgo.db');
+  const proc: ChildProcess = spawn(
+    path.join(PROJECT_ROOT, 'bin', 'classgo'),
+    ['-port', String(port), '-data-dir', 'data/csv.example', '-db', dbPath],
+    { cwd: PROJECT_ROOT, detached: true, stdio: 'ignore' }
+  );
+  proc.unref();
+
+  const state: ServerState = { pid: proc.pid!, dbPath, baseURL: oldState.baseURL };
+  writeFileSync(STATE_FILE, JSON.stringify(state));
+
+  await waitForReady(state.baseURL);
+}

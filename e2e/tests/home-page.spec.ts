@@ -136,9 +136,11 @@ test.describe('Home page content', () => {
     const allGrid = page.locator('#all-grid');
     await expect(allGrid).toBeVisible();
 
-    // Should have 3 app tiles: Tasks, Memos, Profile
-    await expect(allGrid.locator('.app-tile-wrap')).toHaveCount(3);
+    // Should have 5 app tiles: Tasks, Classes, Reports, Memos, Profile
+    await expect(allGrid.locator('.app-tile-wrap')).toHaveCount(5);
     await expect(allGrid).toContainText('Tasks');
+    await expect(allGrid).toContainText('Classes');
+    await expect(allGrid).toContainText('Reports');
     await expect(allGrid).toContainText('Memos');
     await expect(allGrid).toContainText('Profile');
   });
