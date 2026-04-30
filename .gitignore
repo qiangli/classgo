@@ -33,6 +33,10 @@ data/config
 data/csv.example/backups/
 data/csv.example/memos/
 data/csv.example/attendances
+data/csv.example/reports/
 
 .env
 test-results/
+
+#
+raw/

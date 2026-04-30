@@ -125,9 +125,9 @@ func (a *App) HandleAccountAdd(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Type     string `json:"type"`      // "admin", "user", or "guest"
-		Username string `json:"username"`   // for admin login
-		EntityID string `json:"entity_id"`  // for user login
-		Password string `json:"password"`   // for admin or user login
+		Username string `json:"username"`  // for admin login
+		EntityID string `json:"entity_id"` // for user login
+		Password string `json:"password"`  // for admin or user login
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "Invalid request"})
