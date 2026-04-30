@@ -20,6 +20,8 @@ make clean        # Remove bin/ and dist/
 
 **Quick Go-only build** (skip frontend): `go build -o bin/classgo .`
 
+**Before committing Go changes**, always run `make tidy` (or manually: `go fmt ./...`, `go vet ./...`, `go mod tidy`). Go fmt enforces canonical formatting — committing unformatted code will cause the next build to produce a dirty diff.
+
 **Run single test**: `go test -v -run TestCheckInMobile ./...`
 
 **Build submodules independently**: `make rclone` / `make frp` (requires `git submodule update --init`)
