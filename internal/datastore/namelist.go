@@ -120,7 +120,7 @@ func PreviewNamelistImport(db *sql.DB, entries []models.NamelistEntry) (*models.
 
 	// Build lookup maps
 	byName := make(map[string]models.Student)  // "firstname lastname" -> student
-	byEmail := make(map[string]models.Student)  // email -> student
+	byEmail := make(map[string]models.Student) // email -> student
 	for _, s := range existing {
 		key := strings.ToLower(s.FirstName + " " + s.LastName)
 		byName[key] = s

@@ -416,7 +416,7 @@ func TestExecuteNamelistImport_ParentMerge(t *testing.T) {
 	entries := []models.NamelistEntry{
 		{
 			RowIndex: 1, FirstName: "Alice", LastName: "Wang",
-			Email: "alice@test.com",
+			Email:      "alice@test.com",
 			ParentName: "Wei Wang", ParentEmail: "wei@test.com", ParentPhone: "555-9999",
 		},
 	}
