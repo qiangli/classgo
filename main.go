@@ -54,6 +54,9 @@ func loadConfig() models.Config {
 	flagName := flag.String("name", "", "Application name")
 	flagDataDir := flag.String("data-dir", "", "Data directory")
 	flagRawDir := flag.String("raw-dir", "", "Raw namelist directory for .xls imports")
+	flagBackupDir := flag.String("backup-dir", "", "Backup directory for ZIP files")
+	flagExportDir := flag.String("export-dir", "", "Export directory for daily attendance XLSX")
+	flagReportDir := flag.String("report-dir", "", "Report directory for scheduled reports")
 	flagRebuild := flag.Bool("rebuild-db", false, "Drop and rebuild index tables from spreadsheet files")
 	flagPort := flag.Int("port", 0, "Server port (default 8080)")
 	flagDB := flag.String("db", "", "Database file path")
@@ -88,6 +91,15 @@ func loadConfig() models.Config {
 	if *flagRawDir != "" {
 		cfg.RawDir = *flagRawDir
 	}
+	if *flagBackupDir != "" {
+		cfg.BackupDir = *flagBackupDir
+	}
+	if *flagExportDir != "" {
+		cfg.ExportDir = *flagExportDir
+	}
+	if *flagReportDir != "" {
+		cfg.ReportDir = *flagReportDir
+	}
 
 	// Default DataDir and DBPath under home directory
 	if cfg.DataDir == "" {
@@ -95,6 +107,15 @@ func loadConfig() models.Config {
 	}
 	if cfg.RawDir == "" {
 		cfg.RawDir = filepath.Join(filepath.Dir(cfg.DataDir), "raw")
+	}
+	if cfg.BackupDir == "" {
+		cfg.BackupDir = filepath.Join(cfg.DataDir, "backups")
+	}
+	if cfg.ExportDir == "" {
+		cfg.ExportDir = filepath.Join(cfg.DataDir, "attendances")
+	}
+	if cfg.ReportDir == "" {
+		cfg.ReportDir = filepath.Join(cfg.DataDir, "reports")
 	}
 	if cfg.DBPath == "" {
 		cfg.DBPath = filepath.Join(homeDir, "classgo.db")
@@ -190,7 +211,7 @@ func main() {
 	database.SeedSampleData(db)
 
 	// Auto-restore from latest backup only if DB appears to have lost data
-	backupDir := filepath.Join(cfg.DataDir, "backups")
+	backupDir := cfg.BackupDir
 	var attendanceCount int
 	db.QueryRow("SELECT COUNT(*) FROM attendance").Scan(&attendanceCount)
 	if attendanceCount == 0 {
@@ -478,13 +499,14 @@ func main() {
 			log.Printf("Warning: failed to schedule backup: %v", err)
 		}
 
+		exportDir := cfg.ExportDir
 		_, err = sched.NewJob(
 			gocron.CronJob("0 21 * * *", false), // 9:00 PM daily
 			gocron.NewTask(func() {
-				if err := datastore.ExportDailyAttendanceXLSX(db, cfg.DataDir); err != nil {
+				if err := datastore.ExportDailyAttendanceXLSX(db, exportDir); err != nil {
 					log.Printf("Daily attendance export failed: %v", err)
 				} else {
-					log.Printf("Daily attendance exported to %s", cfg.DataDir)
+					log.Printf("Daily attendance exported to %s", exportDir)
 				}
 			}),
 			gocron.WithName("daily-attendance-export"),
@@ -522,7 +544,7 @@ func main() {
 
 		// Report cron jobs
 		reportDB := db
-		reportDir := cfg.DataDir
+		reportDir := cfg.ReportDir
 		_, err = sched.NewJob(
 			gocron.CronJob("30 21 * * *", false), // 9:30 PM daily
 			gocron.NewTask(func() {
@@ -569,8 +591,8 @@ func main() {
 
 		sched.Start()
 		log.Printf("  Backup:  daily at 10:00 PM → %s", backupDir)
-		log.Printf("  Export:  daily at 9:00 PM → %s/attendances/attendance-*.xlsx", cfg.DataDir)
-		log.Printf("  Reports: daily/weekly/monthly → %s/reports/", cfg.DataDir)
+		log.Printf("  Export:  daily at 9:00 PM → %s", exportDir)
+		log.Printf("  Reports: daily/weekly/monthly → %s", reportDir)
 		if cfg.CloudSync.Enabled {
 			schedule := cfg.CloudSync.Schedule
 			if schedule == "" {

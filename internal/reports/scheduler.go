@@ -13,7 +13,7 @@ import (
 )
 
 // RunDailyAttendance generates and archives the A1 daily attendance report.
-func RunDailyAttendance(db *sql.DB, dataDir string) {
+func RunDailyAttendance(db *sql.DB, reportDir string) {
 	today := time.Now().Format("2006-01-02")
 	report, err := DailyAttendanceRecord(db, today)
 	if err != nil {
@@ -22,7 +22,7 @@ func RunDailyAttendance(db *sql.DB, dataDir string) {
 	}
 
 	// Archive as XLSX
-	outDir := filepath.Join(dataDir, "reports", "admin")
+	outDir := filepath.Join(reportDir, "admin")
 	os.MkdirAll(outDir, 0755)
 	outPath := filepath.Join(outDir, "attendance-"+today+".xlsx")
 	if err := writeDailyAttendanceXLSX(report, outPath); err != nil {
@@ -33,7 +33,7 @@ func RunDailyAttendance(db *sql.DB, dataDir string) {
 }
 
 // RunWeeklyAudit generates and archives the A6 audit report.
-func RunWeeklyAudit(db *sql.DB, dataDir string) {
+func RunWeeklyAudit(db *sql.DB, reportDir string) {
 	dr := WeekRange(time.Now())
 	report, err := AuditComplianceLog(db, dr)
 	if err != nil {
@@ -41,7 +41,7 @@ func RunWeeklyAudit(db *sql.DB, dataDir string) {
 		return
 	}
 
-	outDir := filepath.Join(dataDir, "reports", "admin")
+	outDir := filepath.Join(reportDir, "admin")
 	os.MkdirAll(outDir, 0755)
 	_, isoWeek := time.Now().ISOWeek()
 	outPath := filepath.Join(outDir, "audit-"+time.Now().Format("2006")+"-W"+itoa(isoWeek)+".xlsx")
@@ -53,7 +53,7 @@ func RunWeeklyAudit(db *sql.DB, dataDir string) {
 }
 
 // RunMonthlyDashboard generates and archives the A4 monthly report.
-func RunMonthlyDashboard(db *sql.DB, dataDir string) {
+func RunMonthlyDashboard(db *sql.DB, reportDir string) {
 	// Report for previous month
 	prev := time.Now().AddDate(0, -1, 0)
 	dr := MonthRange(prev)
@@ -63,7 +63,7 @@ func RunMonthlyDashboard(db *sql.DB, dataDir string) {
 		return
 	}
 
-	outDir := filepath.Join(dataDir, "reports", "admin")
+	outDir := filepath.Join(reportDir, "admin")
 	os.MkdirAll(outDir, 0755)
 	outPath := filepath.Join(outDir, "monthly-"+prev.Format("2006-01")+".xlsx")
 	if err := writeMonthlyXLSX(report, outPath); err != nil {
@@ -74,7 +74,7 @@ func RunMonthlyDashboard(db *sql.DB, dataDir string) {
 }
 
 // ProcessSubscriptions checks active subscriptions and runs any that are due today.
-func ProcessSubscriptions(db *sql.DB, dataDir string) {
+func ProcessSubscriptions(db *sql.DB, reportDir string) {
 	subs, err := GetActiveSubscriptions(db)
 	if err != nil {
 		log.Printf("Report: subscription processor failed: %v", err)
@@ -102,7 +102,7 @@ func ProcessSubscriptions(db *sql.DB, dataDir string) {
 				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
 				continue
 			}
-			outDir := filepath.Join(dataDir, "reports", "parent")
+			outDir := filepath.Join(reportDir, "parent")
 			os.MkdirAll(outDir, 0755)
 			outPath := filepath.Join(outDir, "child-activity-"+sub.UserID+"-"+now.Format("2006-01-02")+".xlsx")
 			writeParentXLSX(report, outPath)
@@ -114,7 +114,7 @@ func ProcessSubscriptions(db *sql.DB, dataDir string) {
 				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
 				continue
 			}
-			outDir := filepath.Join(dataDir, "reports", "teacher")
+			outDir := filepath.Join(reportDir, "teacher")
 			os.MkdirAll(outDir, 0755)
 			outPath := filepath.Join(outDir, "timesheet-"+sub.UserID+"-"+now.Format("2006-01-02")+".xlsx")
 			writeTimesheetXLSX(report, outPath)
@@ -126,7 +126,7 @@ func ProcessSubscriptions(db *sql.DB, dataDir string) {
 				log.Printf("Report: subscription #%d failed: %v", sub.ID, err)
 				continue
 			}
-			outDir := filepath.Join(dataDir, "reports", "admin")
+			outDir := filepath.Join(reportDir, "admin")
 			os.MkdirAll(outDir, 0755)
 			outPath := filepath.Join(outDir, "staff-timesheet-"+now.Format("2006-01-02")+".xlsx")
 			writeAdminTimesheetXLSX(report, outPath)

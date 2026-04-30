@@ -439,10 +439,9 @@ func querySchedules(db *sql.DB, includeDeleted bool) ([]models.Schedule, error) 
 }
 
 // ExportDailyAttendanceXLSX writes today's attendance records to an XLSX file
-// in the attendances/ subdirectory of dir. The filename includes the date:
-// attendance-YYYY-MM-DD.xlsx.
-func ExportDailyAttendanceXLSX(db *sql.DB, dir string) error {
-	outDir := filepath.Join(dir, "attendances")
+// in exportDir. The filename includes the date: attendance-YYYY-MM-DD.xlsx.
+func ExportDailyAttendanceXLSX(db *sql.DB, exportDir string) error {
+	outDir := exportDir
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
