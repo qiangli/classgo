@@ -45,10 +45,12 @@ func ExportCSVDir(dir string, data *EntityData) error {
 	writers := map[string]func(*csv.Writer){
 		"students.csv": func(w *csv.Writer) {
 			w.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
-				"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside", "active"})
+				"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside",
+				"english_name", "package", "major", "enroll_term", "graduation", "active"})
 			for _, s := range data.Students {
 				w.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
-					s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside, boolStr(s.Active)})
+					s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+					s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation, boolStr(s.Active)})
 			}
 		},
 		"parents.csv": func(w *csv.Writer) {
@@ -101,7 +103,8 @@ func writeStudentSheet(f *excelize.File, students []models.Student) {
 	sheet := "Students"
 	f.NewSheet(sheet)
 	headers := []string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
-		"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside", "active"}
+		"dob", "birthplace", "years_in_us", "first_language", "previous_schools", "courses_outside",
+		"english_name", "package", "major", "enroll_term", "graduation", "active"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
@@ -109,7 +112,8 @@ func writeStudentSheet(f *excelize.File, students []models.Student) {
 	for r, s := range students {
 		row := r + 2
 		vals := []string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
-			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside, boolStr(s.Active)}
+			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+			s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation, boolStr(s.Active)}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
@@ -271,7 +275,9 @@ func readFromDB(db *sql.DB, includeDeleted bool) (*EntityData, error) {
 func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 	q := `SELECT id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
 	      COALESCE(dob,''), COALESCE(birthplace,''), COALESCE(years_in_us,''), COALESCE(first_language,''),
-	      COALESCE(previous_schools,''), COALESCE(courses_outside,''), COALESCE(profile_status,''),
+	      COALESCE(previous_schools,''), COALESCE(courses_outside,''),
+	      COALESCE(english_name,''), COALESCE(package,''), COALESCE(major,''), COALESCE(enroll_term,''), COALESCE(graduation,''),
+	      COALESCE(profile_status,''),
 	      active, deleted, COALESCE(deleted_at,''), COALESCE(deleted_by,''),
 	      COALESCE(require_pin, 0), COALESCE(personal_pin, '') FROM students`
 	if !includeDeleted {
@@ -290,7 +296,9 @@ func queryStudents(db *sql.DB, includeDeleted bool) ([]models.Student, error) {
 		var grade, school, parentID, email, phone, address, notes sql.NullString
 		var personalPIN string
 		if err := rows.Scan(&s.ID, &s.FirstName, &s.LastName, &grade, &school, &parentID, &email, &phone, &address, &notes,
-			&s.DOB, &s.Birthplace, &s.YearsInUS, &s.FirstLanguage, &s.PreviousSchools, &s.CoursesOutside, &s.ProfileStatus,
+			&s.DOB, &s.Birthplace, &s.YearsInUS, &s.FirstLanguage, &s.PreviousSchools, &s.CoursesOutside,
+			&s.EnglishName, &s.Package, &s.Major, &s.EnrollTerm, &s.Graduation,
+			&s.ProfileStatus,
 			&active, &deleted, &s.DeletedAt, &s.DeletedBy, &requirePIN, &personalPIN); err != nil {
 			return nil, err
 		}

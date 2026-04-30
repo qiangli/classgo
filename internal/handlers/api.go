@@ -514,13 +514,16 @@ func (a *App) saveEntity(entityType string, data map[string]any) error {
 		}
 		_, err := a.DB.Exec(
 			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
-			 dob, birthplace, years_in_us, first_language, previous_schools, courses_outside, active, deleted)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 dob, birthplace, years_in_us, first_language, previous_schools, courses_outside,
+			 english_name, package, major, enroll_term, graduation, active, deleted)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, fn, ln, getString(data, "grade"), getString(data, "school"),
 			getString(data, "parent_id"), getString(data, "email"), getString(data, "phone"),
 			getString(data, "address"), getString(data, "notes"),
 			getString(data, "dob"), getString(data, "birthplace"), getString(data, "years_in_us"),
 			getString(data, "first_language"), getString(data, "previous_schools"), getString(data, "courses_outside"),
+			getString(data, "english_name"), getString(data, "package"), getString(data, "major"),
+			getString(data, "enroll_term"), getString(data, "graduation"),
 			boolToInt(getBool(data, "active", true)), boolToInt(getBool(data, "deleted", false)),
 		)
 		return err
@@ -641,9 +644,11 @@ func (a *App) HandleExportCSV(w http.ResponseWriter, r *http.Request) {
 
 	switch entity {
 	case "students":
-		writer.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"})
+		writer.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
+			"english_name", "package", "major", "enroll_term", "graduation", "active"})
 		for _, s := range data.Students {
-			writer.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)})
+			writer.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+				s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation, boolStr(s.Active)})
 		}
 	case "parents":
 		writer.Write([]string{"id", "first_name", "last_name", "email", "phone", "address", "notes"})
@@ -685,9 +690,11 @@ func (a *App) HandleExportCSVZip(w http.ResponseWriter, r *http.Request) {
 
 	csvFiles := map[string]func(*csv.Writer){
 		"students.csv": func(cw *csv.Writer) {
-			cw.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes", "active"})
+			cw.Write([]string{"id", "first_name", "last_name", "grade", "school", "parent_id", "email", "phone", "address", "notes",
+				"english_name", "package", "major", "enroll_term", "graduation", "active"})
 			for _, s := range data.Students {
-				cw.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes, boolStr(s.Active)})
+				cw.Write([]string{s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
+					s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation, boolStr(s.Active)})
 			}
 		},
 		"parents.csv": func(cw *csv.Writer) {

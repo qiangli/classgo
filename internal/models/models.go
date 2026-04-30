@@ -48,7 +48,8 @@ type TunnelConfig struct {
 type Config struct {
 	AppName        string          `json:"app_name"`
 	DataDir        string          `json:"data_dir"`
-	PinMode        string          `json:"pin_mode"` // "off", "center", "per-student"
+	RawDir         string          `json:"raw_dir,omitempty"` // directory for raw .xls namelist files
+	PinMode        string          `json:"pin_mode"`          // "off", "center", "per-student"
 	Port           int             `json:"port,omitempty"`
 	DBPath         string          `json:"db_path,omitempty"`
 	Administrators []Administrator `json:"administrators,omitempty"`
@@ -88,6 +89,11 @@ type Student struct {
 	FirstLanguage   string `json:"first_language"`
 	PreviousSchools string `json:"previous_schools"`
 	CoursesOutside  string `json:"courses_outside"`
+	EnglishName     string `json:"english_name"`
+	Package         string `json:"package"`
+	Major           string `json:"major"`
+	EnrollTerm      string `json:"enroll_term"`
+	Graduation      string `json:"graduation"`
 	ProfileStatus   string `json:"profile_status"`
 	Active          bool   `json:"active"`
 	Deleted         bool   `json:"deleted"`
@@ -354,4 +360,52 @@ type TimeOff struct {
 	Notes        string  `json:"notes"`
 	CreatedBy    string  `json:"created_by"`
 	CreatedAt    string  `json:"created_at"`
+}
+
+// NamelistEntry is a parsed row from a namelist .xls file.
+type NamelistEntry struct {
+	RowIndex    int    `json:"row_index"`
+	GroupLabel  string `json:"group_label"`
+	StudentName string `json:"student_name"`
+	EnglishName string `json:"english_name"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	School      string `json:"school"`
+	Grade       string `json:"grade"`
+	Package     string `json:"package"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	ParentName  string `json:"parent_name"`
+	ParentEmail string `json:"parent_email"`
+	ParentPhone string `json:"parent_phone"`
+	Address     string `json:"address"`
+	Major       string `json:"major"`
+	EnrollTerm  string `json:"enroll_term"`
+	Graduation  string `json:"graduation"`
+}
+
+// NamelistConflict describes a namelist entry that matches an existing student but with differences.
+type NamelistConflict struct {
+	Entry       NamelistEntry `json:"entry"`
+	ExistingID  string        `json:"existing_id"`
+	Existing    Student       `json:"existing"`
+	Differences []string      `json:"differences"`
+}
+
+// NamelistPreview is the result of previewing a namelist import.
+type NamelistPreview struct {
+	Filename   string             `json:"filename"`
+	NewEntries []NamelistEntry    `json:"new_entries"`
+	Matches    []NamelistEntry    `json:"matches"`
+	Conflicts  []NamelistConflict `json:"conflicts"`
+	TotalRows  int                `json:"total_rows"`
+}
+
+// NamelistImportResult is the result of executing a namelist import.
+type NamelistImportResult struct {
+	StudentsInserted int `json:"students_inserted"`
+	StudentsMerged   int `json:"students_merged"`
+	StudentsSkipped  int `json:"students_skipped"`
+	ParentsCreated   int `json:"parents_created"`
+	ParentsUpdated   int `json:"parents_updated"`
 }

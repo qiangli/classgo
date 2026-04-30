@@ -52,6 +52,11 @@ func MigrateDB(db *sql.DB) error {
 		first_language   TEXT,
 		previous_schools TEXT,
 		courses_outside  TEXT,
+		english_name     TEXT,
+		package          TEXT,
+		major            TEXT,
+		enroll_term      TEXT,
+		graduation       TEXT,
 		profile_status   TEXT NOT NULL DEFAULT '',
 		active           INTEGER NOT NULL DEFAULT 1,
 		deleted          INTEGER NOT NULL DEFAULT 0,
@@ -454,6 +459,12 @@ func addMissingColumns(db *sql.DB) {
 		"ALTER TABLE user_preferences ADD COLUMN user_type TEXT NOT NULL DEFAULT ''",
 		// Schedule type (class, office, tutoring)
 		"ALTER TABLE schedules ADD COLUMN type TEXT NOT NULL DEFAULT 'class'",
+		// Namelist import fields
+		"ALTER TABLE students ADD COLUMN english_name TEXT",
+		"ALTER TABLE students ADD COLUMN package TEXT",
+		"ALTER TABLE students ADD COLUMN major TEXT",
+		"ALTER TABLE students ADD COLUMN enroll_term TEXT",
+		"ALTER TABLE students ADD COLUMN graduation TEXT",
 	}
 	for _, stmt := range alters {
 		db.Exec(stmt) // ignore "duplicate column" errors

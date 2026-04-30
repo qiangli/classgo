@@ -159,6 +159,11 @@ func parseStudentRows(rows [][]string) []models.Student {
 			FirstLanguage:   m["first_language"],
 			PreviousSchools: m["previous_schools"],
 			CoursesOutside:  m["courses_outside"],
+			EnglishName:     m["english_name"],
+			Package:         m["package"],
+			Major:           m["major"],
+			EnrollTerm:      m["enroll_term"],
+			Graduation:      m["graduation"],
 			Active:          parseBool(m["active"]),
 			Deleted:         parseBoolDefault(m["deleted"], false),
 		})

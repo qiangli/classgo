@@ -31,6 +31,7 @@ type App struct {
 	Tmpl           *template.Template
 	AppName        string
 	DataDir        string
+	RawDir         string // directory for raw .xls namelist files
 	PinMode        string // "off", "center", "per-student"
 	MemosSyncer    *memos.Syncer
 	MemosStore     *memosstore.Store

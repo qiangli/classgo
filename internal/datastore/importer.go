@@ -83,14 +83,17 @@ func importStudents(db *sql.DB, students []models.Student) error {
 		ids[s.ID] = true
 		hash := rowHash(s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
 			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+			s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation,
 			fmt.Sprint(s.Active), fmt.Sprint(s.Deleted))
 		_, err := tx.Exec(
 			`INSERT OR REPLACE INTO students (id, first_name, last_name, grade, school, parent_id, email, phone, address, notes,
 			 dob, birthplace, years_in_us, first_language, previous_schools, courses_outside,
+			 english_name, package, major, enroll_term, graduation,
 			 active, deleted, row_hash)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			s.ID, s.FirstName, s.LastName, s.Grade, s.School, s.ParentID, s.Email, s.Phone, s.Address, s.Notes,
 			s.DOB, s.Birthplace, s.YearsInUS, s.FirstLanguage, s.PreviousSchools, s.CoursesOutside,
+			s.EnglishName, s.Package, s.Major, s.EnrollTerm, s.Graduation,
 			boolToInt(s.Active), boolToInt(s.Deleted), hash,
 		)
 		if err != nil {

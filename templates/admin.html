@@ -101,6 +101,10 @@
 
             <div class="border-t border-indigo-500 mx-3 my-2"></div>
 
+            <a href="#namelist" onclick="navigate('namelist'); return false" id="nav-namelist" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Namelist">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Namelist</span>
+            </a>
             <a href="#data" onclick="navigate('data'); return false" id="nav-data" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Data">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 <span class="text-[10px] mt-1 leading-tight text-center">Data</span>
@@ -550,6 +554,117 @@
                 </div>
             </section>
 
+            <!-- ==================== NAMELIST SECTION ==================== -->
+            <section id="section-namelist" class="hidden">
+                <div class="flex items-center gap-4 mb-6">
+                    <select id="namelist-file-select" class="text-sm border rounded-lg px-3 py-2 min-w-[300px]">
+                        <option value="">Select a namelist file...</option>
+                    </select>
+                    <button onclick="previewNamelist()" id="namelist-preview-btn" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1" disabled>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        Preview
+                    </button>
+                    <div id="namelist-status" class="hidden text-sm px-3 py-1 rounded-lg"></div>
+                </div>
+
+                <div id="namelist-preview" class="hidden">
+                    <!-- Summary -->
+                    <div id="namelist-summary" class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
+                            <div class="text-2xl font-bold text-green-600" id="nl-new-count">0</div>
+                            <div class="text-sm text-green-700 dark:text-green-400">New Students</div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/20 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                            <div class="text-2xl font-bold text-gray-600" id="nl-match-count">0</div>
+                            <div class="text-sm text-gray-500">Exact Matches</div>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                            <div class="text-2xl font-bold text-amber-600" id="nl-conflict-count">0</div>
+                            <div class="text-sm text-amber-700 dark:text-amber-400">Conflicts</div>
+                        </div>
+                    </div>
+
+                    <!-- Conflicts -->
+                    <div id="nl-conflicts-section" class="mb-6 hidden">
+                        <div class="flex items-center justify-between mb-3 cursor-pointer" onclick="toggleNLSection('conflicts')">
+                            <h3 class="text-lg font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                Conflicts — Review Required
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="event.stopPropagation(); setAllConflictActions('merge')" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded">All: Merge</button>
+                                <button onclick="event.stopPropagation(); setAllConflictActions('insert')" class="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded">All: Insert New</button>
+                                <button onclick="event.stopPropagation(); setAllConflictActions('skip')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded">All: Skip</button>
+                                <svg id="nl-conflicts-chevron" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </div>
+                        <div id="nl-conflicts-body" class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead><tr class="border-b text-gray-400">
+                                    <th class="py-2 px-3">Student Name</th>
+                                    <th class="py-2 px-3">English Name</th>
+                                    <th class="py-2 px-3">Differences</th>
+                                    <th class="py-2 px-3">Action</th>
+                                </tr></thead>
+                                <tbody id="nl-conflicts-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- New Students -->
+                    <div id="nl-new-section" class="mb-6 hidden">
+                        <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="toggleNLSection('new')">
+                            <h3 class="text-lg font-semibold text-green-700 dark:text-green-400">New Students</h3>
+                            <svg id="nl-new-chevron" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                        <div id="nl-new-body" class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead><tr class="border-b text-gray-400">
+                                    <th class="py-2 px-3">Student Name</th>
+                                    <th class="py-2 px-3">English Name</th>
+                                    <th class="py-2 px-3">School</th>
+                                    <th class="py-2 px-3">Grade</th>
+                                    <th class="py-2 px-3">Email</th>
+                                    <th class="py-2 px-3">Package</th>
+                                    <th class="py-2 px-3">Major</th>
+                                    <th class="py-2 px-3">Parent</th>
+                                </tr></thead>
+                                <tbody id="nl-new-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Exact Matches -->
+                    <div id="nl-matches-section" class="mb-6 hidden">
+                        <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="toggleNLSection('matches')">
+                            <h3 class="text-lg font-semibold text-gray-500">Exact Matches (no action needed)</h3>
+                            <svg id="nl-matches-chevron" class="w-5 h-5 text-gray-400 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                        <div id="nl-matches-body" class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-x-auto hidden">
+                            <table class="w-full text-left text-sm">
+                                <thead><tr class="border-b text-gray-400">
+                                    <th class="py-2 px-3">Student Name</th>
+                                    <th class="py-2 px-3">English Name</th>
+                                    <th class="py-2 px-3">School</th>
+                                    <th class="py-2 px-3">Grade</th>
+                                    <th class="py-2 px-3">Email</th>
+                                </tr></thead>
+                                <tbody id="nl-matches-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Execute Button -->
+                    <div class="flex items-center gap-4 mt-6">
+                        <button onclick="executeNamelistImport()" id="namelist-execute-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg transition font-medium flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            Execute Import
+                        </button>
+                        <div id="namelist-result" class="hidden text-sm px-4 py-2 rounded-lg"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ==================== DATA SECTION (tabbed spreadsheet) ==================== -->
             <section id="section-data" class="hidden">
                 <!-- Tabs -->
@@ -893,13 +1008,14 @@
 
         // ==================== NAVIGATION ====================
         let currentSection = 'checkin';
-        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'data', 'staff'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
+        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'namelist', 'data', 'staff'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
         const sectionMeta = {
             checkin:    { title: 'Check In / Out', subtitle: '{{.Date}}' },
             attendance: { title: 'Attendance', subtitle: '{{.Date}}' },
             schedule:   { title: 'Schedule', subtitle: 'Weekly Schedule' },
             progress:   { title: 'Progress', subtitle: 'Student completion overview & task management' },
             audit:      { title: 'Audit', subtitle: 'Anti-fraud monitoring & PIN settings' },
+            namelist:   { title: 'Namelist', subtitle: 'Import student namelists' },
             data:       { title: 'Data', subtitle: 'Manage entity data' },
             staff:      { title: 'Staff', subtitle: 'Time off & timesheet management' }{{if .IsSuperAdmin}},
             scheduler:  { title: 'Scheduler', subtitle: 'Cron job monitoring & management' }{{end}}
@@ -929,6 +1045,7 @@
             }
             if (section === 'checkin') loadPinOverrideList();
             if (section === 'audit') loadAuditData();
+            if (section === 'namelist' && !namelistLoaded) { namelistLoaded = true; loadNamelistFiles(); }
             if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
             if (section === 'staff' && !staffLoaded) { staffLoaded = true; initStaffSection(); }
             if (section === 'scheduler') initSchedulerUI();
@@ -1876,6 +1993,205 @@
             } catch(e) { container.innerHTML = '<p class="text-xs text-red-400">Error loading responses.</p>'; }
         }
 
+        // ==================== NAMELIST IMPORT ====================
+        let namelistLoaded = false;
+        let namelistPreviewData = null;
+
+        async function loadNamelistFiles() {
+            try {
+                const res = await fetch('/api/v1/namelist/files');
+                const data = await res.json();
+                const sel = document.getElementById('namelist-file-select');
+                sel.innerHTML = '<option value="">Select a namelist file...</option>';
+                (data.files || []).forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f; opt.textContent = f;
+                    sel.appendChild(opt);
+                });
+                sel.onchange = () => {
+                    document.getElementById('namelist-preview-btn').disabled = !sel.value;
+                    document.getElementById('namelist-preview').classList.add('hidden');
+                    namelistPreviewData = null;
+                };
+            } catch(e) {
+                showNamelistStatus('Failed to load files', 'error');
+            }
+        }
+
+        async function previewNamelist() {
+            const filename = document.getElementById('namelist-file-select').value;
+            if (!filename) return;
+            showNamelistStatus('Loading preview...', 'loading');
+            try {
+                const res = await fetch('/api/v1/namelist/preview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({filename})
+                });
+                const data = await res.json();
+                if (data.error && !data.new_entries && !data.conflicts) {
+                    showNamelistStatus(data.error, 'error');
+                    return;
+                }
+                namelistPreviewData = data;
+                renderNamelistPreview(data);
+                hideNamelistStatus();
+            } catch(e) {
+                showNamelistStatus('Preview failed: ' + e.message, 'error');
+            }
+        }
+
+        function renderNamelistPreview(data) {
+            const preview = document.getElementById('namelist-preview');
+            preview.classList.remove('hidden');
+
+            const newEntries = data.new_entries || [];
+            const matches = data.matches || [];
+            const conflicts = data.conflicts || [];
+
+            document.getElementById('nl-new-count').textContent = newEntries.length;
+            document.getElementById('nl-match-count').textContent = matches.length;
+            document.getElementById('nl-conflict-count').textContent = conflicts.length;
+
+            // Conflicts
+            const conflictsSection = document.getElementById('nl-conflicts-section');
+            if (conflicts.length > 0) {
+                conflictsSection.classList.remove('hidden');
+                const tbody = document.getElementById('nl-conflicts-tbody');
+                tbody.innerHTML = conflicts.map((c, i) => {
+                    const diffHtml = c.differences.map(d => {
+                        const oldVal = c.existing[d] || '(empty)';
+                        const newVal = c.entry[d] || '(empty)';
+                        return `<span class="inline-block bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs px-1.5 py-0.5 rounded mr-1 mb-1" title="${esc(d)}: ${esc(oldVal)} → ${esc(newVal)}">${esc(d)}</span>`;
+                    }).join('');
+                    return `<tr class="border-b hover:bg-amber-50/50 dark:hover:bg-amber-900/10">
+                        <td class="py-2 px-3">${esc(c.entry.student_name)}<br><span class="text-xs text-gray-400">${esc(c.entry.first_name)} ${esc(c.entry.last_name)}</span></td>
+                        <td class="py-2 px-3">${esc(c.entry.english_name)}</td>
+                        <td class="py-2 px-3">${diffHtml}</td>
+                        <td class="py-2 px-3">
+                            <select id="nl-decision-${c.entry.row_index}" class="text-xs border rounded px-2 py-1">
+                                <option value="merge">Merge (update existing)</option>
+                                <option value="insert">Insert as new</option>
+                                <option value="skip">Skip</option>
+                            </select>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } else {
+                conflictsSection.classList.add('hidden');
+            }
+
+            // New students
+            const newSection = document.getElementById('nl-new-section');
+            if (newEntries.length > 0) {
+                newSection.classList.remove('hidden');
+                document.getElementById('nl-new-tbody').innerHTML = newEntries.map(e =>
+                    `<tr class="border-b hover:bg-green-50/50 dark:hover:bg-green-900/10">
+                        <td class="py-2 px-3">${esc(e.student_name)}<br><span class="text-xs text-gray-400">${esc(e.first_name)} ${esc(e.last_name)}</span></td>
+                        <td class="py-2 px-3">${esc(e.english_name)}</td>
+                        <td class="py-2 px-3">${esc(e.school)}</td>
+                        <td class="py-2 px-3">${esc(e.grade)}</td>
+                        <td class="py-2 px-3">${esc(e.email)}</td>
+                        <td class="py-2 px-3">${esc(e.package)}</td>
+                        <td class="py-2 px-3">${esc(e.major)}</td>
+                        <td class="py-2 px-3">${esc(e.parent_name)}${e.parent_email ? '<br><span class="text-xs text-gray-400">' + esc(e.parent_email) + '</span>' : ''}</td>
+                    </tr>`
+                ).join('');
+            } else {
+                newSection.classList.add('hidden');
+            }
+
+            // Matches
+            const matchesSection = document.getElementById('nl-matches-section');
+            if (matches.length > 0) {
+                matchesSection.classList.remove('hidden');
+                document.getElementById('nl-matches-tbody').innerHTML = matches.map(e =>
+                    `<tr class="border-b">
+                        <td class="py-2 px-3 text-gray-500">${esc(e.student_name)}</td>
+                        <td class="py-2 px-3 text-gray-500">${esc(e.english_name)}</td>
+                        <td class="py-2 px-3 text-gray-500">${esc(e.school)}</td>
+                        <td class="py-2 px-3 text-gray-500">${esc(e.grade)}</td>
+                        <td class="py-2 px-3 text-gray-500">${esc(e.email)}</td>
+                    </tr>`
+                ).join('');
+            } else {
+                matchesSection.classList.add('hidden');
+            }
+        }
+
+        function setAllConflictActions(action) {
+            if (!namelistPreviewData) return;
+            (namelistPreviewData.conflicts || []).forEach(c => {
+                const sel = document.getElementById('nl-decision-' + c.entry.row_index);
+                if (sel) sel.value = action;
+            });
+        }
+
+        function toggleNLSection(name) {
+            const body = document.getElementById('nl-' + name + '-body');
+            const chevron = document.getElementById('nl-' + name + '-chevron');
+            body.classList.toggle('hidden');
+            chevron.classList.toggle('rotate-180');
+        }
+
+        async function executeNamelistImport() {
+            if (!namelistPreviewData) return;
+            const filename = namelistPreviewData.filename;
+            const decisions = {};
+
+            // New entries default to "insert"
+            (namelistPreviewData.new_entries || []).forEach(e => { decisions[e.row_index] = 'insert'; });
+            // Conflicts: read from dropdowns
+            (namelistPreviewData.conflicts || []).forEach(c => {
+                const sel = document.getElementById('nl-decision-' + c.entry.row_index);
+                decisions[c.entry.row_index] = sel ? sel.value : 'skip';
+            });
+
+            showNamelistStatus('Importing...', 'loading');
+            document.getElementById('namelist-execute-btn').disabled = true;
+
+            try {
+                const res = await fetch('/api/v1/namelist/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({filename, decisions})
+                });
+                const data = await res.json();
+                const resultEl = document.getElementById('namelist-result');
+                if (data.ok) {
+                    resultEl.className = 'text-sm px-4 py-2 rounded-lg bg-green-100 text-green-700';
+                    resultEl.textContent = data.message;
+                    resultEl.classList.remove('hidden');
+                    hideNamelistStatus();
+                } else {
+                    resultEl.className = 'text-sm px-4 py-2 rounded-lg bg-red-100 text-red-700';
+                    resultEl.textContent = data.error || 'Import failed';
+                    resultEl.classList.remove('hidden');
+                    hideNamelistStatus();
+                }
+            } catch(e) {
+                showNamelistStatus('Import failed: ' + e.message, 'error');
+            }
+            document.getElementById('namelist-execute-btn').disabled = false;
+        }
+
+        function showNamelistStatus(msg, type) {
+            const el = document.getElementById('namelist-status');
+            el.classList.remove('hidden');
+            if (type === 'error') {
+                el.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
+            } else if (type === 'loading') {
+                el.className = 'text-sm px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700';
+            } else {
+                el.className = 'text-sm px-3 py-1 rounded-lg bg-green-100 text-green-700';
+            }
+            el.textContent = msg;
+        }
+
+        function hideNamelistStatus() {
+            document.getElementById('namelist-status').classList.add('hidden');
+        }
+
         // ==================== DATA (tabbed spreadsheet) ====================
         let dataStore = null, currentDataTab = 'students', dataFilterText = '', showDeleted = false, prefsLoaded = false;
         let sortState = {}; // { tab: { key, dir } }
@@ -1884,7 +2200,7 @@
         const dataTabs = ['students', 'parents', 'teachers', 'rooms', 'schedules'];
         const refFields = { parent_id: 'parents', teacher_id: 'teachers', room_id: 'rooms', student_ids: 'students' };
         const dataColumns = {
-            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'dob',label:'DOB'},{key:'birthplace',label:'Birthplace'},{key:'years_in_us',label:'Years in US'},{key:'first_language',label:'First Language'},{key:'previous_schools',label:'Previous Schools'},{key:'courses_outside',label:'Courses Outside HS'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
+            students:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'grade',label:'Grade'},{key:'school',label:'School'},{key:'parent_id',label:'Parent',ref:'parents'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'dob',label:'DOB'},{key:'birthplace',label:'Birthplace'},{key:'years_in_us',label:'Years in US'},{key:'first_language',label:'First Language'},{key:'previous_schools',label:'Previous Schools'},{key:'courses_outside',label:'Courses Outside HS'},{key:'english_name',label:'English Name'},{key:'package',label:'Package'},{key:'major',label:'Major'},{key:'enroll_term',label:'Enroll Term'},{key:'graduation',label:'Graduation'},{key:'notes',label:'Notes'},{key:'active',label:'Active'}],
             parents:   [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'email2',label:'Email 2'},{key:'phone2',label:'Phone 2'},{key:'address',label:'Address'},{key:'notes',label:'Notes'}],
             teachers:  [{key:'id',label:'ID'},{key:'first_name',label:'First Name'},{key:'last_name',label:'Last Name'},{key:'email',label:'Email'},{key:'phone',label:'Phone'},{key:'address',label:'Address'},{key:'subjects',label:'Subjects'},{key:'active',label:'Active'}],
             rooms:     [{key:'id',label:'ID'},{key:'name',label:'Name'},{key:'capacity',label:'Capacity'},{key:'notes',label:'Notes'}],

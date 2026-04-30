@@ -6,8 +6,10 @@ DIST := dist
 
 PLATFORMS := darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 windows-amd64
 
+HOME_DIR := $(HOME)/.classgo
+
 .PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed \
-        start stop clean memos-frontend tailwind rclone rclone-all frp frp-all package
+        start stop start-test clean memos-frontend tailwind rclone rclone-all frp frp-all package
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -112,7 +114,7 @@ package: build-all ## Package release archives for all platforms
 	@echo "Archives in $(DIST)/"
 	@ls -lh $(DIST)/*.tar.gz $(DIST)/*.zip 2>/dev/null
 
-start: build ## Start the server in the background
+start: build ## Start the server (uses ~/.classgo by default)
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "$(APP) is already running (PID $$(cat $(PID_FILE)))"; \
 	else \
@@ -130,6 +132,22 @@ stop: ## Stop the running server
 	else \
 		echo "$(APP) is not running"; \
 		rm -f $(PID_FILE); \
+	fi
+
+start-test: ## Build and start with csv.example test data
+	@mkdir -p bin
+	go build -o $(BIN) .
+	@mkdir -p $(HOME_DIR)/data/csv $(HOME_DIR)/raw
+	@cp -f data/csv.example/*.csv $(HOME_DIR)/data/csv/ 2>/dev/null || true
+	@if [ -d raw ]; then cp -f raw/*.xls $(HOME_DIR)/raw/ 2>/dev/null || true; fi
+	@echo "Test data copied to $(HOME_DIR)"
+	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
+		echo "$(APP) is already running (PID $$(cat $(PID_FILE)))"; \
+	else \
+		$(BIN) > $(LOG_FILE) 2>&1 & echo $$! > $(PID_FILE); \
+		sleep 1; \
+		cat $(LOG_FILE); \
+		echo "$(APP) started with test data (PID $$(cat $(PID_FILE)))"; \
 	fi
 
 test-e2e-setup: ## Install Playwright dependencies

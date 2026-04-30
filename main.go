@@ -37,36 +37,67 @@ import (
 	memossqlite "classgo/memos/store/db/sqlite"
 )
 
+// defaultHomeDir returns the default ClassGo home directory (~/.classgo).
+func defaultHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".classgo"
+	}
+	return filepath.Join(home, ".classgo")
+}
+
 func loadConfig() models.Config {
 	cfg := models.Config{
 		AppName: "LERN",
-		DataDir: "./data",
 	}
 
-	if data, err := os.ReadFile("config.json"); err == nil {
-		json.Unmarshal(data, &cfg)
+	flagName := flag.String("name", "", "Application name")
+	flagDataDir := flag.String("data-dir", "", "Data directory")
+	flagRawDir := flag.String("raw-dir", "", "Raw namelist directory for .xls imports")
+	flagRebuild := flag.Bool("rebuild-db", false, "Drop and rebuild index tables from spreadsheet files")
+	flagPort := flag.Int("port", 0, "Server port (default 8080)")
+	flagDB := flag.String("db", "", "Database file path")
+	flag.Parse()
+
+	// Determine home directory: CLI flag > env > config.json location > ~/.classgo
+	homeDir := defaultHomeDir()
+
+	// Try config.json in current directory first (backward compat), then home dir
+	configPath := ""
+	if _, err := os.Stat("config.json"); err == nil {
+		configPath = "config.json"
+	} else if _, err := os.Stat(filepath.Join(homeDir, "config.json")); err == nil {
+		configPath = filepath.Join(homeDir, "config.json")
+	}
+
+	if configPath != "" {
+		if data, err := os.ReadFile(configPath); err == nil {
+			json.Unmarshal(data, &cfg)
+		}
 	}
 
 	if env := os.Getenv("APP_NAME"); env != "" {
 		cfg.AppName = env
 	}
-
-	flagName := flag.String("name", "", "Application name")
-	flagDataDir := flag.String("data-dir", "", "Data directory (default ./data)")
-	flagRebuild := flag.Bool("rebuild-db", false, "Drop and rebuild index tables from spreadsheet files")
-	flagPort := flag.Int("port", 0, "Server port (default 8080)")
-	flagDB := flag.String("db", "", "Database file path (default ./classgo.db)")
-	flag.Parse()
-
 	if *flagName != "" {
 		cfg.AppName = *flagName
 	}
 	if *flagDataDir != "" {
 		cfg.DataDir = *flagDataDir
 	}
+	if *flagRawDir != "" {
+		cfg.RawDir = *flagRawDir
+	}
 
+	// Default DataDir and DBPath under home directory
 	if cfg.DataDir == "" {
-		cfg.DataDir = "./data"
+		cfg.DataDir = filepath.Join(homeDir, "data")
+	}
+	if cfg.RawDir == "" {
+		cfg.RawDir = filepath.Join(filepath.Dir(cfg.DataDir), "raw")
+	}
+	if cfg.DBPath == "" {
+		cfg.DBPath = filepath.Join(homeDir, "classgo.db")
 	}
 
 	if *flagPort > 0 {
@@ -75,17 +106,61 @@ func loadConfig() models.Config {
 	if cfg.Port == 0 {
 		cfg.Port = 8080
 	}
-
 	if *flagDB != "" {
 		cfg.DBPath = *flagDB
-	}
-	if cfg.DBPath == "" {
-		cfg.DBPath = "./classgo.db"
 	}
 
 	rebuildDB = *flagRebuild
 
+	// First-time setup: create home directory with defaults
+	if configPath == "" {
+		initHomeDir(homeDir, &cfg)
+	}
+
 	return cfg
+}
+
+// initHomeDir creates the ClassGo home directory with sensible defaults on first run.
+func initHomeDir(homeDir string, cfg *models.Config) {
+	os.MkdirAll(homeDir, 0755)
+	os.MkdirAll(filepath.Join(homeDir, "data"), 0755)
+	os.MkdirAll(filepath.Join(homeDir, "raw"), 0755)
+
+	// Create default config with current user as superadmin
+	username := ""
+	if u, err := user.Current(); err == nil {
+		username = u.Username
+	}
+
+	defaultCfg := models.Config{
+		AppName: cfg.AppName,
+		DataDir: filepath.Join(homeDir, "data"),
+		RawDir:  filepath.Join(homeDir, "raw"),
+		PinMode: "off",
+		Port:    cfg.Port,
+		DBPath:  filepath.Join(homeDir, "classgo.db"),
+	}
+	if username != "" {
+		defaultCfg.Administrators = []models.Administrator{
+			{Username: username, Role: "superadmin"},
+		}
+		cfg.Administrators = defaultCfg.Administrators
+	}
+
+	data, err := json.MarshalIndent(defaultCfg, "", "  ")
+	if err == nil {
+		configPath := filepath.Join(homeDir, "config.json")
+		os.WriteFile(configPath, data, 0644)
+		log.Printf("Created default config: %s", configPath)
+	}
+
+	log.Printf("Initialized ClassGo home: %s", homeDir)
+	log.Printf("  Data directory: %s/data", homeDir)
+	log.Printf("  Database: %s/classgo.db", homeDir)
+	log.Printf("  Place .xls namelists in: %s/raw/", homeDir)
+	if username != "" {
+		log.Printf("  Admin user: %s (superadmin)", username)
+	}
 }
 
 var rebuildDB bool
@@ -194,6 +269,7 @@ func main() {
 		Tmpl:           tmpl,
 		AppName:        cfg.AppName,
 		DataDir:        cfg.DataDir,
+		RawDir:         cfg.RawDir,
 		PinMode:        pinMode,
 		MemosSyncer:    memosSyncer,
 		MemosStore:     memosStoreInst,
@@ -277,6 +353,9 @@ func main() {
 	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.RequireAdminAPI(app.HandleScheduleConflicts)))
 	mux.HandleFunc("/api/v1/directory", handlers.NoCache(app.RequireAdminAPI(app.HandleDirectoryAPI)))
 	mux.HandleFunc("/api/v1/import", handlers.NoCache(app.RequireAdminAPI(app.HandleImportData)))
+	mux.HandleFunc("/api/v1/namelist/files", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistFiles)))
+	mux.HandleFunc("/api/v1/namelist/preview", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistPreview)))
+	mux.HandleFunc("/api/v1/namelist/execute", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistExecute)))
 	mux.HandleFunc("/api/v1/data", handlers.NoCache(app.RequireAdminAPI(app.HandleDataCRUD)))
 	mux.HandleFunc("/api/v1/password-reset", handlers.NoCache(app.RequireAdminAPI(app.HandlePasswordReset)))
 	mux.HandleFunc("/api/v1/memos/sync", handlers.NoCache(app.RequireAdminAPI(app.HandleMemosSync)))
