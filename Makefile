@@ -74,7 +74,7 @@ frp-all: ## Cross-compile frpc for all platforms
 		echo "frp-src/ not found (run: git submodule update --init)"; \
 	fi
 
-build: tidy tailwind memos-frontend rclone frp ## Build binary to bin/
+build: tailwind memos-frontend rclone frp tidy ## Build binary to bin/
 	@mkdir -p bin
 	go build -o $(BIN) .
 
