@@ -8,6 +8,10 @@ PLATFORMS := darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 windows-amd64
 
 HOME_DIR := $(HOME)/.classgo
 
+TAILWIND_VERSION := v4.2.2
+TAILWIND_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]' | sed 's/darwin/macos/')
+TAILWIND_ARCH := $(shell uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
+
 .PHONY: help tidy sync build build-all test test-e2e test-e2e-setup test-e2e-headed \
         start stop start-test clean memos-frontend tailwind rclone rclone-all frp frp-all package
 
@@ -26,7 +30,12 @@ sync: ## Sync and init/update all git submodules
 test: ## Run tests
 	go test -v -count=1 ./internal/... .
 
-tailwind: ## Build Tailwind CSS from templates
+./tailwindcss:
+	@echo "Downloading tailwindcss $(TAILWIND_VERSION) for $(TAILWIND_OS)-$(TAILWIND_ARCH)..."
+	curl -fsSL -o ./tailwindcss "https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/tailwindcss-$(TAILWIND_OS)-$(TAILWIND_ARCH)"
+	chmod +x ./tailwindcss
+
+tailwind: ./tailwindcss ## Build Tailwind CSS from templates
 	./tailwindcss -i static/css/input.css -o static/css/tailwind.css --content 'templates/*.html' --minify
 
 memos-frontend: ## Build Memos React frontend
