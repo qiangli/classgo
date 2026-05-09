@@ -8,7 +8,7 @@ PLATFORMS := darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 windows-amd64
 
 HOME_DIR := $(HOME)/.classgo
 
-.PHONY: help tidy build build-all test test-e2e test-e2e-setup test-e2e-headed \
+.PHONY: help tidy sync build build-all test test-e2e test-e2e-setup test-e2e-headed \
         start stop start-test clean memos-frontend tailwind rclone rclone-all frp frp-all package
 
 help: ## Show this help
@@ -18,6 +18,10 @@ tidy: ## Run fmt, vet, and mod tidy
 	go fmt ./...
 	go vet ./...
 	go mod tidy
+
+sync: ## Sync and init/update all git submodules
+	git submodule sync --recursive
+	git submodule update --init --recursive
 
 test: ## Run tests
 	go test -v -count=1 ./internal/... .
