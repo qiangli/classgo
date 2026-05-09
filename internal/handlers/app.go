@@ -21,6 +21,7 @@ import (
 
 	"classgo/internal/auth"
 	"classgo/internal/database"
+	"classgo/internal/datastore"
 	"classgo/internal/memos"
 	"classgo/internal/models"
 	memosstore "classgo/memos/store"
@@ -31,7 +32,6 @@ type App struct {
 	Tmpl           *template.Template
 	AppName        string
 	DataDir        string
-	RawDir         string // directory for raw .xls namelist files
 	PinMode        string // "off", "center", "per-student"
 	MemosSyncer    *memos.Syncer
 	MemosStore     *memosstore.Store
@@ -50,6 +50,50 @@ type App struct {
 	progressCache map[string]models.ProgressStats // key: studentID
 	progressStart string                          // cached date range start
 	progressEnd   string                          // cached date range end
+
+	uploadMu    sync.Mutex
+	uploadCache map[string]*UploadEntry // keyed by upload ID
+}
+
+// UploadEntry holds parsed import data between the preview and execute steps.
+type UploadEntry struct {
+	Format    string                 // "namelist" or "data"
+	Entries   []models.NamelistEntry // for namelist format
+	Data      *datastore.EntityData  // for data format
+	ExpiresAt time.Time
+}
+
+func (a *App) storeUpload(id string, entry *UploadEntry) {
+	a.uploadMu.Lock()
+	defer a.uploadMu.Unlock()
+	if a.uploadCache == nil {
+		a.uploadCache = make(map[string]*UploadEntry)
+	}
+	// Lazy cleanup of expired entries
+	now := time.Now()
+	for k, v := range a.uploadCache {
+		if now.After(v.ExpiresAt) {
+			delete(a.uploadCache, k)
+		}
+	}
+	a.uploadCache[id] = entry
+}
+
+func (a *App) getUpload(id string) *UploadEntry {
+	a.uploadMu.Lock()
+	defer a.uploadMu.Unlock()
+	entry, ok := a.uploadCache[id]
+	if !ok || time.Now().After(entry.ExpiresAt) {
+		delete(a.uploadCache, id)
+		return nil
+	}
+	return entry
+}
+
+func (a *App) deleteUpload(id string) {
+	a.uploadMu.Lock()
+	defer a.uploadMu.Unlock()
+	delete(a.uploadCache, id)
 }
 
 // InvalidateProgressCache removes a single student's cached progress stats.

@@ -139,6 +139,21 @@ func makeRowMaps(rows [][]string) []rowMap {
 	return result
 }
 
+// ExportParseStudentRows is an exported wrapper for parseStudentRows.
+func ExportParseStudentRows(rows [][]string) []models.Student { return parseStudentRows(rows) }
+
+// ExportParseParentRows is an exported wrapper for parseParentRows.
+func ExportParseParentRows(rows [][]string) []models.Parent { return parseParentRows(rows) }
+
+// ExportParseTeacherRows is an exported wrapper for parseTeacherRows.
+func ExportParseTeacherRows(rows [][]string) []models.Teacher { return parseTeacherRows(rows) }
+
+// ExportParseRoomRows is an exported wrapper for parseRoomRows.
+func ExportParseRoomRows(rows [][]string) []models.Room { return parseRoomRows(rows) }
+
+// ExportParseScheduleRows is an exported wrapper for parseScheduleRows.
+func ExportParseScheduleRows(rows [][]string) []models.Schedule { return parseScheduleRows(rows) }
+
 func parseStudentRows(rows [][]string) []models.Student {
 	var students []models.Student
 	for _, m := range makeRowMaps(rows) {

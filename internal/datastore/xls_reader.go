@@ -2,8 +2,6 @@ package datastore
 
 import (
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/extrame/xls"
@@ -23,11 +21,30 @@ func ReadXLSFile(path string) ([][]string, error) {
 	}
 
 	var rows [][]string
-	for i := 0; i <= int(sheet.MaxRow); i++ {
+	for i := range int(sheet.MaxRow) + 1 {
 		cells := readXLSRow(sheet, i)
 		rows = append(rows, cells)
 	}
 	return rows, nil
+}
+
+// ReadXLSFileFromBytes writes bytes to a temp file, parses as .xls, then cleans up.
+// The extrame/xls library requires a file path.
+func ReadXLSFileFromBytes(data []byte) ([][]string, error) {
+	tmp, err := os.CreateTemp("", "classgo-import-*.xls")
+	if err != nil {
+		return nil, err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return nil, err
+	}
+	tmp.Close()
+
+	return ReadXLSFile(tmpPath)
 }
 
 // readXLSRow safely reads a single row from a sheet, recovering from panics
@@ -43,54 +60,8 @@ func readXLSRow(sheet *xls.WorkSheet, idx int) (cells []string) {
 		return nil
 	}
 	lastCol := row.LastCol()
-	for c := 0; c < lastCol; c++ {
+	for c := range lastCol {
 		cells = append(cells, strings.TrimSpace(row.Col(c)))
 	}
 	return cells
-}
-
-// ListXLSFiles returns .xls filenames in the given directory, sorted newest first.
-func ListXLSFiles(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	type fileInfo struct {
-		name    string
-		modTime int64
-	}
-	var files []fileInfo
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(strings.ToLower(e.Name()), ".xls") && !strings.HasSuffix(strings.ToLower(e.Name()), ".xlsx") {
-			info, err := e.Info()
-			if err != nil {
-				continue
-			}
-			files = append(files, fileInfo{name: e.Name(), modTime: info.ModTime().Unix()})
-		}
-	}
-
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].modTime > files[j].modTime
-	})
-
-	var names []string
-	for _, f := range files {
-		names = append(names, f.name)
-	}
-	return names, nil
-}
-
-// XLSFilePath returns the full path to an .xls file in the given directory.
-// It validates the filename to prevent path traversal.
-func XLSFilePath(dir, filename string) string {
-	clean := filepath.Base(filename)
-	return filepath.Join(dir, clean)
 }

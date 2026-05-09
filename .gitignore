@@ -1,4 +1,4 @@
-classgo
+
 classgo.db
 bin/
 dist/
@@ -40,3 +40,4 @@ test-results/
 
 #
 raw/
+graphify-out/

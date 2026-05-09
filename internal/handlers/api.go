@@ -748,27 +748,6 @@ func boolStr(b bool) string {
 	return "no"
 }
 
-// HandleImportData re-reads data files and imports into DB.
-func (a *App) HandleImportData(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	entityData, err := datastore.ReadAll(a.DataDir)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": fmt.Sprintf("Read failed: %v", err)})
-		return
-	}
-	if err := datastore.ImportAll(a.DB, entityData); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": fmt.Sprintf("Import failed: %v", err)})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":      true,
-		"message": fmt.Sprintf("Imported %d students, %d parents, %d teachers, %d rooms, %d schedules", len(entityData.Students), len(entityData.Parents), len(entityData.Teachers), len(entityData.Rooms), len(entityData.Schedules)),
-	})
-}
-
 // HandlePasswordReset creates/resets a Memos user account for a student/parent/teacher.
 func (a *App) HandlePasswordReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

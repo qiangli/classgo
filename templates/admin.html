@@ -101,9 +101,9 @@
 
             <div class="border-t border-indigo-500 mx-3 my-2"></div>
 
-            <a href="#namelist" onclick="navigate('namelist'); return false" id="nav-namelist" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Namelist">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <span class="text-[10px] mt-1 leading-tight text-center">Namelist</span>
+            <a href="#import" onclick="navigate('import'); return false" id="nav-import" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Import">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <span class="text-[10px] mt-1 leading-tight text-center">Import</span>
             </a>
             <a href="#data" onclick="navigate('data'); return false" id="nav-data" class="sidebar-item flex flex-col items-center py-3 px-1 text-indigo-200 cursor-pointer rounded-r-lg" title="Data">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
@@ -554,22 +554,25 @@
                 </div>
             </section>
 
-            <!-- ==================== NAMELIST SECTION ==================== -->
-            <section id="section-namelist" class="hidden">
+            <!-- ==================== IMPORT SECTION ==================== -->
+            <section id="section-import" class="hidden">
                 <div class="flex items-center gap-4 mb-6">
-                    <select id="namelist-file-select" class="text-sm border rounded-lg px-3 py-2 min-w-[300px]">
-                        <option value="">Select a namelist file...</option>
-                    </select>
-                    <button onclick="previewNamelist()" id="namelist-preview-btn" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-1" disabled>
+                    <label class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition cursor-pointer flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Choose File
+                        <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv" class="hidden" onchange="handleImportFile(this)">
+                    </label>
+                    <span id="import-filename" class="text-sm text-gray-500">No file selected</span>
+                    <button onclick="uploadAndPreview()" id="import-preview-btn" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2" disabled>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        Preview
+                        Upload &amp; Preview
                     </button>
-                    <div id="namelist-status" class="hidden text-sm px-3 py-1 rounded-lg"></div>
+                    <div id="import-status" class="hidden text-sm px-3 py-1 rounded-lg"></div>
                 </div>
 
-                <div id="namelist-preview" class="hidden">
-                    <!-- Summary -->
-                    <div id="namelist-summary" class="grid grid-cols-3 gap-4 mb-6">
+                <!-- Namelist Preview (shown for namelist format) -->
+                <div id="import-namelist-preview" class="hidden">
+                    <div class="grid grid-cols-3 gap-4 mb-6">
                         <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
                             <div class="text-2xl font-bold text-green-600" id="nl-new-count">0</div>
                             <div class="text-sm text-green-700 dark:text-green-400">New Students</div>
@@ -584,7 +587,6 @@
                         </div>
                     </div>
 
-                    <!-- Conflicts -->
                     <div id="nl-conflicts-section" class="mb-6 hidden">
                         <div class="flex items-center justify-between mb-3 cursor-pointer" onclick="toggleNLSection('conflicts')">
                             <h3 class="text-lg font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
@@ -611,7 +613,6 @@
                         </div>
                     </div>
 
-                    <!-- New Students -->
                     <div id="nl-new-section" class="mb-6 hidden">
                         <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="toggleNLSection('new')">
                             <h3 class="text-lg font-semibold text-green-700 dark:text-green-400">New Students</h3>
@@ -634,7 +635,6 @@
                         </div>
                     </div>
 
-                    <!-- Exact Matches -->
                     <div id="nl-matches-section" class="mb-6 hidden">
                         <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="toggleNLSection('matches')">
                             <h3 class="text-lg font-semibold text-gray-500">Exact Matches (no action needed)</h3>
@@ -653,15 +653,24 @@
                             </table>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Execute Button -->
-                    <div class="flex items-center gap-4 mt-6">
-                        <button onclick="executeNamelistImport()" id="namelist-execute-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg transition font-medium flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            Execute Import
-                        </button>
-                        <div id="namelist-result" class="hidden text-sm px-4 py-2 rounded-lg"></div>
+                <!-- Data Preview (shown for data format) -->
+                <div id="import-data-preview" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+                        <h3 class="text-lg font-semibold mb-4">Import Summary</h3>
+                        <div class="grid grid-cols-5 gap-4" id="import-data-summary"></div>
+                        <p class="text-sm text-gray-500 mt-4">This will replace all existing data for the entity types listed above.</p>
                     </div>
+                </div>
+
+                <!-- Execute Button -->
+                <div id="import-execute-area" class="hidden flex items-center gap-4 mt-6">
+                    <button onclick="executeImport()" id="import-execute-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg transition font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Execute Import
+                    </button>
+                    <div id="import-result" class="hidden text-sm px-4 py-2 rounded-lg"></div>
                 </div>
             </section>
 
@@ -692,10 +701,6 @@
                                 </div>
                             </div>
                         </div>
-                        <button onclick="triggerImport()" class="text-sm bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                            Import
-                        </button>
                     </div>
                 </div>
 
@@ -726,7 +731,6 @@
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
                     <div class="flex items-center justify-between mb-3">
                         <span id="data-count" class="text-sm text-gray-500"></span>
-                        <div id="import-status" class="hidden text-sm px-3 py-1 rounded-lg"></div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
@@ -1008,14 +1012,14 @@
 
         // ==================== NAVIGATION ====================
         let currentSection = 'checkin';
-        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'namelist', 'data', 'staff'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
+        const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'import', 'data', 'staff'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
         const sectionMeta = {
             checkin:    { title: 'Check In / Out', subtitle: '{{.Date}}' },
             attendance: { title: 'Attendance', subtitle: '{{.Date}}' },
             schedule:   { title: 'Schedule', subtitle: 'Weekly Schedule' },
             progress:   { title: 'Progress', subtitle: 'Student completion overview & task management' },
             audit:      { title: 'Audit', subtitle: 'Anti-fraud monitoring & PIN settings' },
-            namelist:   { title: 'Namelist', subtitle: 'Import student namelists' },
+            import:     { title: 'Import', subtitle: 'Upload and import data files' },
             data:       { title: 'Data', subtitle: 'Manage entity data' },
             staff:      { title: 'Staff', subtitle: 'Time off & timesheet management' }{{if .IsSuperAdmin}},
             scheduler:  { title: 'Scheduler', subtitle: 'Cron job monitoring & management' }{{end}}
@@ -1045,7 +1049,6 @@
             }
             if (section === 'checkin') loadPinOverrideList();
             if (section === 'audit') loadAuditData();
-            if (section === 'namelist' && !namelistLoaded) { namelistLoaded = true; loadNamelistFiles(); }
             if (section === 'data') { if (!prefsLoaded) { prefsLoaded = true; loadPreferences().catch(() => {}).then(() => loadDataSection()); } else { loadDataSection(); } }
             if (section === 'staff' && !staffLoaded) { staffLoaded = true; initStaffSection(); }
             if (section === 'scheduler') initSchedulerUI();
@@ -1993,58 +1996,65 @@
             } catch(e) { container.innerHTML = '<p class="text-xs text-red-400">Error loading responses.</p>'; }
         }
 
-        // ==================== NAMELIST IMPORT ====================
-        let namelistLoaded = false;
-        let namelistPreviewData = null;
+        // ==================== IMPORT ====================
+        let importUploadId = null;
+        let importFormat = null;
+        let importPreviewData = null;
 
-        async function loadNamelistFiles() {
-            try {
-                const res = await fetch('/api/v1/namelist/files');
-                const data = await res.json();
-                const sel = document.getElementById('namelist-file-select');
-                sel.innerHTML = '<option value="">Select a namelist file...</option>';
-                (data.files || []).forEach(f => {
-                    const opt = document.createElement('option');
-                    opt.value = f; opt.textContent = f;
-                    sel.appendChild(opt);
-                });
-                sel.onchange = () => {
-                    document.getElementById('namelist-preview-btn').disabled = !sel.value;
-                    document.getElementById('namelist-preview').classList.add('hidden');
-                    namelistPreviewData = null;
-                };
-            } catch(e) {
-                showNamelistStatus('Failed to load files', 'error');
-            }
+        function handleImportFile(input) {
+            const filename = input.files.length > 0 ? input.files[0].name : '';
+            document.getElementById('import-filename').textContent = filename || 'No file selected';
+            document.getElementById('import-preview-btn').disabled = !filename;
+            // Reset previous preview
+            document.getElementById('import-namelist-preview').classList.add('hidden');
+            document.getElementById('import-data-preview').classList.add('hidden');
+            document.getElementById('import-execute-area').classList.add('hidden');
+            importUploadId = null;
+            importFormat = null;
+            importPreviewData = null;
         }
 
-        async function previewNamelist() {
-            const filename = document.getElementById('namelist-file-select').value;
-            if (!filename) return;
-            showNamelistStatus('Loading preview...', 'loading');
+        async function uploadAndPreview() {
+            const input = document.getElementById('import-file-input');
+            if (!input.files.length) return;
+
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            showImportStatus('Uploading and analyzing...', 'loading');
+            document.getElementById('import-preview-btn').disabled = true;
+
             try {
-                const res = await fetch('/api/v1/namelist/preview', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename})
-                });
+                const res = await fetch('/api/v1/import/upload', { method: 'POST', body: formData });
                 const data = await res.json();
-                if (data.error && !data.new_entries && !data.conflicts) {
-                    showNamelistStatus(data.error, 'error');
+                if (data.error) {
+                    showImportStatus(data.error, 'error');
+                    document.getElementById('import-preview-btn').disabled = false;
                     return;
                 }
-                namelistPreviewData = data;
-                renderNamelistPreview(data);
-                hideNamelistStatus();
+
+                importUploadId = data.upload_id;
+                importFormat = data.format;
+                hideImportStatus();
+
+                if (data.format === 'namelist') {
+                    importPreviewData = data.preview;
+                    renderNamelistPreview(data.preview);
+                    document.getElementById('import-namelist-preview').classList.remove('hidden');
+                    document.getElementById('import-data-preview').classList.add('hidden');
+                } else {
+                    renderDataPreview(data.summary, data.filename);
+                    document.getElementById('import-data-preview').classList.remove('hidden');
+                    document.getElementById('import-namelist-preview').classList.add('hidden');
+                }
+                document.getElementById('import-execute-area').classList.remove('hidden');
             } catch(e) {
-                showNamelistStatus('Preview failed: ' + e.message, 'error');
+                showImportStatus('Upload failed: ' + e.message, 'error');
             }
+            document.getElementById('import-preview-btn').disabled = false;
         }
 
         function renderNamelistPreview(data) {
-            const preview = document.getElementById('namelist-preview');
-            preview.classList.remove('hidden');
-
             const newEntries = data.new_entries || [];
             const matches = data.matches || [];
             const conflicts = data.conflicts || [];
@@ -2057,8 +2067,7 @@
             const conflictsSection = document.getElementById('nl-conflicts-section');
             if (conflicts.length > 0) {
                 conflictsSection.classList.remove('hidden');
-                const tbody = document.getElementById('nl-conflicts-tbody');
-                tbody.innerHTML = conflicts.map((c, i) => {
+                document.getElementById('nl-conflicts-tbody').innerHTML = conflicts.map((c, i) => {
                     const diffHtml = c.differences.map(d => {
                         const oldVal = c.existing[d] || '(empty)';
                         const newVal = c.entry[d] || '(empty)';
@@ -2119,9 +2128,26 @@
             }
         }
 
+        function renderDataPreview(summary, filename) {
+            const container = document.getElementById('import-data-summary');
+            const types = [
+                { key: 'students', label: 'Students', color: 'indigo' },
+                { key: 'parents', label: 'Parents', color: 'blue' },
+                { key: 'teachers', label: 'Teachers', color: 'green' },
+                { key: 'rooms', label: 'Rooms', color: 'purple' },
+                { key: 'schedules', label: 'Schedules', color: 'amber' },
+            ];
+            container.innerHTML = types.filter(t => (summary[t.key] || 0) > 0).map(t =>
+                `<div class="bg-${t.color}-50 dark:bg-${t.color}-900/20 rounded-xl p-4 border border-${t.color}-200 dark:border-${t.color}-800">
+                    <div class="text-2xl font-bold text-${t.color}-600">${summary[t.key]}</div>
+                    <div class="text-sm text-${t.color}-700 dark:text-${t.color}-400">${t.label}</div>
+                </div>`
+            ).join('');
+        }
+
         function setAllConflictActions(action) {
-            if (!namelistPreviewData) return;
-            (namelistPreviewData.conflicts || []).forEach(c => {
+            if (!importPreviewData) return;
+            (importPreviewData.conflicts || []).forEach(c => {
                 const sel = document.getElementById('nl-decision-' + c.entry.row_index);
                 if (sel) sel.value = action;
             });
@@ -2134,49 +2160,54 @@
             chevron.classList.toggle('rotate-180');
         }
 
-        async function executeNamelistImport() {
-            if (!namelistPreviewData) return;
-            const filename = namelistPreviewData.filename;
-            const decisions = {};
+        async function executeImport() {
+            if (!importUploadId) return;
 
-            // New entries default to "insert"
-            (namelistPreviewData.new_entries || []).forEach(e => { decisions[e.row_index] = 'insert'; });
-            // Conflicts: read from dropdowns
-            (namelistPreviewData.conflicts || []).forEach(c => {
-                const sel = document.getElementById('nl-decision-' + c.entry.row_index);
-                decisions[c.entry.row_index] = sel ? sel.value : 'skip';
-            });
+            const body = { upload_id: importUploadId };
 
-            showNamelistStatus('Importing...', 'loading');
-            document.getElementById('namelist-execute-btn').disabled = true;
+            if (importFormat === 'namelist' && importPreviewData) {
+                const decisions = {};
+                (importPreviewData.new_entries || []).forEach(e => { decisions[e.row_index] = 'insert'; });
+                (importPreviewData.conflicts || []).forEach(c => {
+                    const sel = document.getElementById('nl-decision-' + c.entry.row_index);
+                    decisions[c.entry.row_index] = sel ? sel.value : 'skip';
+                });
+                body.decisions = decisions;
+            }
+
+            showImportStatus('Importing...', 'loading');
+            document.getElementById('import-execute-btn').disabled = true;
 
             try {
-                const res = await fetch('/api/v1/namelist/execute', {
+                const res = await fetch('/api/v1/import/execute', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename, decisions})
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
-                const resultEl = document.getElementById('namelist-result');
+                const resultEl = document.getElementById('import-result');
                 if (data.ok) {
                     resultEl.className = 'text-sm px-4 py-2 rounded-lg bg-green-100 text-green-700';
                     resultEl.textContent = data.message;
                     resultEl.classList.remove('hidden');
-                    hideNamelistStatus();
+                    hideImportStatus();
+                    // Reload data section if it was loaded
+                    dataStore = null;
                 } else {
                     resultEl.className = 'text-sm px-4 py-2 rounded-lg bg-red-100 text-red-700';
                     resultEl.textContent = data.error || 'Import failed';
                     resultEl.classList.remove('hidden');
-                    hideNamelistStatus();
+                    hideImportStatus();
                 }
             } catch(e) {
-                showNamelistStatus('Import failed: ' + e.message, 'error');
+                showImportStatus('Import failed: ' + e.message, 'error');
             }
-            document.getElementById('namelist-execute-btn').disabled = false;
+            document.getElementById('import-execute-btn').disabled = false;
+            importUploadId = null;
         }
 
-        function showNamelistStatus(msg, type) {
-            const el = document.getElementById('namelist-status');
+        function showImportStatus(msg, type) {
+            const el = document.getElementById('import-status');
             el.classList.remove('hidden');
             if (type === 'error') {
                 el.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
@@ -2188,8 +2219,8 @@
             el.textContent = msg;
         }
 
-        function hideNamelistStatus() {
-            document.getElementById('namelist-status').classList.add('hidden');
+        function hideImportStatus() {
+            document.getElementById('import-status').classList.add('hidden');
         }
 
         // ==================== DATA (tabbed spreadsheet) ====================
@@ -2700,28 +2731,6 @@
         function exportCurrentTabCSV() {
             location.href = '/admin/export/csv?type=' + currentDataTab;
             closeDropdowns();
-        }
-
-        async function triggerImport() {
-            const status = document.getElementById('import-status');
-            status.className = 'text-sm px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700';
-            status.textContent = 'Importing...'; status.classList.remove('hidden');
-            try {
-                const res = await fetch('/api/v1/import', { method: 'POST' });
-                const result = await res.json();
-                if (result.ok) {
-                    status.className = 'text-sm px-3 py-1 rounded-lg bg-green-100 text-green-700';
-                    status.textContent = result.message;
-                    dataStore = null; loadDataSection(true);
-                } else {
-                    status.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
-                    status.textContent = result.error || 'Import failed';
-                }
-            } catch(e) {
-                status.className = 'text-sm px-3 py-1 rounded-lg bg-red-100 text-red-700';
-                status.textContent = 'Import failed';
-            }
-            setTimeout(() => status.classList.add('hidden'), 5000);
         }
 
         // ==================== DROPDOWN UTILS ====================

@@ -28,7 +28,7 @@ make clean        # Remove bin/ and dist/
 
 Server listens on `:8080`. Config priority: CLI flag (`-name`) > env var (`APP_NAME`) > `config.json` > default ("LERN").
 
-**Default home directory**: `~/.classgo/` — created on first run with sensible defaults (current user as superadmin). Contains `data/`, `raw/`, `classgo.db`, and `config.json`. Override with `--data-dir` or `config.json`.
+**Default home directory**: `~/.classgo/` — created on first run with sensible defaults (current user as superadmin). Contains `data/`, `classgo.db`, and `config.json`. Override with `--data-dir` or `config.json`.
 
 ### Frontend Build Requirements
 

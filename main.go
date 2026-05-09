@@ -53,7 +53,6 @@ func loadConfig() models.Config {
 
 	flagName := flag.String("name", "", "Application name")
 	flagDataDir := flag.String("data-dir", "", "Data directory")
-	flagRawDir := flag.String("raw-dir", "", "Raw namelist directory for .xls imports")
 	flagBackupDir := flag.String("backup-dir", "", "Backup directory for ZIP files")
 	flagExportDir := flag.String("export-dir", "", "Export directory for daily attendance XLSX")
 	flagReportDir := flag.String("report-dir", "", "Report directory for scheduled reports")
@@ -88,9 +87,6 @@ func loadConfig() models.Config {
 	if *flagDataDir != "" {
 		cfg.DataDir = *flagDataDir
 	}
-	if *flagRawDir != "" {
-		cfg.RawDir = *flagRawDir
-	}
 	if *flagBackupDir != "" {
 		cfg.BackupDir = *flagBackupDir
 	}
@@ -104,9 +100,6 @@ func loadConfig() models.Config {
 	// Default DataDir and DBPath under home directory
 	if cfg.DataDir == "" {
 		cfg.DataDir = filepath.Join(homeDir, "data")
-	}
-	if cfg.RawDir == "" {
-		cfg.RawDir = filepath.Join(filepath.Dir(cfg.DataDir), "raw")
 	}
 	if cfg.BackupDir == "" {
 		cfg.BackupDir = filepath.Join(cfg.DataDir, "backups")
@@ -145,7 +138,6 @@ func loadConfig() models.Config {
 func initHomeDir(homeDir string, cfg *models.Config) {
 	os.MkdirAll(homeDir, 0755)
 	os.MkdirAll(filepath.Join(homeDir, "data"), 0755)
-	os.MkdirAll(filepath.Join(homeDir, "raw"), 0755)
 
 	// Create default config with current user as superadmin
 	username := ""
@@ -156,7 +148,6 @@ func initHomeDir(homeDir string, cfg *models.Config) {
 	defaultCfg := models.Config{
 		AppName: cfg.AppName,
 		DataDir: filepath.Join(homeDir, "data"),
-		RawDir:  filepath.Join(homeDir, "raw"),
 		PinMode: "off",
 		Port:    cfg.Port,
 		DBPath:  filepath.Join(homeDir, "classgo.db"),
@@ -178,7 +169,6 @@ func initHomeDir(homeDir string, cfg *models.Config) {
 	log.Printf("Initialized ClassGo home: %s", homeDir)
 	log.Printf("  Data directory: %s/data", homeDir)
 	log.Printf("  Database: %s/classgo.db", homeDir)
-	log.Printf("  Place .xls namelists in: %s/raw/", homeDir)
 	if username != "" {
 		log.Printf("  Admin user: %s (superadmin)", username)
 	}
@@ -290,7 +280,6 @@ func main() {
 		Tmpl:           tmpl,
 		AppName:        cfg.AppName,
 		DataDir:        cfg.DataDir,
-		RawDir:         cfg.RawDir,
 		PinMode:        pinMode,
 		MemosSyncer:    memosSyncer,
 		MemosStore:     memosStoreInst,
@@ -373,10 +362,8 @@ func main() {
 	mux.HandleFunc("/api/v1/schedule/week", handlers.NoCache(app.RequireAdminAPI(app.HandleScheduleWeek)))
 	mux.HandleFunc("/api/v1/schedule/conflicts", handlers.NoCache(app.RequireAdminAPI(app.HandleScheduleConflicts)))
 	mux.HandleFunc("/api/v1/directory", handlers.NoCache(app.RequireAdminAPI(app.HandleDirectoryAPI)))
-	mux.HandleFunc("/api/v1/import", handlers.NoCache(app.RequireAdminAPI(app.HandleImportData)))
-	mux.HandleFunc("/api/v1/namelist/files", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistFiles)))
-	mux.HandleFunc("/api/v1/namelist/preview", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistPreview)))
-	mux.HandleFunc("/api/v1/namelist/execute", handlers.NoCache(app.RequireAdminAPI(app.HandleNamelistExecute)))
+	mux.HandleFunc("/api/v1/import/upload", handlers.NoCache(app.RequireAdminAPI(app.HandleImportUpload)))
+	mux.HandleFunc("/api/v1/import/execute", handlers.NoCache(app.RequireAdminAPI(app.HandleImportExecute)))
 	mux.HandleFunc("/api/v1/data", handlers.NoCache(app.RequireAdminAPI(app.HandleDataCRUD)))
 	mux.HandleFunc("/api/v1/password-reset", handlers.NoCache(app.RequireAdminAPI(app.HandlePasswordReset)))
 	mux.HandleFunc("/api/v1/memos/sync", handlers.NoCache(app.RequireAdminAPI(app.HandleMemosSync)))

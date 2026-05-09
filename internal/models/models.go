@@ -48,7 +48,6 @@ type TunnelConfig struct {
 type Config struct {
 	AppName        string          `json:"app_name"`
 	DataDir        string          `json:"data_dir"`
-	RawDir         string          `json:"raw_dir,omitempty"`    // directory for raw .xls namelist files
 	BackupDir      string          `json:"backup_dir,omitempty"` // directory for backup ZIP files
 	ExportDir      string          `json:"export_dir,omitempty"` // directory for daily attendance exports
 	ReportDir      string          `json:"report_dir,omitempty"` // directory for scheduled reports
