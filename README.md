@@ -68,3 +68,7 @@ make stop      # Stop the running server
 - **SQLite** — via `modernc.org/sqlite` (pure Go, no CGO)
 - **QR Code** — `github.com/skip2/go-qrcode`
 - **Frontend** — Tailwind CSS (CDN), vanilla JavaScript
+
+## License
+
+Apache License 2.0 — see [LICENSE](./LICENSE).
