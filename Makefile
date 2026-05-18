@@ -13,7 +13,8 @@ TAILWIND_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]' | sed 's/darwin/mac
 TAILWIND_ARCH := $(shell uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
 
 .PHONY: help tidy sync build build-all test test-e2e test-e2e-setup test-e2e-headed \
-        start stop start-test clean memos-frontend tailwind rclone rclone-all frp frp-all package
+        start stop start-test clean memos-frontend tailwind rclone rclone-all frp frp-all package \
+        namelist-convert
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -173,6 +174,11 @@ test-e2e: ## Run Playwright E2E tests (Go-only build)
 test-e2e-headed: ## Run E2E tests in headed browser
 	go build -o $(BIN) .
 	cd e2e && npx playwright test --headed
+
+namelist-convert: ## Build namelist-convert CLI (header-XLSX → positional-XLSX for /admin/import)
+	@mkdir -p bin
+	go build -o bin/namelist-convert ./cmd/namelist-convert
+	@echo "namelist-convert built → bin/namelist-convert"
 
 clean: ## Remove build artifacts
 	rm -rf bin/ $(DIST)
