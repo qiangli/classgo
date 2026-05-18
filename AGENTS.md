@@ -1,8 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to AI coding assistants working in this repository.
+This file provides guidance to AI coding assistants working in this repository. `CLAUDE.md` is a symlink to this file — edits to either path land here.
 
 ## Build & Dev
+
+**Fresh clone**: run `git submodule update --init` first — `make build` compiles the `rclone-src/` and `frp-src/` submodules and will fail without them.
 
 ```bash
 make build        # Full build: Tailwind CSS + Memos frontend + rclone + frpc + Go binary
@@ -22,9 +24,14 @@ make clean        # Remove bin/ and dist/
 
 **Before committing Go changes**, always run `make tidy` (or manually: `go fmt ./...`, `go vet ./...`, `go mod tidy`). Go fmt enforces canonical formatting — committing unformatted code will cause the next build to produce a dirty diff.
 
-**Run single test**: `go test -v -run TestCheckInMobile ./...`
+**Run single test**: scope to the package for fast iteration.
+- Root-level tests: `go test -v -run TestCheckInMobile .`
+- Subpackage: `go test -v -run TestMaterialize ./internal/scheduling/`
+- All packages (slower): `go test -v -run TestCheckInMobile ./...`
 
-**Build submodules independently**: `make rclone` / `make frp` (requires `git submodule update --init`)
+**Build submodules independently**: `make rclone` / `make frp`
+
+**Agent playbooks**: `skills/build.md`, `skills/deploy.md`, `skills/validate.md` are the authoritative step-by-step recipes for those flows — consult them before re-deriving from the Makefile.
 
 Server listens on `:8080`. Config priority: CLI flag (`-name`) > env var (`APP_NAME`) > `config.json` > default ("LERN").
 
@@ -51,6 +58,10 @@ internal/
   datastore/                 # XLSX/CSV import/export, fsnotify file watcher
   handlers/                  # HTTP handlers: check-in/out, admin, tracker, schedule
   scheduling/                # Recurring schedule materialization, conflict detection
+  scheduler/                 # gocron-based job runner with WebSocket status UI (distinct from scheduling/)
+  reports/                   # Date-range report builders (admin, parent, student, teacher, timesheet, subscription)
+  cloudsync/                 # rclone-driven sync of backups/ and attendances/ to a remote
+  tunnel/                    # frpc subprocess control (config gen, start/stop) — see tunnel_guard_test.go
   memos/                     # Memos client wrapper and sync
 memos/                       # Embedded Memos v0.27.1 (Echo server, React SPA, separate SQLite DB)
 ```
@@ -58,11 +69,11 @@ memos/                       # Embedded Memos v0.27.1 (Echo server, React SPA, s
 ### Routing & Middleware
 
 Uses stdlib `net/http` mux directly (no third-party router). Three middleware tiers:
-- **Public** (no auth): `/`, `/kiosk`, `/api/checkin`, `/api/checkout`, `/api/tracker/*`
-- **Authenticated**: `RequireAuth(...)` — `/dashboard`, `/profile`, `/memos/`
-- **Admin only**: `RequireAdmin(...)` / `RequireAdminAPI(...)` — `/admin/*`, `/api/v1/*`
+- **Public** (no auth): `/` (`home.html`), `/kiosk` (`kiosk.html`), `/api/checkin`, `/api/checkout`, `/api/tracker/*`
+- **Authenticated**: `RequireAuth(...)` — `/dashboard` (`dashboard.html`), `/profile` (`profile.html`, `profile_standalone.html`), `/memos/`
+- **Admin only**: `RequireAdmin(...)` / `RequireAdminAPI(...)` — `/admin/*` (`admin.html`, `admin_login.html`, `reports.html`), `/api/v1/*`
 
-All routes wrapped in `handlers.NoCache(...)`.
+Templates live in `templates/*.html`; `entry.html` and `account_switcher.html` are shared partials. All routes wrapped in `handlers.NoCache(...)`.
 
 ### Embedded Memos Integration
 
@@ -95,8 +106,10 @@ Integration tests using `httptest` with isolated temp databases. `setupTest(t)` 
 - `checkin_test.go` — PIN modes, rate limiting, audit trail
 - `signup_test.go` — Signup/login, profile workflow, auto-assign
 - `tracker_test.go` — Tracker CRUD, role-based access, bulk assign
+- `tunnel_guard_test.go` — frpc tunnel guard / lifecycle behavior
 - `e2e_test.go` — Full user flows (signup -> login -> checkin -> checkout -> signoff)
 - `internal/scheduling/engine_test.go` — Schedule materialization, conflicts
+- `internal/cloudsync/cloudsync_test.go` — rclone config generation and sync runner
 
 ### E2E Tests (Playwright)
 
