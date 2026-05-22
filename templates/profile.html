@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="{{.BasePath}}/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}} - Student Profile</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="static/css/tailwind.css">
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||localStorage.getItem('admin-theme')||'system';
@@ -13,7 +14,7 @@
                 document.documentElement.classList.add('dark');
         })();
     </script>
-    <script src="/static/js/confirm.js"></script>
+    <script src="static/js/confirm.js"></script>
     <style>
         .dark body { color: #e5e7eb; }
         .dark input, .dark select, .dark textarea {
@@ -35,7 +36,7 @@
     <!-- Top bar -->
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14 flex items-center justify-between px-5 sticky top-0 z-20 no-print">
         <div class="flex items-center gap-3">
-            <a href="/admin#data" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Back to Admin">
+            <a href="admin#data" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Back to Admin">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <span class="text-lg font-semibold text-gray-800 dark:text-gray-200" id="page-title">Student Profile</span>
@@ -195,7 +196,7 @@
 
         <!-- Bottom save -->
         <div class="flex justify-end gap-3 mb-8 no-print">
-            <a href="/admin#data" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg">Cancel</a>
+            <a href="admin#data" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg">Cancel</a>
             <button onclick="saveProfile()" class="px-6 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium">Save Profile</button>
         </div>
     </main>

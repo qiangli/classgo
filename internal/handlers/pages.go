@@ -29,6 +29,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 		ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
 		mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
 		data := models.CheckInPageData{
+			PageHead:      pageHead(r),
 			AppName:       a.AppName,
 			ServerURLIP:   ipURL,
 			ServerURLMDNS: mdnsURL,
@@ -47,6 +48,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := models.DashboardData{
+		PageHead: pageHead(r),
 		AppName:  a.AppName,
 		UserType: sess.UserType,
 		EntityID: sess.EntityID,
@@ -65,6 +67,7 @@ func (a *App) HandleMobile(w http.ResponseWriter, r *http.Request) {
 	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
 	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
 	data := models.CheckInPageData{
+		PageHead:      pageHead(r),
 		AppName:       a.AppName,
 		ServerURLIP:   ipURL,
 		ServerURLMDNS: mdnsURL,
@@ -76,6 +79,7 @@ func (a *App) HandleKiosk(w http.ResponseWriter, r *http.Request) {
 	ipURL := fmt.Sprintf("http://%s:8080", GetLocalIP())
 	mdnsURL := fmt.Sprintf("http://%s:8080", GetMDNSHostname())
 	data := models.CheckInPageData{
+		PageHead:      pageHead(r),
 		AppName:       a.AppName,
 		QRDataURIIP:   template.URL(GenerateQR(ipURL)),
 		QRDataURIMDNS: template.URL(GenerateQR(mdnsURL)),
@@ -104,6 +108,7 @@ func (a *App) HandleAdmin(w http.ResponseWriter, r *http.Request) {
 	sess := a.GetSession(r)
 
 	data := models.AdminData{
+		PageHead:      pageHead(r),
 		AppName:       a.AppName,
 		PIN:           pin,
 		RequirePIN:    a.RequirePIN(),

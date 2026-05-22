@@ -22,9 +22,10 @@ func (a *App) HandleProfilePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
+		models.PageHead
 		AppName   string
 		StudentID string
-	}{a.AppName, studentID}
+	}{pageHead(r), a.AppName, studentID}
 	a.Tmpl.ExecuteTemplate(w, "profile.html", data)
 }
 
@@ -103,6 +104,7 @@ func (a *App) HandleUserProfilePage(w http.ResponseWriter, r *http.Request) {
 		name = sess.Username
 	}
 	data := models.DashboardData{
+		PageHead: pageHead(r),
 		AppName:  a.AppName,
 		UserType: sess.UserType,
 		EntityID: sess.EntityID,

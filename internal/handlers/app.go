@@ -238,7 +238,7 @@ func (a *App) HandleAdminLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	a.Tmpl.ExecuteTemplate(w, "admin_login.html", models.CheckInPageData{AppName: a.AppName})
+	a.Tmpl.ExecuteTemplate(w, "admin_login.html", models.CheckInPageData{PageHead: pageHead(r), AppName: a.AppName})
 }
 
 // HandleLoginAPI handles login POST as JSON API.

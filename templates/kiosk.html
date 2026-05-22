@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="{{.BasePath}}/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}} - Kiosk</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
-    <script src="/static/js/fingerprint.js"></script>
+    <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="static/css/tailwind.css">
+    <script src="static/js/fingerprint.js"></script>
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center select-none">
 
@@ -45,7 +46,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div class="text-left">
-                <img src="/static/lern.png" alt="{{.AppName}}" class="h-20">
+                <img src="static/lern.png" alt="{{.AppName}}" class="h-20">
                 <p id="step-label" class="text-gray-400 mt-3 text-2xl">Enter your name</p>
             </div>
             <div class="text-center">

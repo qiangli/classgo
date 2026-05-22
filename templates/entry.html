@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="{{.BasePath}}/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}}</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="static/css/tailwind.css">
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||'system';
@@ -13,8 +14,8 @@
                 document.documentElement.classList.add('dark');
         })();
     </script>
-    <script src="/static/js/fingerprint.js"></script>
-    <script src="/static/js/toast.js"></script>
+    <script src="static/js/fingerprint.js"></script>
+    <script src="static/js/toast.js"></script>
     <style>
         .dark body { color: #e5e7eb; }
         .dark input[type="text"], .dark input[type="password"], .dark input[type="search"],
@@ -61,7 +62,7 @@
     <div class="w-full max-w-sm">
         <!-- Logo & Home Screen -->
         <div class="text-center mb-6">
-            <img src="/static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
+            <img src="static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
             <a href="#" id="add-home-link" onclick="toggleHomeScreen(event)"
                 class="inline-flex items-center gap-1 mt-2 text-xs text-indigo-400 hover:text-indigo-600 no-underline">
                 <span id="home-arrow" class="inline-block text-base transition-transform duration-200">&#9656;</span>
@@ -885,6 +886,6 @@
         }
 
     </script>
-    <script src="/static/js/theme.js"></script>
+    <script src="static/js/theme.js"></script>
 </body>
 </html>

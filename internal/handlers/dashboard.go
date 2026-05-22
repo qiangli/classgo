@@ -27,6 +27,7 @@ func (a *App) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := models.DashboardData{
+		PageHead: pageHead(r),
 		AppName:  a.AppName,
 		UserType: sess.UserType,
 		EntityID: sess.EntityID,

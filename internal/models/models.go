@@ -177,7 +177,20 @@ type Attendance struct {
 	Date            string     `json:"date"`
 }
 
+// PageHead carries the fields every HTML template needs but that
+// don't belong to the page's domain data. BasePath is what
+// `<base href="{{.BasePath}}/">` consumes so absolute paths in
+// the page route back through whatever reverse-proxy chain serves
+// us (empty when direct, /app/<name> when via outpost loopback,
+// /h/<host>/app/<name> when via cloudbox). Embed it in every Data
+// struct so the field stays accessible as `{{.BasePath}}` at the
+// top of the template.
+type PageHead struct {
+	BasePath string
+}
+
 type AdminData struct {
+	PageHead
 	AppName       string
 	PIN           string
 	RequirePIN    bool
@@ -193,6 +206,7 @@ type AdminData struct {
 }
 
 type CheckInPageData struct {
+	PageHead
 	AppName       string
 	QRDataURIIP   template.URL
 	QRDataURIMDNS template.URL
@@ -318,6 +332,7 @@ type ProgressStats struct {
 }
 
 type DashboardData struct {
+	PageHead
 	AppName  string
 	UserType string
 	EntityID string

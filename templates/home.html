@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="{{.BasePath}}/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}} - Home</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
-    <script src="/static/js/toast.js"></script>
+    <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="static/css/tailwind.css">
+    <script src="static/js/toast.js"></script>
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||'system';
@@ -38,7 +39,7 @@
     <!-- Top bar -->
     <header class="fixed top-0 right-0 left-0 z-30 flex items-center justify-between px-5 py-3">
         <div class="flex items-center gap-3">
-            <img src="/static/lern.png" alt="{{.AppName}}" class="h-9 max-w-[200px] object-contain">
+            <img src="static/lern.png" alt="{{.AppName}}" class="h-9 max-w-[200px] object-contain">
         </div>
         <div class="flex items-center gap-2">
             {{template "account-switcher" .}}
@@ -52,7 +53,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
             </button>
             <!-- Profile -->
-            <a href="/profile" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-gray-800/80 backdrop-blur hover:bg-white dark:hover:bg-gray-700 p-2 rounded-lg transition" title="My Profile">
+            <a href="profile" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-gray-800/80 backdrop-blur hover:bg-white dark:hover:bg-gray-700 p-2 rounded-lg transition" title="My Profile">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             </a>
         </div>
@@ -64,7 +65,7 @@
         <section id="section-message" class="mb-10">
             <div class="bg-white/90 dark:bg-white/10 backdrop-blur-lg rounded-2xl p-5 flex items-start gap-4 shadow-lg dark:shadow-none border border-gray-200/50 dark:border-white/10">
                 <div class="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <img src="/static/lern.png" alt="" class="h-8 max-w-[40px] object-contain">
+                    <img src="static/lern.png" alt="" class="h-8 max-w-[40px] object-contain">
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-gray-800 dark:text-white font-semibold text-sm">Welcome to {{.AppName}}</p>
@@ -128,7 +129,7 @@
         </div>
     </div>
 
-    <script src="/static/js/theme.js"></script>
+    <script src="static/js/theme.js"></script>
     <script>
         const userType = '{{.UserType}}';
         const entityID = '{{.EntityID}}';

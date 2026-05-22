@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <base href="{{.BasePath}}/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.AppName}} — Admin Login</title>
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="icon" href="static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="static/css/tailwind.css">
     <script>
         (function(){
             var t=localStorage.getItem('classgo-theme')||'system';
@@ -13,13 +14,13 @@
                 document.documentElement.classList.add('dark');
         })();
     </script>
-    <script src="/static/js/toast.js"></script>
+    <script src="static/js/toast.js"></script>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center">
     <div class="w-full max-w-sm mx-auto px-4">
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
             <div class="text-center mb-6">
-                <img src="/static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
+                <img src="static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
                 <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Admin Login</p>
             </div>
             <div class="space-y-4">
@@ -110,6 +111,6 @@
 
         document.getElementById('admin-username').focus();
     </script>
-    <script src="/static/js/theme.js"></script>
+    <script src="static/js/theme.js"></script>
 </body>
 </html>

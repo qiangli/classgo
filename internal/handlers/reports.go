@@ -19,6 +19,7 @@ func (a *App) HandleReportsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
+		models.PageHead
 		AppName  string
 		UserType string
 		EntityID string
@@ -27,6 +28,7 @@ func (a *App) HandleReportsPage(w http.ResponseWriter, r *http.Request) {
 		Reports  []reports.ReportDef
 		Accounts *models.AccountInfo
 	}{
+		PageHead: pageHead(r),
 		AppName:  a.AppName,
 		UserType: sess.UserType,
 		EntityID: sess.EntityID,
