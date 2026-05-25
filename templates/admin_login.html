@@ -23,20 +23,21 @@
                 <img src="static/lern.png" alt="{{.AppName}}" class="h-12 mx-auto">
                 <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Admin Login</p>
             </div>
-            <div class="space-y-4">
+            <form id="admin-login-form" class="space-y-4"
+                  action="admin/api/login" method="post"
+                  onsubmit="event.preventDefault(); submitAdminLogin();">
                 <div>
                     <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">System Username</label>
-                    <input type="text" id="admin-username" required autocomplete="username"
+                    <input type="text" id="admin-username" name="username" required autocomplete="username"
                         class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
                         placeholder="OS username">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">System Password</label>
                     <div class="relative">
-                        <input type="password" id="admin-password" required autocomplete="current-password"
+                        <input type="password" id="admin-password" name="password" required autocomplete="current-password"
                             class="w-full pl-4 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none text-sm"
-                            placeholder="OS password"
-                            onkeydown="if(event.key==='Enter') submitAdminLogin()">
+                            placeholder="OS password">
                         <button type="button" id="admin-password-toggle" onclick="toggleAdminPassword()" aria-label="Show password"
                             class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none">
                             <svg id="admin-password-eye" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,11 +51,11 @@
                     </div>
                 </div>
                 <div id="admin-error" class="hidden bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-2"></div>
-                <button onclick="submitAdminLogin()" id="admin-btn"
+                <button type="submit" id="admin-btn"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition text-sm">
                     Sign In
                 </button>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -88,14 +89,19 @@
             btn.textContent = 'Signing in...';
 
             try {
-                const res = await fetch('/admin/api/login', {
+                // URLs are resolved against document.baseURI so they
+                // honor the <base href> emitted from X-Forwarded-Prefix.
+                // Without this, fetch()/window.location use the document
+                // origin and absolute paths escape the proxied mount.
+                const res = await fetch(new URL('admin/api/login', document.baseURI), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ username, password })
                 });
                 const result = await res.json();
                 if (result.ok) {
-                    window.location.href = result.redirect || '/admin';
+                    const target = result.redirect || 'admin';
+                    window.location.href = new URL(target.replace(/^\/+/, ''), document.baseURI).href;
                 } else {
                     errorEl.textContent = result.error || 'Login failed';
                     errorEl.classList.remove('hidden');
