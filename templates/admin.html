@@ -696,9 +696,9 @@
                             <div id="export-menu" class="hidden absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-20">
                                 <div class="py-1">
                                     <button onclick="exportCurrentTabCSV()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Current tab as CSV</button>
-                                    <button onclick="location.href='/admin/export/csv/zip'" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All tabs as CSV (ZIP)</button>
+                                    <button onclick="location.href=apiURL('/admin/export/csv/zip')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">All tabs as CSV (ZIP)</button>
                                     <div class="border-t my-1"></div>
-                                    <button onclick="location.href='/admin/export/xlsx'" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Spreadsheet (XLSX)</button>
+                                    <button onclick="location.href=apiURL('/admin/export/xlsx')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Spreadsheet (XLSX)</button>
                                 </div>
                             </div>
                         </div>
@@ -1011,6 +1011,16 @@
     <script>
         const IS_SUPER_ADMIN = {{if .IsSuperAdmin}}true{{else}}false{{end}};
 
+        // apiURL resolves an absolute-path URL ('/api/foo') against
+        // document.baseURI so it honors the <base href> emitted from
+        // X-Forwarded-Prefix. Without this, '/api/foo' resolves against
+        // the document origin and escapes the proxied mount when this
+        // page is served at e.g. /h/<host>/app/lern-admin/admin.
+        // Window-scoped so inline onclick handlers can reach it.
+        window.apiURL = function(p) {
+            return new URL(String(p).replace(/^\/+/, ''), document.baseURI).href;
+        };
+
         // ==================== NAVIGATION ====================
         let currentSection = 'checkin';
         const sections = ['checkin', 'attendance', 'schedule', 'progress', 'audit', 'import', 'data', 'staff'{{if .IsSuperAdmin}}, 'scheduler'{{end}}];
@@ -1062,7 +1072,7 @@
 
         async function togglePINRequirement() {
             requirePIN = !requirePIN;
-            try { await fetch('/api/admin/pin/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ require_pin: requirePIN }) }); } catch (err) {}
+            try { await fetch(apiURL('/api/admin/pin/toggle'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ require_pin: requirePIN }) }); } catch (err) {}
             const btn = document.getElementById('pin-toggle'), thumb = btn.querySelector('span'), display = document.getElementById('pin-display'), label = document.getElementById('pin-label');
             if (requirePIN) { btn.className = btn.className.replace('bg-gray-300', 'bg-indigo-600'); thumb.className = thumb.className.replace('translate-x-1', 'translate-x-6'); display.classList.remove('opacity-40'); label.textContent = 'Click PIN to change'; }
             else { btn.className = btn.className.replace('bg-indigo-600', 'bg-gray-300'); thumb.className = thumb.className.replace('translate-x-6', 'translate-x-1'); display.classList.add('opacity-40'); label.textContent = 'PIN is disabled'; }
@@ -1081,7 +1091,7 @@
         async function savePIN() {
             const pin = document.getElementById('pin-input').value.trim();
             if (!/^\d{4}$/.test(pin)) { showToast('PIN must be 4 digits', 'error'); return; }
-            try { const res = await fetch('/api/admin/pin', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) }); const data = await res.json(); if (data.ok) { document.getElementById('pin-value').textContent = pin; cancelEditPIN(); } } catch (err) { showToast('Failed to update PIN', 'error'); }
+            try { const res = await fetch(apiURL('/api/admin/pin'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) }); const data = await res.json(); if (data.ok) { document.getElementById('pin-value').textContent = pin; cancelEditPIN(); } } catch (err) { showToast('Failed to update PIN', 'error'); }
         }
 
         let qrShowingMDNS = true;
@@ -1113,7 +1123,7 @@
         let directoryCache = null;
         async function loadDirectory() {
             if (directoryCache) return directoryCache;
-            const res = await fetch('/api/v1/directory');
+            const res = await fetch(apiURL('/api/v1/directory'));
             directoryCache = await res.json();
             return directoryCache;
         }
@@ -1239,8 +1249,8 @@
 
             try {
                 const [attRes, metRes] = await Promise.all([
-                    fetch('/api/attendees?' + params),
-                    fetch('/api/attendees/metrics?' + params)
+                    fetch(apiURL('/api/attendees?') + params),
+                    fetch(apiURL('/api/attendees/metrics?') + params)
                 ]);
                 attendeesData = await attRes.json();
                 renderAttendees();
@@ -1289,7 +1299,7 @@
 
         (function initAudit() {
             document.getElementById('audit-date').value = localDate(new Date());
-            fetch('/api/settings').then(r => r.json()).then(s => {
+            fetch(apiURL('/api/settings')).then(r => r.json()).then(s => {
                 currentPinMode = s.pin_mode || 'off';
                 updatePinModeButtons();
             }).catch(() => {});
@@ -1309,7 +1319,7 @@
 
         async function setPinMode(mode) {
             try {
-                await fetch('/api/admin/pin/mode', {
+                await fetch(apiURL('/api/admin/pin/mode'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ pin_mode: mode })
@@ -1327,7 +1337,7 @@
             const div = document.getElementById('pin-override-results');
             if (!q || q.length < 2) { div.classList.add('hidden'); return; }
             pinOverrideTimeout = setTimeout(async () => {
-                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const res = await fetch(apiURL('/api/students/search?q=') + encodeURIComponent(q));
                 const students = await res.json();
                 if (!students || !students.length) { div.classList.add('hidden'); return; }
                 div.innerHTML = students.map(s =>
@@ -1341,7 +1351,7 @@
             document.getElementById('pin-override-results').classList.add('hidden');
             document.getElementById('pin-override-search').value = '';
             try {
-                await fetch('/api/v1/student/pin/require', {
+                await fetch(apiURL('/api/v1/student/pin/require'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ student_id: studentId, require_pin: require })
@@ -1353,7 +1363,7 @@
         async function resetStudentPinFromAudit(studentId) {
             if (!await showConfirm('Regenerate PIN for this student?')) return;
             try {
-                const resp = await fetch('/api/v1/student/pin/reset', {
+                const resp = await fetch(apiURL('/api/v1/student/pin/reset'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ student_id: studentId })
@@ -1366,7 +1376,7 @@
 
         async function loadPinOverrideList() {
             try {
-                const res = await fetch('/api/v1/directory?include_deleted=0');
+                const res = await fetch(apiURL('/api/v1/directory?include_deleted=0'));
                 const data = await res.json();
                 const students = (data.students || []).filter(s => s.require_pin);
                 const container = document.getElementById('pin-override-list');
@@ -1395,7 +1405,7 @@
 
         async function loadPinOverrideListAudit() {
             try {
-                const res = await fetch('/api/v1/directory?include_deleted=0');
+                const res = await fetch(apiURL('/api/v1/directory?include_deleted=0'));
                 const data = await res.json();
                 const students = (data.students || []).filter(s => s.require_pin);
                 const container = document.getElementById('pin-override-list-audit');
@@ -1422,8 +1432,8 @@
             const date = document.getElementById('audit-date').value;
             try {
                 const [flagsRes, devicesRes] = await Promise.all([
-                    fetch('/api/v1/audit/flags?from=' + date + '&to=' + date),
-                    fetch('/api/v1/audit/devices?date=' + date)
+                    fetch(apiURL('/api/v1/audit/flags?from=') + date + '&to=' + date),
+                    fetch(apiURL('/api/v1/audit/devices?date=') + date)
                 ]);
                 const flags = await flagsRes.json();
                 const devices = await devicesRes.json();
@@ -1474,7 +1484,7 @@
 
         async function dismissFlag(id) {
             try {
-                await fetch('/api/v1/audit/dismiss', {
+                await fetch(apiURL('/api/v1/audit/dismiss'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id })
@@ -1489,7 +1499,7 @@
 
         async function loadSchedule() {
             try {
-                const [wR,tR,cR] = await Promise.all([fetch('/api/v1/schedule/week'),fetch('/api/v1/schedule/today'),fetch('/api/v1/schedule/conflicts')]);
+                const [wR,tR,cR] = await Promise.all([fetch(apiURL('/api/v1/schedule/week')),fetch(apiURL('/api/v1/schedule/today')),fetch(apiURL('/api/v1/schedule/conflicts'))]);
                 renderWeekGrid(await wR.json()); renderTodaySessions(await tR.json()); renderConflicts(await cR.json()); scheduleLoaded = true;
             } catch(err) { console.error('Schedule load failed:', err); }
         }
@@ -1530,7 +1540,7 @@
 
         async function loadTrackerItems() {
             try {
-                const res = await fetch('/api/v1/tracker/items');
+                const res = await fetch(apiURL('/api/v1/tracker/items'));
                 trackerItems = await res.json();
                 renderTrackerItems();
             } catch(e) { console.error('Failed to load tracker items:', e); }
@@ -1656,7 +1666,7 @@
             const criteriaStr = Object.keys(criteria).length > 0 ? JSON.stringify(criteria) : '';
 
             try {
-                await fetch('/api/v1/tracker/items', {
+                await fetch(apiURL('/api/v1/tracker/items'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1678,7 +1688,7 @@
         async function deleteTrackerItem(id) {
             if (!await showConfirm('Delete this tracker item?')) return;
             try {
-                await fetch('/api/v1/tracker/items/delete', {
+                await fetch(apiURL('/api/v1/tracker/items/delete'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id })
@@ -1698,7 +1708,7 @@
         async function loadCriteriaDropdowns() {
             for (const field of ['birthplace', 'school', 'first_language']) {
                 try {
-                    const res = await fetch('/api/v1/tracker/field-values?field=' + field);
+                    const res = await fetch(apiURL('/api/v1/tracker/field-values?field=') + field);
                     const values = await res.json();
                     const sel = document.getElementById('criteria-' + field);
                     sel.innerHTML = '<option value="">-- select --</option>' +
@@ -1737,7 +1747,7 @@
             clearTimeout(personalSearchTimeout);
             if (!q || q.length < 2) { document.getElementById('personal-student-results').classList.add('hidden'); return; }
             personalSearchTimeout = setTimeout(async () => {
-                const res = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+                const res = await fetch(apiURL('/api/students/search?q=') + encodeURIComponent(q));
                 const students = await res.json();
                 const div = document.getElementById('personal-student-results');
                 if (!students || students.length === 0) { div.classList.add('hidden'); return; }
@@ -1761,7 +1771,7 @@
         async function loadAdhocItems() {
             if (!personalStudentID) return;
             try {
-                const res = await fetch('/api/tracker/student-items?student_id=' + encodeURIComponent(personalStudentID));
+                const res = await fetch(apiURL('/api/tracker/student-items?student_id=') + encodeURIComponent(personalStudentID));
                 const items = await res.json();
                 const tbody = document.getElementById('personal-items-tbody');
                 const empty = document.getElementById('personal-items-empty');
@@ -1789,7 +1799,7 @@
             const name = document.getElementById('personal-new-name').value.trim();
             if (!name || !personalStudentID) return;
             try {
-                await fetch('/api/tracker/student-items', {
+                await fetch(apiURL('/api/tracker/student-items'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1821,7 +1831,7 @@
         async function deleteAdhocItem(id) {
             if (!await showConfirm('Delete this item?')) return;
             try {
-                await fetch('/api/tracker/student-items/delete', {
+                await fetch(apiURL('/api/tracker/student-items/delete'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id })
@@ -1971,7 +1981,7 @@
             const container = document.getElementById('detail-resp-content');
             if (!date) return;
             try {
-                const res = await fetch('/api/v1/tracker/responses?student_id=' + encodeURIComponent(studentId) + '&date=' + date);
+                const res = await fetch(apiURL('/api/v1/tracker/responses?student_id=') + encodeURIComponent(studentId) + '&date=' + date);
                 if (!res.ok) { container.innerHTML = '<p class="text-xs text-red-400">Failed to load responses.</p>'; return; }
                 const responses = await res.json();
                 if (!responses || responses.length === 0) {
@@ -2026,7 +2036,7 @@
             document.getElementById('import-preview-btn').disabled = true;
 
             try {
-                const res = await fetch('/api/v1/import/upload', { method: 'POST', body: formData });
+                const res = await fetch(apiURL('/api/v1/import/upload'), { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.error) {
                     showImportStatus(data.error, 'error');
@@ -2180,7 +2190,7 @@
             document.getElementById('import-execute-btn').disabled = true;
 
             try {
-                const res = await fetch('/api/v1/import/execute', {
+                const res = await fetch(apiURL('/api/v1/import/execute'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body)
@@ -2272,7 +2282,7 @@
 
         async function loadPreferences() {
             try {
-                const prefs = await (await fetch('/api/v1/preferences')).json();
+                const prefs = await (await fetch(apiURL('/api/v1/preferences'))).json();
                 if (prefs && prefs.data_columns) {
                     const saved = JSON.parse(prefs.data_columns);
                     dataTabs.forEach(tab => { if (saved[tab]) columnVisibility[tab] = saved[tab]; });
@@ -2283,7 +2293,7 @@
 
         async function saveColumnPrefs() {
             try {
-                await fetch('/api/v1/preferences', {
+                await fetch(apiURL('/api/v1/preferences'), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ data_columns: JSON.stringify(columnVisibility) })
@@ -2662,7 +2672,7 @@
             if (!data.id) { showToast('ID is required', 'error'); return; }
 
             try {
-                const res = await fetch('/api/v1/data', {
+                const res = await fetch(apiURL('/api/v1/data'), {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ action: 'save', type: currentDataTab, data })
                 });
@@ -2675,7 +2685,7 @@
         async function deleteRecord(id) {
             if (!await showConfirm(`Delete this record? (ID: ${id})`)) return;
             try {
-                const res = await fetch('/api/v1/data', {
+                const res = await fetch(apiURL('/api/v1/data'), {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ action: 'delete', type: currentDataTab, id })
                 });
@@ -2709,7 +2719,7 @@
                 return;
             }
             try {
-                const res = await fetch('/api/v1/password-reset', {
+                const res = await fetch(apiURL('/api/v1/password-reset'), {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ type: currentDataTab, id, password })
                 });
@@ -2730,7 +2740,7 @@
         }
 
         function exportCurrentTabCSV() {
-            location.href = '/admin/export/csv?type=' + currentDataTab;
+            location.href = apiURL('/admin/export/csv?type=') + currentDataTab;
             closeDropdowns();
         }
 
@@ -2772,7 +2782,7 @@
 
             // Populate teacher dropdown
             try {
-                const res = await fetch('/api/v1/directory');
+                const res = await fetch(apiURL('/api/v1/directory'));
                 const data = await res.json();
                 const sel = document.getElementById('staff-teacher-filter');
                 (data.teachers || []).filter(t => !t.deleted).forEach(t => {
@@ -2796,7 +2806,7 @@
             if (to) params.set('to', to);
 
             try {
-                const res = await fetch('/api/v1/timeoff?' + params.toString());
+                const res = await fetch(apiURL('/api/v1/timeoff?') + params.toString());
                 staffTimeOffData = await res.json();
                 renderStaffTimeOff();
             } catch(e) { console.error('Failed to load time off:', e); }
@@ -2901,7 +2911,7 @@
                 showToast('Teacher and date are required', 'error'); return;
             }
             try {
-                const res = await fetch('/api/v1/timeoff/save', {
+                const res = await fetch(apiURL('/api/v1/timeoff/save'), {
                     method: 'POST', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify(data)
                 });
@@ -2919,7 +2929,7 @@
         async function deleteStaffTimeOff(id) {
             if (!confirm('Delete this time-off record?')) return;
             try {
-                const res = await fetch('/api/v1/timeoff/delete', {
+                const res = await fetch(apiURL('/api/v1/timeoff/delete'), {
                     method: 'POST', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({id})
                 });
